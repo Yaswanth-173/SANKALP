@@ -1,6 +1,6 @@
 # Sankalp backend contract
 
-The deployed frontend currently calls the existing Express API. Authentication uses an `httpOnly` cookie named `token`; clients must not send or store JWTs in browser storage.
+The deployed frontend currently calls the existing Express API. The live backend uses the `pg` driver and the PostgreSQL database configured by `DATABASE_URL`. Authentication uses an `httpOnly` cookie named `token`; clients must not send or store JWTs in browser storage.
 
 | Frontend feature | API | Current storage/authorization | Validation/security |
 | --- | --- | --- | --- |
@@ -17,19 +17,20 @@ The deployed frontend currently calls the existing Express API. Authentication u
 | Calendar | `/api/calendar/events*` | `user_id = authenticated user` | Date/type validation and ownership filters |
 | Tasks | `/api/tasks/*` | `user_id = authenticated user` | Status/type/priority validation and ownership filters |
 
-## Supabase deployment
+## Database and backend deployment
 
-Apply `supabase/migrations/0001_sankalp_core.sql` to the target Supabase project. It creates the normalized catalog, cart, order, project, contractor, report, note, messaging, notification, calendar, address, payment, and audit tables, plus RLS policies for user-sensitive data.
+For the current application, provision any reachable PostgreSQL database and set `DATABASE_URL` in the backend deployment. On startup, `server/src/db/ensureSchema.js` creates the live tables and the seeders populate contractor and material data. The current API does not use Supabase Auth, Supabase PostgREST, Supabase Storage, or Supabase Row Level Security.
 
-The current Express server still uses `DATABASE_URL` and its legacy schema. Switching runtime reads/writes to Supabase Auth/PostgREST is a separate migration step requiring a Supabase project URL, anon key, service-role key, and a data migration plan. Do not put the service-role key in Vercel client variables.
+The repository intentionally has no `supabase/` integration. Supabase can still be used as the PostgreSQL host by supplying its connection string as `DATABASE_URL`, but it is then PostgreSQL only: the server continues to use `pg` and its existing schema. Do not add Supabase Auth, PostgREST, or RLS claims unless the runtime is deliberately migrated and tested.
 
 ## Location
 
-`MaterialsPage` requests browser geolocation once, reverse-geocodes coordinates, and falls back to the profile/manual city. The current reverse geocoder is public Nominatim and therefore needs a production provider with an agreed usage policy before high-volume deployment. The Supabase schema stores a PostGIS point for efficient nearby queries.
+`MaterialsPage` requests browser geolocation once, reverse-geocodes coordinates, and falls back to the profile/manual city. The current reverse geocoder is public Nominatim and therefore needs a production provider with an agreed usage policy before high-volume deployment. The live raw PostgreSQL schema currently calculates Haversine distance in the materials controller.
 
 ## Known production prerequisites
 
 - Configure `DATABASE_URL`, `JWT_SECRET`, `CLIENT_URL`, and transactional email credentials in the backend deployment.
-- Apply the Supabase migration and decide whether Express or Supabase Edge Functions own runtime data access.
+- Deploy the Express server separately from the Vercel frontend using the root `render.yaml` blueprint, then point `VITE_API_URL` at the Render service URL.
+- Set `CLIENT_URL` to the exact Vercel origin, including `https://` and excluding any trailing path.
 - Configure a production reverse-geocoding provider and server-side proxy/rate limit.
 - Add a payment provider before exposing paid checkout; the current order flow intentionally leaves `payment_status` pending.

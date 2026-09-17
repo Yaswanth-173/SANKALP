@@ -8,8 +8,10 @@ import Spinner from '../components/Spinner.jsx'
 import { validateLogin } from '../utils/validators.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTranslation } from '../i18n/index.js'
+import { demoLogin } from '../utils/demoApi.js'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055'
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -47,6 +49,12 @@ function LoginPage() {
 
     setStatus('submitting')
     try {
+      if (DEMO_MODE) {
+        const data = await demoLogin(form.email, form.password)
+        setSession(data.user)
+        navigate('/dashboard')
+        return
+      }
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

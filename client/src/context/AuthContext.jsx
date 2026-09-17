@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { demoLogout, demoSession } from '../utils/demoApi.js'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055'
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -9,6 +11,12 @@ export function AuthProvider({ children }) {
 
   const refresh = useCallback(async () => {
     try {
+      if (DEMO_MODE) {
+        const data = await demoSession()
+        setUser(data.user)
+        setStatus('authenticated')
+        return
+      }
       const res = await fetch(`${API_URL}/api/auth/me`, {
         credentials: 'include',
       })
@@ -32,6 +40,12 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    if (DEMO_MODE) {
+      await demoLogout()
+      setUser(null)
+      setStatus('unauthenticated')
+      return
+    }
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
         method: 'POST',
