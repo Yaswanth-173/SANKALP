@@ -359,6 +359,13 @@ function stockStatusFor(productId) {
   return 'in_stock' // 85%
 }
 
+function stockFor(productId) {
+  const status = stockStatusFor(productId)
+  if (status === 'out_of_stock') return 0
+  if (status === 'low_stock') return 3
+  return 50
+}
+
 const CATEGORY_PRODUCTS = {
   Cement: CEMENT_PRODUCTS,
   Steel: STEEL_PRODUCTS,
@@ -430,12 +437,13 @@ export async function seedMaterials() {
         validProductIds.push(productId)
         const image = MATERIAL_IMAGES[product.name] || {}
         const stockStatus = stockStatusFor(productId)
+        const stock = stockFor(productId)
         await client.query(
-          `INSERT INTO material_products (id, shop_id, name, unit, price, icon, image_url, image_source, stock_status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO material_products (id, shop_id, name, unit, price, icon, image_url, image_source, stock_status, stock)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            ON CONFLICT (id) DO UPDATE SET shop_id = $2, name = $3, unit = $4, price = $5, icon = $6,
-             image_url = $7, image_source = $8, stock_status = $9`,
-          [productId, shop.id, product.name, product.unit, product.price, product.icon, image.url || null, image.source || null, stockStatus]
+             image_url = $7, image_source = $8, stock_status = $9, stock = $10`,
+          [productId, shop.id, product.name, product.unit, product.price, product.icon, image.url || null, image.source || null, stockStatus, stock]
         )
       }
     }

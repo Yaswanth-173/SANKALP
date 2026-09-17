@@ -6,10 +6,16 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       full_name VARCHAR(120) NOT NULL,
+      username VARCHAR(30) UNIQUE,
       email VARCHAR(255) NOT NULL UNIQUE,
       phone VARCHAR(20) NOT NULL,
       password_hash TEXT NOT NULL,
       role VARCHAR(20) NOT NULL DEFAULT 'customer',
+      email_verified_at TIMESTAMPTZ,
+      verification_otp_hash TEXT,
+      verification_otp_expires TIMESTAMPTZ,
+      verification_attempts INT NOT NULL DEFAULT 0,
+      verification_sent_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
@@ -21,6 +27,14 @@ export async function ensureSchema() {
       '{"theme":"dark","language":"en","emailNotifications":true}'::jsonb
   `)
   await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(80)')
+  await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(30)')
+  await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ')
+  await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_otp_hash TEXT')
+  await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_otp_expires TIMESTAMPTZ')
+  await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_attempts INT NOT NULL DEFAULT 0')
+  await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_sent_at TIMESTAMPTZ')
+  await query('CREATE INDEX IF NOT EXISTS users_email_idx ON users (lower(email))')
+  await query('CREATE UNIQUE INDEX IF NOT EXISTS users_username_idx ON users (lower(username)) WHERE username IS NOT NULL')
 
   await query(`
     CREATE TABLE IF NOT EXISTS calendar_events (
@@ -147,11 +161,13 @@ export async function ensureSchema() {
       image_url TEXT,
       image_source TEXT,
       stock_status VARCHAR(20) NOT NULL DEFAULT 'in_stock'
+      ,stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0)
     )
   `)
   await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS image_url TEXT')
   await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS image_source TEXT')
   await query("ALTER TABLE material_products ADD COLUMN IF NOT EXISTS stock_status VARCHAR(20) NOT NULL DEFAULT 'in_stock'")
+  await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS stock INT NOT NULL DEFAULT 0')
   await query('CREATE INDEX IF NOT EXISTS material_products_shop_idx ON material_products (shop_id)')
 
   await query(`

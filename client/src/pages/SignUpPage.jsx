@@ -7,11 +7,13 @@ import PasswordToggle from '../components/PasswordToggle.jsx'
 import Spinner from '../components/Spinner.jsx'
 import { validateSignUp } from '../utils/validators.js'
 import { useTranslation } from '../i18n/index.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055'
 
 const initialForm = {
   fullName: '',
+  username: '',
   phone: '',
   email: '',
   password: '',
@@ -21,13 +23,15 @@ const initialForm = {
 function SignUpPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { setSession } = useAuth()
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [status, setStatus] = useState('idle') // idle | submitting | success | error
+  const [status, setStatus] = useState('idle') // idle | submitting | verify | success | error
   const [formError, setFormError] = useState('')
+  const [otp, setOtp] = useState('')
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -46,7 +50,7 @@ function SignUpPage() {
 
     const validationErrors = validateSignUp(form)
     setErrors(validationErrors)
-    setTouched({ fullName: true, phone: true, email: true, password: true, confirmPassword: true })
+    setTouched({ fullName: true, username: true, phone: true, email: true, password: true, confirmPassword: true })
     setFormError('')
 
     if (Object.keys(validationErrors).length > 0) return
@@ -68,12 +72,54 @@ function SignUpPage() {
         return
       }
 
-      if (data.token) localStorage.setItem('sankalp_token', data.token)
-      setStatus('success')
-      setTimeout(() => navigate('/login'), 1600)
+      setStatus('verify')
     } catch {
       setFormError('Could not reach the server. Please check your connection and try again.')
       setStatus('error')
+    }
+  }
+
+  const handleVerify = async (e) => {
+    e.preventDefault()
+    if (!/^\d{6}$/.test(otp)) {
+      setFormError('Enter the 6-digit verification code sent to your email.')
+      return
+    }
+    setStatus('submitting')
+    setFormError('')
+    try {
+      const res = await fetch(`${API_URL}/api/auth/verify-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: form.email, otp }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setFormError(data.message || 'Invalid or expired verification code.')
+        setStatus('verify')
+        return
+      }
+      setSession(data.user)
+      setStatus('success')
+      setTimeout(() => navigate('/dashboard'), 900)
+    } catch {
+      setFormError('Could not reach the server. Please check your connection and try again.')
+      setStatus('verify')
+    }
+  }
+
+  const handleResend = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email }),
+      })
+      const data = await res.json()
+      setFormError(res.ok ? data.message : data.message || 'Unable to resend code.')
+    } catch {
+      setFormError('Could not reach the server. Please check your connection and try again.')
     }
   }
 
@@ -111,6 +157,31 @@ function SignUpPage() {
             <p className="font-display text-lg font-semibold text-ink">{t('auth.signup.successTitle')}</p>
             <p className="text-sm text-ink/60">{t('auth.signup.successSubtitle')}</p>
           </motion.div>
+        ) : status === 'verify' ? (
+          <motion.form
+            key="verify"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onSubmit={handleVerify}
+            className="flex flex-col gap-4"
+          >
+            {formError && <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-300" role="alert">{formError}</p>}
+            <p className="text-sm text-ink/60">Enter the 6-digit code sent to {form.email}.</p>
+            <FormField
+              id="otp"
+              label="Email verification code"
+              inputMode="numeric"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="123456"
+              autoComplete="one-time-code"
+            />
+            <button type="submit" disabled={status === 'submitting'} className="group relative mt-2 flex items-center justify-center gap-2 overflow-hidden rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal transition-all duration-300 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-70">
+              {status === 'submitting' && <Spinner className="h-4 w-4" />}
+              Verify email
+            </button>
+            <button type="button" onClick={handleResend} className="text-sm text-gold-400 hover:text-gold-300">Resend code</button>
+          </motion.form>
         ) : (
           <motion.form
             key="form"
@@ -152,6 +223,16 @@ function SignUpPage() {
               error={touched.phone ? errors.phone : ''}
               placeholder="+91 98765 43210"
               autoComplete="tel"
+            />
+            <FormField
+              id="username"
+              label="Username"
+              value={form.username}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.username ? errors.username : ''}
+              placeholder="your_username"
+              autoComplete="username"
             />
             <FormField
               id="email"

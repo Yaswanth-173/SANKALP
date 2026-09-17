@@ -19,7 +19,7 @@ function getTransporter() {
 export async function sendOtpEmail(to, otp) {
   const t = getTransporter()
   if (!t) {
-    console.log(`[mailer] Gmail not configured — dev OTP for ${to}: ${otp}`)
+    if (process.env.NODE_ENV !== 'production') console.log(`[mailer] Gmail not configured — dev OTP for ${to}: ${otp}`)
     return { delivered: false }
   }
 
@@ -44,6 +44,22 @@ export async function sendOtpEmail(to, otp) {
         </div>
       </div>
     `,
+  })
+  return { delivered: true }
+}
+
+export async function sendVerificationEmail(to, otp) {
+  const t = getTransporter()
+  if (!t) {
+    if (process.env.NODE_ENV !== 'production') console.log(`[mailer] Gmail not configured — dev verification OTP for ${to}: ${otp}`)
+    return { delivered: false }
+  }
+
+  await t.sendMail({
+    from: `Sankalp <${process.env.GMAIL_USER}>`,
+    to,
+    subject: 'Verify your Sankalp account',
+    text: `Your Sankalp verification code is ${otp}. It expires in 10 minutes.`,
   })
   return { delivered: true }
 }

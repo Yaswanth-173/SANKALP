@@ -1,14 +1,18 @@
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-export const PHONE_RE = /^[0-9+\-\s()]{7,15}$/
+export const PHONE_RE = /^(?:\+91[\s-]?)?[6-9]\d{9}$/
+export const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/
 export const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
-export function validateSignUp({ fullName, phone, email, password, confirmPassword }) {
+export function validateSignUp({ fullName, username, phone, email, password, confirmPassword }) {
   const errors = {}
   if (!fullName || fullName.trim().length < 2) {
     errors.fullName = 'Enter your full name'
   }
-  if (!phone || !PHONE_RE.test(phone.trim())) {
-    errors.phone = 'Enter a valid phone number'
+  if (!username || !USERNAME_RE.test(username.trim())) {
+    errors.username = 'Use 3-30 letters, numbers or underscores'
+  }
+  if (!phone || !/^(?:\+91[\s-]?)?[6-9]\d{9}$/.test(phone.replace(/[\s-]/g, '').trim())) {
+    errors.phone = 'Enter a valid Indian phone number'
   }
   if (!email || !EMAIL_RE.test(email.trim())) {
     errors.email = 'Enter a valid email address'
@@ -24,8 +28,8 @@ export function validateSignUp({ fullName, phone, email, password, confirmPasswo
 
 export function validateLogin({ email, password }) {
   const errors = {}
-  if (!email || !EMAIL_RE.test(email.trim())) {
-    errors.email = 'Enter a valid email address'
+  if (!email || (!EMAIL_RE.test(email.trim()) && !USERNAME_RE.test(email.trim()))) {
+    errors.email = 'Enter a valid email address or username'
   }
   if (!password) {
     errors.password = 'Enter your password'

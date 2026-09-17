@@ -61,10 +61,6 @@ function LoginPage() {
         return
       }
 
-      if (data.token) {
-        const storage = remember ? localStorage : sessionStorage
-        storage.setItem('sankalp_token', data.token)
-      }
       setSession(data.user)
       navigate('/dashboard')
     } catch {

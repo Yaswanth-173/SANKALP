@@ -17,6 +17,7 @@ const publicProduct = (p) => ({
   imageUrl: p.image_url,
   imageSource: p.image_source,
   stockStatus: p.stock_status,
+  stock: Number(p.stock || 0),
 })
 
 // Great-circle distance between two lat/lng points, in kilometers.
@@ -136,15 +137,25 @@ export async function createOrder(req, res) {
       if (!shopRows.length) throw new Error('SHOP_NOT_FOUND')
       const shop = shopRows[0]
 
-      const { rows: productRows } = await client.query('SELECT * FROM material_products WHERE shop_id = $1', [shopId])
+      const { rows: productRows } = await client.query('SELECT * FROM material_products WHERE shop_id = $1 FOR UPDATE', [shopId])
       const productMap = new Map(productRows.map((p) => [p.id, p]))
+      const requestedItems = [...items.reduce((map, item) => {
+        const quantity = Number(item.quantity)
+        if (item?.productId && Number.isInteger(quantity) && quantity > 0) {
+          map.set(item.productId, (map.get(item.productId) || 0) + quantity)
+        }
+        return map
+      }, new Map())].map(([productId, quantity]) => ({ productId, quantity }))
 
       let total = 0
       const resolvedItems = []
-      for (const item of items) {
+      for (const item of requestedItems) {
         const product = productMap.get(item.productId)
         const quantity = Number(item.quantity)
         if (!product || !Number.isInteger(quantity) || quantity < 1) continue
+        if (product.stock_status === 'out_of_stock' || Number(product.stock) < quantity) {
+          throw new Error('INSUFFICIENT_STOCK')
+        }
         const unitPrice = Number(product.price)
         total += unitPrice * quantity
         resolvedItems.push({ name: product.name, unit: product.unit, unitPrice, quantity })
@@ -162,6 +173,17 @@ export async function createOrder(req, res) {
           `INSERT INTO material_order_items (order_id, product_name, unit, unit_price, quantity)
            VALUES ($1, $2, $3, $4, $5)`,
           [newOrder.id, item.name, item.unit, item.unitPrice, item.quantity]
+        )
+      }
+
+      for (const item of requestedItems) {
+        await client.query(
+          `UPDATE material_products SET stock = stock - $1, stock_status = CASE
+            WHEN stock - $1 <= 0 THEN 'out_of_stock'
+            WHEN stock - $1 <= 3 THEN 'low_stock'
+            ELSE 'in_stock' END
+           WHERE id = $2 AND shop_id = $3`,
+          [item.quantity, item.productId, shopId]
         )
       }
 
@@ -187,7 +209,7 @@ export async function createOrder(req, res) {
       },
     })
   } catch (err) {
-    if (err.message === 'SHOP_NOT_FOUND' || err.message === 'NO_VALID_ITEMS') {
+    if (err.message === 'SHOP_NOT_FOUND' || err.message === 'NO_VALID_ITEMS' || err.message === 'INSUFFICIENT_STOCK') {
       return res.status(400).json({ message: 'That order could not be placed. Please check your cart and try again.' })
     }
     console.error('Create order error', err)

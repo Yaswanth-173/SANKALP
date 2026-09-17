@@ -9,7 +9,7 @@ export async function requireAuth(req, res, next) {
 
     const decoded = verifyToken(token)
     const { rows } = await query(
-      'SELECT id, full_name, email, phone, role, preferences, location FROM users WHERE id = $1',
+      'SELECT id, full_name, username, email, phone, role, preferences, location FROM users WHERE id = $1',
       [decoded.id]
     )
     if (!rows.length) return res.status(401).json({ message: 'User not found' })
