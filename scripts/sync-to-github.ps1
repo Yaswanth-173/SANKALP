@@ -1,6 +1,6 @@
 <#
   .SYNOPSIS
-    Safe sync workflow for the Sankalp repo: build -> stage -> commit -> push.
+    Safe sync workflow for the Sankalp repo: build -> stage -> commit -> rebase -> push.
     Never force-pushes. Never commits/pushes if the build fails.
 
   .PARAMETER Message
@@ -37,26 +37,9 @@ $branch = (git branch --show-current).Trim()
 if (-not $branch) { Fail "Not on any branch (detached HEAD?). Checkout a branch first." }
 Write-Host "[sync] branch -> $branch" -ForegroundColor Cyan
 
-# 4. Anything to do?
 git fetch origin *> $null 2>&1
-$statusPorcelain = git status --porcelain
-if (-not $statusPorcelain) {
-  Write-Host "[sync] Working tree is clean - nothing new to stage." -ForegroundColor Yellow
-}
 
-# 5. If the branch tracks an upstream, rebase safely onto it first (never force)
-$upstream = git rev-parse --abbrev-ref "$branch@{upstream}" 2>$null
-if ($LASTEXITCODE -eq 0 -and $upstream) {
-  Write-Host "[sync] Pulling --rebase from $upstream" -ForegroundColor Cyan
-  git pull --rebase origin $branch
-  if ($LASTEXITCODE -ne 0) {
-    Fail "Rebase failed (likely a conflict). Resolve manually, then re-run 'npm run sync'."
-  }
-} else {
-  Write-Host "[sync] No upstream tracked yet for '$branch' - skipping pull/rebase." -ForegroundColor Yellow
-}
-
-# 6. Build the client - do NOT commit/push if this fails
+# 4. Build the client first - do NOT stage/commit/push if this fails
 Write-Host "`n[sync] Running client build (npm run build)..." -ForegroundColor Cyan
 Push-Location (Join-Path $repoRoot 'client')
 npm run build
@@ -67,19 +50,19 @@ if ($buildExitCode -ne 0) {
 }
 Write-Host "[sync] Build succeeded." -ForegroundColor Green
 
-# 7. Stage changes
+# 5. Stage changes
 git add -A
 
 $staged = git diff --cached --name-status
 if (-not $staged) {
-  Write-Host "`n[sync] No changes to commit after staging. Nothing to push." -ForegroundColor Yellow
+  Write-Host "`n[sync] No local changes to commit. Nothing to push." -ForegroundColor Yellow
   exit 0
 }
 
 Write-Host "`n[sync] Files to be committed:" -ForegroundColor Cyan
 git diff --cached --stat
 
-# 8. Commit
+# 6. Commit
 if (-not $Message) {
   $topDirs = ($staged -split "`n" | ForEach-Object {
     $parts = ($_ -split "`t")[-1] -split '/'
@@ -93,7 +76,20 @@ git commit -m "$Message"
 if ($LASTEXITCODE -ne 0) { Fail "git commit failed." }
 $commitHash = (git rev-parse --short HEAD).Trim()
 
-# 9. Push (never force)
+# 7. Now that the working tree is clean (just committed), it's safe to rebase
+# onto any new upstream commits before pushing - never force-pushes.
+$upstream = git rev-parse --abbrev-ref "$branch@{upstream}" 2>$null
+if ($LASTEXITCODE -eq 0 -and $upstream) {
+  Write-Host "`n[sync] Rebasing onto $upstream" -ForegroundColor Cyan
+  git pull --rebase origin $branch
+  if ($LASTEXITCODE -ne 0) {
+    Fail "Rebase failed (likely a conflict with remote changes). Your commit ($commitHash) is safe locally. Resolve the conflict manually (git status will show how), then re-run 'npm run sync'."
+  }
+} else {
+  Write-Host "[sync] No upstream tracked yet for '$branch' - first push will set it up." -ForegroundColor Yellow
+}
+
+# 8. Push (never force)
 Write-Host "`n[sync] Pushing to origin/$branch" -ForegroundColor Cyan
 git push -u origin $branch
 if ($LASTEXITCODE -ne 0) {

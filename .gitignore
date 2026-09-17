@@ -9,3 +9,8 @@ build/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Unused scratch artifacts left at the project root from earlier work
+# (not referenced by any code — the real data lives under server/src/data/)
+/sankalp_51_contractor_icons_preview.png
+/sankalp_51_contractors_357_members.csv
