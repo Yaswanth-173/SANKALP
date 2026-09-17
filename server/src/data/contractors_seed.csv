@@ -1,0 +1,358 @@
+contractor_id,contractor_name,category,member_id,member_name,role,experience_years,rating,availability,team_size
+C001,Full House Construction Contractor,Full House Construction,C001-M01,Arjun Reddy,Project Manager,4,4.3,Available,7
+C001,Full House Construction Contractor,Full House Construction,C001-M02,Rahul Verma,Site Engineer,6,4.5,Available,7
+C001,Full House Construction Contractor,Full House Construction,C001-M03,Vikram Yadav,Civil Engineer,8,4.7,Busy,7
+C001,Full House Construction Contractor,Full House Construction,C001-M04,Suresh Menon,Electrical Supervisor,10,4.9,Available,7
+C001,Full House Construction Contractor,Full House Construction,C001-M05,Ramesh Joshi,Plumbing Supervisor,12,4.3,Available,7
+C001,Full House Construction Contractor,Full House Construction,C001-M06,Karthik Babu,Finishing Supervisor,14,4.5,Available,7
+C001,Full House Construction Contractor,Full House Construction,C001-M07,Pradeep Agarwal,Safety Officer,3,4.7,Available,7
+C002,Civil Contractor,Core Construction,C002-M01,Naveen Shetty,Civil Engineer,11,4.2,Available,7
+C002,Civil Contractor,Core Construction,C002-M02,Rohit Prasad,Site Supervisor,13,4.4,Busy,7
+C002,Civil Contractor,Core Construction,C002-M03,Manoj Reddy,RCC Supervisor,15,4.6,Available,7
+C002,Civil Contractor,Core Construction,C002-M04,Harish Verma,Mason,4,4.8,Available,7
+C002,Civil Contractor,Core Construction,C002-M05,Ajay Yadav,Surveyor,6,4.2,Available,7
+C002,Civil Contractor,Core Construction,C002-M06,Vijay Menon,Quantity Surveyor,8,4.4,Available,7
+C002,Civil Contractor,Core Construction,C002-M07,Sai Joshi,Safety Officer,10,4.6,Busy,7
+C003,Electrical Contractor,Core Construction,C003-M01,Dinesh Das,Electrical Engineer,5,4.9,Busy,7
+C003,Electrical Contractor,Core Construction,C003-M02,Mahesh Kapoor,Electrical Supervisor,7,4.3,Available,7
+C003,Electrical Contractor,Core Construction,C003-M03,Anil Shetty,Electrician,9,4.5,Available,7
+C003,Electrical Contractor,Core Construction,C003-M04,Sunil Prasad,Wireman,11,4.7,Available,7
+C003,Electrical Contractor,Core Construction,C003-M05,Tarun Reddy,Panel Technician,13,4.9,Available,7
+C003,Electrical Contractor,Core Construction,C003-M06,Varun Verma,Testing Technician,15,4.3,Busy,7
+C003,Electrical Contractor,Core Construction,C003-M07,Aditya Yadav,Helper,4,4.5,Available,7
+C004,Plumbing Contractor,Core Construction,C004-M01,Akash Rao,Plumbing Engineer,12,4.8,Available,7
+C004,Plumbing Contractor,Core Construction,C004-M02,Ravi Gupta,Plumbing Supervisor,14,4.2,Available,7
+C004,Plumbing Contractor,Core Construction,C004-M03,Mohan Das,Pipe Fitter,3,4.4,Available,7
+C004,Plumbing Contractor,Core Construction,C004-M04,Nikhil Kapoor,Plumber,5,4.6,Available,7
+C004,Plumbing Contractor,Core Construction,C004-M05,Abhishek Shetty,Pump Technician,7,4.8,Busy,7
+C004,Plumbing Contractor,Core Construction,C004-M06,Pavan Prasad,Drainage Technician,9,4.2,Available,7
+C004,Plumbing Contractor,Core Construction,C004-M07,Srikanth Reddy,Helper,11,4.4,Available,7
+C005,Masonry Contractor,Core Construction,C005-M01,Teja Goud,Masonry Supervisor,6,4.7,Available,7
+C005,Masonry Contractor,Core Construction,C005-M02,Lokesh Sharma,Senior Mason,8,4.9,Available,7
+C005,Masonry Contractor,Core Construction,C005-M03,Yash Rao,Mason,10,4.3,Available,7
+C005,Masonry Contractor,Core Construction,C005-M04,Surya Gupta,Bricklayer,12,4.5,Busy,7
+C005,Masonry Contractor,Core Construction,C005-M05,Gopal Das,Block Work Mason,14,4.7,Available,7
+C005,Masonry Contractor,Core Construction,C005-M06,Venkat Kapoor,Helper,3,4.9,Available,7
+C005,Masonry Contractor,Core Construction,C005-M07,Chandra Shetty,Site Supervisor,5,4.3,Available,7
+C006,Carpentry Contractor,Core Construction,C006-M01,Rajesh Mehta,Carpentry Supervisor,13,4.6,Available,7
+C006,Carpentry Contractor,Core Construction,C006-M02,Ganesh Khan,Senior Carpenter,15,4.8,Available,7
+C006,Carpentry Contractor,Core Construction,C006-M03,Prakash Goud,Carpenter,4,4.2,Busy,7
+C006,Carpentry Contractor,Core Construction,C006-M04,Kiran Sharma,Furniture Carpenter,6,4.4,Available,7
+C006,Carpentry Contractor,Core Construction,C006-M05,Madhav Rao,Door Installer,8,4.6,Available,7
+C006,Carpentry Contractor,Core Construction,C006-M06,Raghu Gupta,Finishing Carpenter,10,4.8,Available,7
+C006,Carpentry Contractor,Core Construction,C006-M07,Sanjay Das,Helper,12,4.2,Available,7
+C007,Painting Contractor,Core Construction,C007-M01,Shankar Mishra,Painting Supervisor,7,4.5,Available,7
+C007,Painting Contractor,Core Construction,C007-M02,Bharat Nair,Senior Painter,9,4.7,Busy,7
+C007,Painting Contractor,Core Construction,C007-M03,Sandeep Mehta,Painter,11,4.9,Available,7
+C007,Painting Contractor,Core Construction,C007-M04,Amit Khan,Putty Worker,13,4.3,Available,7
+C007,Painting Contractor,Core Construction,C007-M05,Deepak Goud,Spray Painter,15,4.5,Available,7
+C007,Painting Contractor,Core Construction,C007-M06,Uday Sharma,Finishing Painter,4,4.7,Available,7
+C007,Painting Contractor,Core Construction,C007-M07,Nithin Rao,Helper,6,4.9,Busy,7
+C008,Flooring Contractor,Core Construction,C008-M01,Manish Patel,Flooring Supervisor,14,4.4,Busy,7
+C008,Flooring Contractor,Core Construction,C008-M02,Rakesh Naidu,Tile Setter,3,4.6,Available,7
+C008,Flooring Contractor,Core Construction,C008-M03,Rajan Mishra,Marble Installer,5,4.8,Available,7
+C008,Flooring Contractor,Core Construction,C008-M04,Naresh Nair,Granite Installer,7,4.2,Available,7
+C008,Flooring Contractor,Core Construction,C008-M05,Vivek Mehta,Wood Flooring Installer,9,4.4,Available,7
+C008,Flooring Contractor,Core Construction,C008-M06,Ranjit Khan,Floor Polisher,11,4.6,Busy,7
+C008,Flooring Contractor,Core Construction,C008-M07,Mukul Goud,Helper,13,4.8,Available,7
+C009,Roofing Contractor,Core Construction,C009-M01,Arjun Jain,Roofing Supervisor,8,4.3,Available,7
+C009,Roofing Contractor,Core Construction,C009-M02,Rahul Murthy,Roof Installer,10,4.5,Available,7
+C009,Roofing Contractor,Core Construction,C009-M03,Vikram Patel,Tile Roofer,12,4.7,Available,7
+C009,Roofing Contractor,Core Construction,C009-M04,Suresh Naidu,Sheet Installer,14,4.9,Available,7
+C009,Roofing Contractor,Core Construction,C009-M05,Ramesh Mishra,Waterproofing Technician,3,4.3,Busy,7
+C009,Roofing Contractor,Core Construction,C009-M06,Karthik Nair,Roof Carpenter,5,4.5,Available,7
+C009,Roofing Contractor,Core Construction,C009-M07,Pradeep Mehta,Helper,7,4.7,Available,7
+C010,Windows & Doors Contractor,Core Construction,C010-M01,Naveen Pillai,Installation Supervisor,15,4.2,Available,7
+C010,Windows & Doors Contractor,Core Construction,C010-M02,Rohit Varma,UPVC Installer,4,4.4,Available,7
+C010,Windows & Doors Contractor,Core Construction,C010-M03,Manoj Jain,Aluminium Fabricator,6,4.6,Available,7
+C010,Windows & Doors Contractor,Core Construction,C010-M04,Harish Murthy,Door Installer,8,4.8,Busy,7
+C010,Windows & Doors Contractor,Core Construction,C010-M05,Ajay Patel,Glass Fitter,10,4.2,Available,7
+C010,Windows & Doors Contractor,Core Construction,C010-M06,Vijay Naidu,Hardware Technician,12,4.4,Available,7
+C010,Windows & Doors Contractor,Core Construction,C010-M07,Sai Mishra,Helper,14,4.6,Available,7
+C011,Steel & Fabrication Contractor,Core Construction,C011-M01,Dinesh Chowdary,Fabrication Supervisor,9,4.9,Available,7
+C011,Steel & Fabrication Contractor,Core Construction,C011-M02,Mahesh Iyer,Steel Fabricator,11,4.3,Available,7
+C011,Steel & Fabrication Contractor,Core Construction,C011-M03,Anil Pillai,Welder,13,4.5,Busy,7
+C011,Steel & Fabrication Contractor,Core Construction,C011-M04,Sunil Varma,Structural Fitter,15,4.7,Available,7
+C011,Steel & Fabrication Contractor,Core Construction,C011-M05,Tarun Jain,Grinder Operator,4,4.9,Available,7
+C011,Steel & Fabrication Contractor,Core Construction,C011-M06,Varun Murthy,Erection Technician,6,4.3,Available,7
+C011,Steel & Fabrication Contractor,Core Construction,C011-M07,Aditya Patel,Helper,8,4.5,Available,7
+C012,HVAC Contractor,Core Construction,C012-M01,Akash Kumar,HVAC Engineer,3,4.8,Available,7
+C012,HVAC Contractor,Core Construction,C012-M02,Ravi Singh,HVAC Supervisor,5,4.2,Busy,7
+C012,HVAC Contractor,Core Construction,C012-M03,Mohan Chowdary,AC Technician,7,4.4,Available,7
+C012,HVAC Contractor,Core Construction,C012-M04,Nikhil Iyer,Duct Installer,9,4.6,Available,7
+C012,HVAC Contractor,Core Construction,C012-M05,Abhishek Pillai,Refrigeration Technician,11,4.8,Available,7
+C012,HVAC Contractor,Core Construction,C012-M06,Pavan Varma,Ventilation Technician,13,4.2,Available,7
+C012,HVAC Contractor,Core Construction,C012-M07,Srikanth Jain,Helper,15,4.4,Busy,7
+C013,Lift & Elevator Contractor,Core Construction,C013-M01,Teja Babu,Lift Engineer,10,4.7,Busy,7
+C013,Lift & Elevator Contractor,Core Construction,C013-M02,Lokesh Agarwal,Lift Supervisor,12,4.9,Available,7
+C013,Lift & Elevator Contractor,Core Construction,C013-M03,Yash Kumar,Installation Technician,14,4.3,Available,7
+C013,Lift & Elevator Contractor,Core Construction,C013-M04,Surya Singh,Electrical Technician,3,4.5,Available,7
+C013,Lift & Elevator Contractor,Core Construction,C013-M05,Gopal Chowdary,Mechanical Technician,5,4.7,Available,7
+C013,Lift & Elevator Contractor,Core Construction,C013-M06,Venkat Iyer,Service Technician,7,4.9,Busy,7
+C013,Lift & Elevator Contractor,Core Construction,C013-M07,Chandra Pillai,Safety Technician,9,4.3,Available,7
+C014,Waterproofing Contractor,Core Construction,C014-M01,Rajesh Menon,Waterproofing Engineer,4,4.6,Available,7
+C014,Waterproofing Contractor,Core Construction,C014-M02,Ganesh Joshi,Site Supervisor,6,4.8,Available,7
+C014,Waterproofing Contractor,Core Construction,C014-M03,Prakash Babu,Terrace Technician,8,4.2,Available,7
+C014,Waterproofing Contractor,Core Construction,C014-M04,Kiran Agarwal,Basement Technician,10,4.4,Available,7
+C014,Waterproofing Contractor,Core Construction,C014-M05,Madhav Kumar,Chemical Applicator,12,4.6,Busy,7
+C014,Waterproofing Contractor,Core Construction,C014-M06,Raghu Singh,Leak Detection Technician,14,4.8,Available,7
+C014,Waterproofing Contractor,Core Construction,C014-M07,Sanjay Chowdary,Helper,3,4.2,Available,7
+C015,Mechanical Contractor,Core Construction,C015-M01,Shankar Verma,Mechanical Engineer,11,4.5,Available,7
+C015,Mechanical Contractor,Core Construction,C015-M02,Bharat Yadav,Mechanical Supervisor,13,4.7,Available,7
+C015,Mechanical Contractor,Core Construction,C015-M03,Sandeep Menon,Pipe Fitter,15,4.9,Available,7
+C015,Mechanical Contractor,Core Construction,C015-M04,Amit Joshi,Equipment Technician,4,4.3,Busy,7
+C015,Mechanical Contractor,Core Construction,C015-M05,Deepak Babu,Machine Installer,6,4.5,Available,7
+C015,Mechanical Contractor,Core Construction,C015-M06,Uday Agarwal,Maintenance Technician,8,4.7,Available,7
+C015,Mechanical Contractor,Core Construction,C015-M07,Nithin Kumar,Helper,10,4.9,Available,7
+C016,Fire Safety Contractor,Core Construction,C016-M01,Manish Prasad,Fire Safety Engineer,5,4.4,Available,7
+C016,Fire Safety Contractor,Core Construction,C016-M02,Rakesh Reddy,Fire Safety Supervisor,7,4.6,Available,7
+C016,Fire Safety Contractor,Core Construction,C016-M03,Rajan Verma,Fire Alarm Technician,9,4.8,Busy,7
+C016,Fire Safety Contractor,Core Construction,C016-M04,Naresh Yadav,Sprinkler Technician,11,4.2,Available,7
+C016,Fire Safety Contractor,Core Construction,C016-M05,Vivek Menon,Hydrant Technician,13,4.4,Available,7
+C016,Fire Safety Contractor,Core Construction,C016-M06,Ranjit Joshi,Fire Equipment Technician,15,4.6,Available,7
+C016,Fire Safety Contractor,Core Construction,C016-M07,Mukul Babu,Safety Inspector,4,4.8,Available,7
+C017,Interior Design Contractor,Interior & Finishing,C017-M01,Arjun Kapoor,Interior Designer,12,4.3,Available,7
+C017,Interior Design Contractor,Interior & Finishing,C017-M02,Rahul Shetty,Project Coordinator,14,4.5,Busy,7
+C017,Interior Design Contractor,Interior & Finishing,C017-M03,Vikram Prasad,Site Supervisor,3,4.7,Available,7
+C017,Interior Design Contractor,Interior & Finishing,C017-M04,Suresh Reddy,3D Designer,5,4.9,Available,7
+C017,Interior Design Contractor,Interior & Finishing,C017-M05,Ramesh Verma,Carpenter,7,4.3,Available,7
+C017,Interior Design Contractor,Interior & Finishing,C017-M06,Karthik Yadav,Lighting Designer,9,4.5,Available,7
+C017,Interior Design Contractor,Interior & Finishing,C017-M07,Pradeep Menon,Interior Installer,11,4.7,Busy,7
+C018,Landscape Contractor,Interior & Finishing,C018-M01,Naveen Gupta,Landscape Designer,6,4.2,Busy,7
+C018,Landscape Contractor,Interior & Finishing,C018-M02,Rohit Das,Landscape Supervisor,8,4.4,Available,7
+C018,Landscape Contractor,Interior & Finishing,C018-M03,Manoj Kapoor,Gardener,10,4.6,Available,7
+C018,Landscape Contractor,Interior & Finishing,C018-M04,Harish Shetty,Irrigation Technician,12,4.8,Available,7
+C018,Landscape Contractor,Interior & Finishing,C018-M05,Ajay Prasad,Plantation Worker,14,4.2,Available,7
+C018,Landscape Contractor,Interior & Finishing,C018-M06,Vijay Reddy,Hardscape Worker,3,4.4,Busy,7
+C018,Landscape Contractor,Interior & Finishing,C018-M07,Sai Verma,Helper,5,4.6,Available,7
+C019,Demolition Contractor,Interior & Finishing,C019-M01,Dinesh Sharma,Demolition Engineer,13,4.9,Available,7
+C019,Demolition Contractor,Interior & Finishing,C019-M02,Mahesh Rao,Site Supervisor,15,4.3,Available,7
+C019,Demolition Contractor,Interior & Finishing,C019-M03,Anil Gupta,Machine Operator,4,4.5,Available,7
+C019,Demolition Contractor,Interior & Finishing,C019-M04,Sunil Das,Breaker Operator,6,4.7,Available,7
+C019,Demolition Contractor,Interior & Finishing,C019-M05,Tarun Kapoor,Cutting Technician,8,4.9,Busy,7
+C019,Demolition Contractor,Interior & Finishing,C019-M06,Varun Shetty,Debris Supervisor,10,4.3,Available,7
+C019,Demolition Contractor,Interior & Finishing,C019-M07,Aditya Prasad,Safety Officer,12,4.5,Available,7
+C020,False Ceiling Contractor,Interior & Finishing,C020-M01,Akash Khan,Ceiling Supervisor,7,4.8,Available,7
+C020,False Ceiling Contractor,Interior & Finishing,C020-M02,Ravi Goud,Gypsum Installer,9,4.2,Available,7
+C020,False Ceiling Contractor,Interior & Finishing,C020-M03,Mohan Sharma,POP Worker,11,4.4,Available,7
+C020,False Ceiling Contractor,Interior & Finishing,C020-M04,Nikhil Rao,Framing Installer,13,4.6,Busy,7
+C020,False Ceiling Contractor,Interior & Finishing,C020-M05,Abhishek Gupta,Lighting Technician,15,4.8,Available,7
+C020,False Ceiling Contractor,Interior & Finishing,C020-M06,Pavan Das,Finishing Worker,4,4.2,Available,7
+C020,False Ceiling Contractor,Interior & Finishing,C020-M07,Srikanth Kapoor,Helper,6,4.4,Available,7
+C021,Kitchen Contractor,Interior & Finishing,C021-M01,Teja Nair,Kitchen Designer,14,4.7,Available,7
+C021,Kitchen Contractor,Interior & Finishing,C021-M02,Lokesh Mehta,Project Supervisor,3,4.9,Available,7
+C021,Kitchen Contractor,Interior & Finishing,C021-M03,Yash Khan,Modular Installer,5,4.3,Busy,7
+C021,Kitchen Contractor,Interior & Finishing,C021-M04,Surya Goud,Carpenter,7,4.5,Available,7
+C021,Kitchen Contractor,Interior & Finishing,C021-M05,Gopal Sharma,Countertop Installer,9,4.7,Available,7
+C021,Kitchen Contractor,Interior & Finishing,C021-M06,Venkat Rao,Hardware Fitter,11,4.9,Available,7
+C021,Kitchen Contractor,Interior & Finishing,C021-M07,Chandra Gupta,Helper,13,4.3,Available,7
+C022,Bathroom & Sanitary Contractor,Interior & Finishing,C022-M01,Rajesh Naidu,Bathroom Designer,8,4.6,Available,7
+C022,Bathroom & Sanitary Contractor,Interior & Finishing,C022-M02,Ganesh Mishra,Site Supervisor,10,4.8,Busy,7
+C022,Bathroom & Sanitary Contractor,Interior & Finishing,C022-M03,Prakash Nair,Tile Setter,12,4.2,Available,7
+C022,Bathroom & Sanitary Contractor,Interior & Finishing,C022-M04,Kiran Mehta,Sanitary Fitter,14,4.4,Available,7
+C022,Bathroom & Sanitary Contractor,Interior & Finishing,C022-M05,Madhav Khan,Plumber,3,4.6,Available,7
+C022,Bathroom & Sanitary Contractor,Interior & Finishing,C022-M06,Raghu Goud,Fixture Installer,5,4.8,Available,7
+C022,Bathroom & Sanitary Contractor,Interior & Finishing,C022-M07,Sanjay Sharma,Helper,7,4.2,Busy,7
+C023,Aluminium & UPVC Contractor,Interior & Finishing,C023-M01,Shankar Murthy,Fabrication Supervisor,15,4.5,Busy,7
+C023,Aluminium & UPVC Contractor,Interior & Finishing,C023-M02,Bharat Patel,UPVC Fabricator,4,4.7,Available,7
+C023,Aluminium & UPVC Contractor,Interior & Finishing,C023-M03,Sandeep Naidu,Aluminium Fabricator,6,4.9,Available,7
+C023,Aluminium & UPVC Contractor,Interior & Finishing,C023-M04,Amit Mishra,Window Installer,8,4.3,Available,7
+C023,Aluminium & UPVC Contractor,Interior & Finishing,C023-M05,Deepak Nair,Door Installer,10,4.5,Available,7
+C023,Aluminium & UPVC Contractor,Interior & Finishing,C023-M06,Uday Mehta,Glass Fitter,12,4.7,Busy,7
+C023,Aluminium & UPVC Contractor,Interior & Finishing,C023-M07,Nithin Khan,Helper,14,4.9,Available,7
+C024,Furniture Contractor,Interior & Finishing,C024-M01,Manish Varma,Furniture Designer,9,4.4,Available,7
+C024,Furniture Contractor,Interior & Finishing,C024-M02,Rakesh Jain,Workshop Supervisor,11,4.6,Available,7
+C024,Furniture Contractor,Interior & Finishing,C024-M03,Rajan Murthy,Senior Carpenter,13,4.8,Available,7
+C024,Furniture Contractor,Interior & Finishing,C024-M04,Naresh Patel,Carpenter,15,4.2,Available,7
+C024,Furniture Contractor,Interior & Finishing,C024-M05,Vivek Naidu,Polisher,4,4.4,Busy,7
+C024,Furniture Contractor,Interior & Finishing,C024-M06,Ranjit Mishra,Upholstery Worker,6,4.6,Available,7
+C024,Furniture Contractor,Interior & Finishing,C024-M07,Mukul Nair,Installer,8,4.8,Available,7
+C025,Glazing Contractor,Interior & Finishing,C025-M01,Arjun Iyer,Glazing Supervisor,3,4.3,Available,7
+C025,Glazing Contractor,Interior & Finishing,C025-M02,Rahul Pillai,Glass Installer,5,4.5,Available,7
+C025,Glazing Contractor,Interior & Finishing,C025-M03,Vikram Varma,Curtain Wall Technician,7,4.7,Available,7
+C025,Glazing Contractor,Interior & Finishing,C025-M04,Suresh Jain,Aluminium Fitter,9,4.9,Busy,7
+C025,Glazing Contractor,Interior & Finishing,C025-M05,Ramesh Murthy,Silicone Technician,11,4.3,Available,7
+C025,Glazing Contractor,Interior & Finishing,C025-M06,Karthik Patel,Frame Installer,13,4.5,Available,7
+C025,Glazing Contractor,Interior & Finishing,C025-M07,Pradeep Naidu,Helper,15,4.7,Available,7
+C026,Curtain & Blinds Contractor,Interior & Finishing,C026-M01,Naveen Singh,Interior Coordinator,10,4.2,Available,7
+C026,Curtain & Blinds Contractor,Interior & Finishing,C026-M02,Rohit Chowdary,Curtain Installer,12,4.4,Available,7
+C026,Curtain & Blinds Contractor,Interior & Finishing,C026-M03,Manoj Iyer,Blind Installer,14,4.6,Busy,7
+C026,Curtain & Blinds Contractor,Interior & Finishing,C026-M04,Harish Pillai,Measurement Technician,3,4.8,Available,7
+C026,Curtain & Blinds Contractor,Interior & Finishing,C026-M05,Ajay Varma,Track Installer,5,4.2,Available,7
+C026,Curtain & Blinds Contractor,Interior & Finishing,C026-M06,Vijay Jain,Motorized Blind Technician,7,4.4,Available,7
+C026,Curtain & Blinds Contractor,Interior & Finishing,C026-M07,Sai Murthy,Helper,9,4.6,Available,7
+C027,Acoustic Contractor,Interior & Finishing,C027-M01,Dinesh Agarwal,Acoustic Engineer,4,4.9,Available,7
+C027,Acoustic Contractor,Interior & Finishing,C027-M02,Mahesh Kumar,Acoustic Supervisor,6,4.3,Busy,7
+C027,Acoustic Contractor,Interior & Finishing,C027-M03,Anil Singh,Panel Installer,8,4.5,Available,7
+C027,Acoustic Contractor,Interior & Finishing,C027-M04,Sunil Chowdary,Insulation Installer,10,4.7,Available,7
+C027,Acoustic Contractor,Interior & Finishing,C027-M05,Tarun Iyer,Ceiling Installer,12,4.9,Available,7
+C027,Acoustic Contractor,Interior & Finishing,C027-M06,Varun Pillai,Soundproofing Technician,14,4.3,Available,7
+C027,Acoustic Contractor,Interior & Finishing,C027-M07,Aditya Varma,Helper,3,4.5,Busy,7
+C028,Solar Installation Contractor,Specialized Services,C028-M01,Akash Joshi,Solar Engineer,11,4.8,Busy,7
+C028,Solar Installation Contractor,Specialized Services,C028-M02,Ravi Babu,Solar Supervisor,13,4.2,Available,7
+C028,Solar Installation Contractor,Specialized Services,C028-M03,Mohan Agarwal,PV Installer,15,4.4,Available,7
+C028,Solar Installation Contractor,Specialized Services,C028-M04,Nikhil Kumar,Electrical Technician,4,4.6,Available,7
+C028,Solar Installation Contractor,Specialized Services,C028-M05,Abhishek Singh,Inverter Technician,6,4.8,Available,7
+C028,Solar Installation Contractor,Specialized Services,C028-M06,Pavan Chowdary,Structure Installer,8,4.2,Busy,7
+C028,Solar Installation Contractor,Specialized Services,C028-M07,Srikanth Iyer,Helper,10,4.4,Available,7
+C029,CCTV & Security Contractor,Specialized Services,C029-M01,Teja Yadav,Security Systems Engineer,5,4.7,Available,7
+C029,CCTV & Security Contractor,Specialized Services,C029-M02,Lokesh Menon,CCTV Supervisor,7,4.9,Available,7
+C029,CCTV & Security Contractor,Specialized Services,C029-M03,Yash Joshi,CCTV Installer,9,4.3,Available,7
+C029,CCTV & Security Contractor,Specialized Services,C029-M04,Surya Babu,Network Technician,11,4.5,Available,7
+C029,CCTV & Security Contractor,Specialized Services,C029-M05,Gopal Agarwal,Access Control Technician,13,4.7,Busy,7
+C029,CCTV & Security Contractor,Specialized Services,C029-M06,Venkat Kumar,Alarm Technician,15,4.9,Available,7
+C029,CCTV & Security Contractor,Specialized Services,C029-M07,Chandra Singh,Helper,4,4.3,Available,7
+C030,Smart Home Automation Contractor,Specialized Services,C030-M01,Rajesh Reddy,Automation Engineer,12,4.6,Available,7
+C030,Smart Home Automation Contractor,Specialized Services,C030-M02,Ganesh Verma,Automation Supervisor,14,4.8,Available,7
+C030,Smart Home Automation Contractor,Specialized Services,C030-M03,Prakash Yadav,IoT Technician,3,4.2,Available,7
+C030,Smart Home Automation Contractor,Specialized Services,C030-M04,Kiran Menon,Smart Lighting Technician,5,4.4,Busy,7
+C030,Smart Home Automation Contractor,Specialized Services,C030-M05,Madhav Joshi,Security Technician,7,4.6,Available,7
+C030,Smart Home Automation Contractor,Specialized Services,C030-M06,Raghu Babu,Network Technician,9,4.8,Available,7
+C030,Smart Home Automation Contractor,Specialized Services,C030-M07,Sanjay Agarwal,Programmer,11,4.2,Available,7
+C031,Pest Control Contractor,Specialized Services,C031-M01,Shankar Shetty,Pest Control Supervisor,6,4.5,Available,7
+C031,Pest Control Contractor,Specialized Services,C031-M02,Bharat Prasad,Termite Technician,8,4.7,Available,7
+C031,Pest Control Contractor,Specialized Services,C031-M03,Sandeep Reddy,General Pest Technician,10,4.9,Busy,7
+C031,Pest Control Contractor,Specialized Services,C031-M04,Amit Verma,Rodent Control Technician,12,4.3,Available,7
+C031,Pest Control Contractor,Specialized Services,C031-M05,Deepak Yadav,Mosquito Control Technician,14,4.5,Available,7
+C031,Pest Control Contractor,Specialized Services,C031-M06,Uday Menon,Fumigation Technician,3,4.7,Available,7
+C031,Pest Control Contractor,Specialized Services,C031-M07,Nithin Joshi,Helper,5,4.9,Available,7
+C032,Water Tank Contractor,Specialized Services,C032-M01,Manish Das,Water Tank Engineer,13,4.4,Available,7
+C032,Water Tank Contractor,Specialized Services,C032-M02,Rakesh Kapoor,Site Supervisor,15,4.6,Busy,7
+C032,Water Tank Contractor,Specialized Services,C032-M03,Rajan Shetty,Tank Installer,4,4.8,Available,7
+C032,Water Tank Contractor,Specialized Services,C032-M04,Naresh Prasad,Waterproofing Technician,6,4.2,Available,7
+C032,Water Tank Contractor,Specialized Services,C032-M05,Vivek Reddy,Plumber,8,4.4,Available,7
+C032,Water Tank Contractor,Specialized Services,C032-M06,Ranjit Verma,Pump Technician,10,4.6,Available,7
+C032,Water Tank Contractor,Specialized Services,C032-M07,Mukul Yadav,Helper,12,4.8,Busy,7
+C033,Borewell Contractor,Specialized Services,C033-M01,Arjun Rao,Borewell Engineer,7,4.3,Busy,7
+C033,Borewell Contractor,Specialized Services,C033-M02,Rahul Gupta,Drilling Supervisor,9,4.5,Available,7
+C033,Borewell Contractor,Specialized Services,C033-M03,Vikram Das,Drilling Operator,11,4.7,Available,7
+C033,Borewell Contractor,Specialized Services,C033-M04,Suresh Kapoor,Rig Technician,13,4.9,Available,7
+C033,Borewell Contractor,Specialized Services,C033-M05,Ramesh Shetty,Pump Installer,15,4.3,Available,7
+C033,Borewell Contractor,Specialized Services,C033-M06,Karthik Prasad,Casing Technician,4,4.5,Busy,7
+C033,Borewell Contractor,Specialized Services,C033-M07,Pradeep Reddy,Helper,6,4.7,Available,7
+C034,Earthwork Contractor,Specialized Services,C034-M01,Naveen Goud,Earthwork Engineer,14,4.2,Available,7
+C034,Earthwork Contractor,Specialized Services,C034-M02,Rohit Sharma,Site Supervisor,3,4.4,Available,7
+C034,Earthwork Contractor,Specialized Services,C034-M03,Manoj Rao,Excavator Operator,5,4.6,Available,7
+C034,Earthwork Contractor,Specialized Services,C034-M04,Harish Gupta,JCB Operator,7,4.8,Available,7
+C034,Earthwork Contractor,Specialized Services,C034-M05,Ajay Das,Loader Operator,9,4.2,Busy,7
+C034,Earthwork Contractor,Specialized Services,C034-M06,Vijay Kapoor,Leveling Technician,11,4.4,Available,7
+C034,Earthwork Contractor,Specialized Services,C034-M07,Sai Shetty,Helper,13,4.6,Available,7
+C035,Road & Paving Contractor,Specialized Services,C035-M01,Dinesh Mehta,Road Engineer,8,4.9,Available,7
+C035,Road & Paving Contractor,Specialized Services,C035-M02,Mahesh Khan,Site Supervisor,10,4.3,Available,7
+C035,Road & Paving Contractor,Specialized Services,C035-M03,Anil Goud,Paving Supervisor,12,4.5,Available,7
+C035,Road & Paving Contractor,Specialized Services,C035-M04,Sunil Sharma,Paver Installer,14,4.7,Busy,7
+C035,Road & Paving Contractor,Specialized Services,C035-M05,Tarun Rao,Roller Operator,3,4.9,Available,7
+C035,Road & Paving Contractor,Specialized Services,C035-M06,Varun Gupta,Surveyor,5,4.3,Available,7
+C035,Road & Paving Contractor,Specialized Services,C035-M07,Aditya Das,Helper,7,4.5,Available,7
+C036,Structural Steel Contractor,Specialized Services,C036-M01,Akash Mishra,Structural Engineer,15,4.8,Available,7
+C036,Structural Steel Contractor,Specialized Services,C036-M02,Ravi Nair,Steel Supervisor,4,4.2,Available,7
+C036,Structural Steel Contractor,Specialized Services,C036-M03,Mohan Mehta,Steel Erector,6,4.4,Busy,7
+C036,Structural Steel Contractor,Specialized Services,C036-M04,Nikhil Khan,Welder,8,4.6,Available,7
+C036,Structural Steel Contractor,Specialized Services,C036-M05,Abhishek Goud,Fitter,10,4.8,Available,7
+C036,Structural Steel Contractor,Specialized Services,C036-M06,Pavan Sharma,Crane Signalman,12,4.2,Available,7
+C036,Structural Steel Contractor,Specialized Services,C036-M07,Srikanth Rao,Safety Officer,14,4.4,Available,7
+C037,Insulation Contractor,Specialized Services,C037-M01,Teja Patel,Insulation Engineer,9,4.7,Available,7
+C037,Insulation Contractor,Specialized Services,C037-M02,Lokesh Naidu,Site Supervisor,11,4.9,Busy,7
+C037,Insulation Contractor,Specialized Services,C037-M03,Yash Mishra,Thermal Insulation Technician,13,4.3,Available,7
+C037,Insulation Contractor,Specialized Services,C037-M04,Surya Nair,Acoustic Insulation Technician,15,4.5,Available,7
+C037,Insulation Contractor,Specialized Services,C037-M05,Gopal Mehta,Waterproofing Technician,4,4.7,Available,7
+C037,Insulation Contractor,Specialized Services,C037-M06,Venkat Khan,Cladding Installer,6,4.9,Available,7
+C037,Insulation Contractor,Specialized Services,C037-M07,Chandra Goud,Helper,8,4.3,Busy,7
+C038,Generator & Electrical Backup Contractor,Specialized Services,C038-M01,Rajesh Jain,Electrical Engineer,3,4.6,Busy,7
+C038,Generator & Electrical Backup Contractor,Specialized Services,C038-M02,Ganesh Murthy,Generator Supervisor,5,4.8,Available,7
+C038,Generator & Electrical Backup Contractor,Specialized Services,C038-M03,Prakash Patel,Generator Technician,7,4.2,Available,7
+C038,Generator & Electrical Backup Contractor,Specialized Services,C038-M04,Kiran Naidu,UPS Technician,9,4.4,Available,7
+C038,Generator & Electrical Backup Contractor,Specialized Services,C038-M05,Madhav Mishra,Battery Technician,11,4.6,Available,7
+C038,Generator & Electrical Backup Contractor,Specialized Services,C038-M06,Raghu Nair,Control Panel Technician,13,4.8,Busy,7
+C038,Generator & Electrical Backup Contractor,Specialized Services,C038-M07,Sanjay Mehta,Electrician,15,4.2,Available,7
+C039,Swimming Pool Contractor,Specialized Services,C039-M01,Shankar Pillai,Pool Engineer,10,4.5,Available,7
+C039,Swimming Pool Contractor,Specialized Services,C039-M02,Bharat Varma,Pool Supervisor,12,4.7,Available,7
+C039,Swimming Pool Contractor,Specialized Services,C039-M03,Sandeep Jain,Civil Technician,14,4.9,Available,7
+C039,Swimming Pool Contractor,Specialized Services,C039-M04,Amit Murthy,Waterproofing Technician,3,4.3,Available,7
+C039,Swimming Pool Contractor,Specialized Services,C039-M05,Deepak Patel,Plumbing Technician,5,4.5,Busy,7
+C039,Swimming Pool Contractor,Specialized Services,C039-M06,Uday Naidu,Filtration Technician,7,4.7,Available,7
+C039,Swimming Pool Contractor,Specialized Services,C039-M07,Nithin Mishra,Pool Finishing Worker,9,4.9,Available,7
+C040,Gas Pipeline Contractor,Specialized Services,C040-M01,Manish Chowdary,Gas Engineer,4,4.4,Available,7
+C040,Gas Pipeline Contractor,Specialized Services,C040-M02,Rakesh Iyer,Pipeline Supervisor,6,4.6,Available,7
+C040,Gas Pipeline Contractor,Specialized Services,C040-M03,Rajan Pillai,Gas Fitter,8,4.8,Available,7
+C040,Gas Pipeline Contractor,Specialized Services,C040-M04,Naresh Varma,Pipe Welder,10,4.2,Busy,7
+C040,Gas Pipeline Contractor,Specialized Services,C040-M05,Vivek Jain,Testing Technician,12,4.4,Available,7
+C040,Gas Pipeline Contractor,Specialized Services,C040-M06,Ranjit Murthy,Safety Inspector,14,4.6,Available,7
+C040,Gas Pipeline Contractor,Specialized Services,C040-M07,Mukul Patel,Helper,3,4.8,Available,7
+C041,Drainage & Sewerage Contractor,Specialized Services,C041-M01,Arjun Kumar,Drainage Engineer,11,4.3,Available,7
+C041,Drainage & Sewerage Contractor,Specialized Services,C041-M02,Rahul Singh,Site Supervisor,13,4.5,Available,7
+C041,Drainage & Sewerage Contractor,Specialized Services,C041-M03,Vikram Chowdary,Pipe Fitter,15,4.7,Busy,7
+C041,Drainage & Sewerage Contractor,Specialized Services,C041-M04,Suresh Iyer,Sewer Technician,4,4.9,Available,7
+C041,Drainage & Sewerage Contractor,Specialized Services,C041-M05,Ramesh Pillai,Drainage Installer,6,4.3,Available,7
+C041,Drainage & Sewerage Contractor,Specialized Services,C041-M06,Karthik Varma,Excavation Worker,8,4.5,Available,7
+C041,Drainage & Sewerage Contractor,Specialized Services,C041-M07,Pradeep Jain,Helper,10,4.7,Available,7
+C042,Concrete & RMC Contractor,Construction Support,C042-M01,Naveen Babu,Concrete Engineer,5,4.2,Available,7
+C042,Concrete & RMC Contractor,Construction Support,C042-M02,Rohit Agarwal,RMC Supervisor,7,4.4,Busy,7
+C042,Concrete & RMC Contractor,Construction Support,C042-M03,Manoj Kumar,Batching Plant Operator,9,4.6,Available,7
+C042,Concrete & RMC Contractor,Construction Support,C042-M04,Harish Singh,Concrete Pump Operator,11,4.8,Available,7
+C042,Concrete & RMC Contractor,Construction Support,C042-M05,Ajay Chowdary,Finishing Supervisor,13,4.2,Available,7
+C042,Concrete & RMC Contractor,Construction Support,C042-M06,Vijay Iyer,Lab Technician,15,4.4,Available,7
+C042,Concrete & RMC Contractor,Construction Support,C042-M07,Sai Pillai,Helper,4,4.6,Busy,7
+C043,Rebar / Steel Fixing Contractor,Construction Support,C043-M01,Dinesh Menon,Rebar Supervisor,12,4.9,Busy,7
+C043,Rebar / Steel Fixing Contractor,Construction Support,C043-M02,Mahesh Joshi,Steel Fixer,14,4.3,Available,7
+C043,Rebar / Steel Fixing Contractor,Construction Support,C043-M03,Anil Babu,Bar Bender,3,4.5,Available,7
+C043,Rebar / Steel Fixing Contractor,Construction Support,C043-M04,Sunil Agarwal,Rebar Cutter,5,4.7,Available,7
+C043,Rebar / Steel Fixing Contractor,Construction Support,C043-M05,Tarun Kumar,RCC Supervisor,7,4.9,Available,7
+C043,Rebar / Steel Fixing Contractor,Construction Support,C043-M06,Varun Singh,Site Helper,9,4.3,Busy,7
+C043,Rebar / Steel Fixing Contractor,Construction Support,C043-M07,Aditya Chowdary,Safety Officer,11,4.5,Available,7
+C044,Plastering Contractor,Construction Support,C044-M01,Akash Verma,Plastering Supervisor,6,4.8,Available,7
+C044,Plastering Contractor,Construction Support,C044-M02,Ravi Yadav,Senior Plasterer,8,4.2,Available,7
+C044,Plastering Contractor,Construction Support,C044-M03,Mohan Menon,Plasterer,10,4.4,Available,7
+C044,Plastering Contractor,Construction Support,C044-M04,Nikhil Joshi,Wall Finishing Worker,12,4.6,Available,7
+C044,Plastering Contractor,Construction Support,C044-M05,Abhishek Babu,Machine Plaster Operator,14,4.8,Busy,7
+C044,Plastering Contractor,Construction Support,C044-M06,Pavan Agarwal,Screeding Worker,3,4.2,Available,7
+C044,Plastering Contractor,Construction Support,C044-M07,Srikanth Kumar,Helper,5,4.4,Available,7
+C045,Scaffolding Contractor,Construction Support,C045-M01,Teja Prasad,Scaffolding Supervisor,13,4.7,Available,7
+C045,Scaffolding Contractor,Construction Support,C045-M02,Lokesh Reddy,Scaffolder,15,4.9,Available,7
+C045,Scaffolding Contractor,Construction Support,C045-M03,Yash Verma,Senior Scaffolder,4,4.3,Available,7
+C045,Scaffolding Contractor,Construction Support,C045-M04,Surya Yadav,Safety Inspector,6,4.5,Busy,7
+C045,Scaffolding Contractor,Construction Support,C045-M05,Gopal Menon,Erection Technician,8,4.7,Available,7
+C045,Scaffolding Contractor,Construction Support,C045-M06,Venkat Joshi,Dismantling Technician,10,4.9,Available,7
+C045,Scaffolding Contractor,Construction Support,C045-M07,Chandra Babu,Helper,12,4.3,Available,7
+C046,Surveying Contractor,Construction Support,C046-M01,Rajesh Kapoor,Survey Engineer,7,4.6,Available,7
+C046,Surveying Contractor,Construction Support,C046-M02,Ganesh Shetty,Senior Surveyor,9,4.8,Available,7
+C046,Surveying Contractor,Construction Support,C046-M03,Prakash Prasad,Total Station Operator,11,4.2,Busy,7
+C046,Surveying Contractor,Construction Support,C046-M04,Kiran Reddy,Leveling Technician,13,4.4,Available,7
+C046,Surveying Contractor,Construction Support,C046-M05,Madhav Verma,GPS Technician,15,4.6,Available,7
+C046,Surveying Contractor,Construction Support,C046-M06,Raghu Yadav,Site Surveyor,4,4.8,Available,7
+C046,Surveying Contractor,Construction Support,C046-M07,Sanjay Menon,Survey Assistant,6,4.2,Available,7
+C047,Geotechnical Contractor,Construction Support,C047-M01,Shankar Gupta,Geotechnical Engineer,14,4.5,Available,7
+C047,Geotechnical Contractor,Construction Support,C047-M02,Bharat Das,Soil Testing Engineer,3,4.7,Busy,7
+C047,Geotechnical Contractor,Construction Support,C047-M03,Sandeep Kapoor,Site Supervisor,5,4.9,Available,7
+C047,Geotechnical Contractor,Construction Support,C047-M04,Amit Shetty,Drilling Technician,7,4.3,Available,7
+C047,Geotechnical Contractor,Construction Support,C047-M05,Deepak Prasad,Lab Technician,9,4.5,Available,7
+C047,Geotechnical Contractor,Construction Support,C047-M06,Uday Reddy,Field Technician,11,4.7,Available,7
+C047,Geotechnical Contractor,Construction Support,C047-M07,Nithin Verma,Helper,13,4.9,Busy,7
+C048,Excavation Contractor,Construction Support,C048-M01,Manish Sharma,Excavation Supervisor,8,4.4,Busy,7
+C048,Excavation Contractor,Construction Support,C048-M02,Rakesh Rao,Excavator Operator,10,4.6,Available,7
+C048,Excavation Contractor,Construction Support,C048-M03,Rajan Gupta,JCB Operator,12,4.8,Available,7
+C048,Excavation Contractor,Construction Support,C048-M04,Naresh Das,Loader Operator,14,4.2,Available,7
+C048,Excavation Contractor,Construction Support,C048-M05,Vivek Kapoor,Breaker Operator,3,4.4,Available,7
+C048,Excavation Contractor,Construction Support,C048-M06,Ranjit Shetty,Site Worker,5,4.6,Busy,7
+C048,Excavation Contractor,Construction Support,C048-M07,Mukul Prasad,Safety Officer,7,4.8,Available,7
+C049,Cleaning & Housekeeping Contractor,Construction Support,C049-M01,Arjun Khan,Housekeeping Supervisor,15,4.3,Available,7
+C049,Cleaning & Housekeeping Contractor,Construction Support,C049-M02,Rahul Goud,Site Cleaner,4,4.5,Available,7
+C049,Cleaning & Housekeeping Contractor,Construction Support,C049-M03,Vikram Sharma,Floor Cleaner,6,4.7,Available,7
+C049,Cleaning & Housekeeping Contractor,Construction Support,C049-M04,Suresh Rao,Glass Cleaner,8,4.9,Available,7
+C049,Cleaning & Housekeeping Contractor,Construction Support,C049-M05,Ramesh Gupta,Deep Cleaning Technician,10,4.3,Busy,7
+C049,Cleaning & Housekeeping Contractor,Construction Support,C049-M06,Karthik Das,Waste Collector,12,4.5,Available,7
+C049,Cleaning & Housekeeping Contractor,Construction Support,C049-M07,Pradeep Kapoor,Helper,14,4.7,Available,7
+C050,Waste Management Contractor,Construction Support,C050-M01,Naveen Nair,Waste Management Supervisor,9,4.2,Available,7
+C050,Waste Management Contractor,Construction Support,C050-M02,Rohit Mehta,Segregation Worker,11,4.4,Available,7
+C050,Waste Management Contractor,Construction Support,C050-M03,Manoj Khan,Collection Operator,13,4.6,Available,7
+C050,Waste Management Contractor,Construction Support,C050-M04,Harish Goud,Vehicle Operator,15,4.8,Busy,7
+C050,Waste Management Contractor,Construction Support,C050-M05,Ajay Sharma,Recycling Worker,4,4.2,Available,7
+C050,Waste Management Contractor,Construction Support,C050-M06,Vijay Rao,Site Cleaner,6,4.4,Available,7
+C050,Waste Management Contractor,Construction Support,C050-M07,Sai Gupta,Safety Officer,8,4.6,Available,7
+C051,Signage Contractor,Construction Support,C051-M01,Dinesh Naidu,Signage Designer,3,4.9,Available,7
+C051,Signage Contractor,Construction Support,C051-M02,Mahesh Mishra,Project Supervisor,5,4.3,Available,7
+C051,Signage Contractor,Construction Support,C051-M03,Anil Nair,Fabricator,7,4.5,Busy,7
+C051,Signage Contractor,Construction Support,C051-M04,Sunil Mehta,Graphic Installer,9,4.7,Available,7
+C051,Signage Contractor,Construction Support,C051-M05,Tarun Khan,Electric Sign Technician,11,4.9,Available,7
+C051,Signage Contractor,Construction Support,C051-M06,Varun Goud,Mounting Technician,13,4.3,Available,7
+C051,Signage Contractor,Construction Support,C051-M07,Aditya Sharma,Helper,15,4.5,Available,7

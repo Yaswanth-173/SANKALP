@@ -1,0 +1,13 @@
+import { Router } from 'express'
+import { requireAuth } from '../middleware/auth.js'
+import { listTasks, createTask, updateTaskStatus, deleteTask } from '../controllers/tasksController.js'
+
+const router = Router()
+
+router.use(requireAuth)
+router.get('/', listTasks)
+router.post('/', createTask)
+router.patch('/:id/status', updateTaskStatus)
+router.delete('/:id', deleteTask)
+
+export default router

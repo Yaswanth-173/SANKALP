@@ -1,0 +1,11 @@
+{
+  "name": "sankalp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sankalp construction-tech platform (client/ = React+Vite, server/ = Node+Express)",
+  "scripts": {
+    "dev": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "sync": "powershell -ExecutionPolicy Bypass -File scripts/sync-to-github.ps1"
+  }
+}

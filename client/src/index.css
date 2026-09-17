@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-display: "Poppins", system-ui, "Segoe UI", sans-serif;
+  --font-sans: "Inter", system-ui, "Segoe UI", sans-serif;
+
+  /* Theme-reactive surfaces (redefined per [data-theme] below). */
+  --color-navy-950: var(--c-navy-950);
+  --color-navy-900: var(--c-navy-900);
+  --color-navy-800: var(--c-navy-800);
+  --color-navy-700: var(--c-navy-700);
+  --color-navy-600: var(--c-navy-600);
+
+  --color-ink: var(--c-ink);
+
+  /* Always-dark ink for text on the gold accent — stays legible in
+     both themes, independent of the reactive navy-950 surface token. */
+  --color-charcoal: #05070f;
+
+  /* Brand gold stays constant across themes. */
+  --color-gold-200: #fbe2a8;
+  --color-gold-300: #f8d179;
+  --color-gold-400: #f6c453;
+  --color-gold-500: #eab424;
+  --color-gold-600: #c8941a;
+
+  --animate-fade-up: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in: fade-in 1s ease forwards;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(28px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+:root {
+  --c-navy-950: #05070f;
+  --c-navy-900: #0a0e1a;
+  --c-navy-800: #0f1526;
+  --c-navy-700: #161d35;
+  --c-navy-600: #202a4a;
+  --c-ink: #f5f6fa;
+}
+
+:root[data-theme="light"] {
+  --c-navy-950: #faf8f4;
+  --c-navy-900: #ffffff;
+  --c-navy-800: #efe9dd;
+  --c-navy-700: #e4ddcf;
+  --c-navy-600: #d8cfba;
+  --c-ink: #14182a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--color-navy-950);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#root {
+  min-height: 100svh;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--color-gold-500);
+  color: var(--color-navy-950);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-navy-950);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-navy-600);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-600);
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-12deg);
+  }
+}
+
+/* Theme switch: expanding-circle reveal from the click origin, via the
+   View Transitions API. --theme-x/--theme-y/--theme-r are set in JS
+   right before the transition starts. Browsers without support just
+   keep the plain color-fade above. */
+::view-transition-old(root) {
+  animation: none;
+}
+
+::view-transition-new(root) {
+  animation: theme-reveal 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 50%));
+}
+
+@keyframes theme-reveal {
+  to {
+    clip-path: circle(var(--theme-r, 150%) at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+}
+
+/* Gold shockwave ring that rides the leading edge of the reveal above,
+   plus a quick flash at the origin, so the switch reads as an obvious
+   "event" rather than a soft fade. A plain <div> (not a pseudo-element)
+   spawned/removed by PreferencesContext.setTheme, so it also works as a
+   standalone effect in browsers without View Transitions support. */
+.theme-ripple {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transform: translate(calc(var(--rx) - 50%), calc(var(--ry) - 50%));
+}
+
+.theme-ripple.is-active {
+  animation: theme-ripple-pulse 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes theme-ripple-pulse {
+  0% {
+    width: 0px;
+    height: 0px;
+    border: 0px solid var(--ripple-color);
+    opacity: 1;
+    box-shadow: 0 0 70px 30px var(--ripple-color);
+  }
+  14% {
+    width: calc(var(--rr) * 0.24);
+    height: calc(var(--rr) * 0.24);
+    border-width: 12px;
+    opacity: 0.95;
+    box-shadow: 0 0 50px 16px var(--ripple-color);
+  }
+  100% {
+    width: calc(var(--rr) * 2);
+    height: calc(var(--rr) * 2);
+    border-width: 0px;
+    opacity: 0;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-new(root) {
+    animation: none !important;
+    clip-path: none !important;
+  }
+}
