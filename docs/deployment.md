@@ -15,6 +15,16 @@
 4. Deploy and check `https://<render-service>.onrender.com/api/health`. It must return `{"status":"ok"}`.
 5. The first successful boot runs the live schema creation and material/contractor seeders. Use a database backup before deploying against an existing database.
 
+## Database options
+
+Any Postgres works — `server/src/config/db.js` picks SSL on or off automatically based on the host in `DATABASE_URL` (off for `localhost`/`127.0.0.1`, on with `rejectUnauthorized: false` for everything else, which is what every managed provider below needs). No code changes required to switch providers.
+
+- **Supabase** (free tier): Project Settings → Database → Connection string → URI. Either the direct connection (port 5432) or the pooled one (port 6543, recommended for a small always-on web service) works — paste it straight into `DATABASE_URL`.
+- **Render Postgres** (free tier, same account as the web service): use the "Internal Database URL" it gives you.
+- **Neon / Railway** or any other Postgres-as-a-service: same — just paste the connection string.
+
+Whichever you pick, the first boot runs the same idempotent schema creation and seeders described below.
+
 ## Vercel
 
 In the Vercel project settings, add this production environment variable:
