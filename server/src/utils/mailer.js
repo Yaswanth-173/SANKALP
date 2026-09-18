@@ -16,10 +16,21 @@ function getTransporter() {
   return transporter
 }
 
+// Logged in every environment (including production) so a misconfigured
+// deployment is diagnosable from the server's own logs — this line never
+// contains the OTP/password itself, only the fact that delivery didn't
+// happen and why, so it's safe to leave on. The actual code/temp password
+// is only ever additionally logged outside production, where the console
+// is a trusted dev tool rather than a shared/retained log store.
+function warnEmailNotConfigured(context) {
+  console.warn(`[mailer] GMAIL_USER/GMAIL_APP_PASSWORD not configured — ${context} was not sent. Set both env vars to enable outbound email.`)
+}
+
 export async function sendOtpEmail(to, otp) {
   const t = getTransporter()
   if (!t) {
-    if (process.env.NODE_ENV !== 'production') console.log(`[mailer] Gmail not configured — dev OTP for ${to}: ${otp}`)
+    warnEmailNotConfigured(`password reset code for ${to}`)
+    if (process.env.NODE_ENV !== 'production') console.log(`[mailer] dev OTP for ${to}: ${otp}`)
     return { delivered: false }
   }
 
@@ -51,7 +62,8 @@ export async function sendOtpEmail(to, otp) {
 export async function sendVerificationEmail(to, otp) {
   const t = getTransporter()
   if (!t) {
-    if (process.env.NODE_ENV !== 'production') console.log(`[mailer] Gmail not configured — dev verification OTP for ${to}: ${otp}`)
+    warnEmailNotConfigured(`verification code for ${to}`)
+    if (process.env.NODE_ENV !== 'production') console.log(`[mailer] dev verification OTP for ${to}: ${otp}`)
     return { delivered: false }
   }
 
@@ -67,8 +79,9 @@ export async function sendVerificationEmail(to, otp) {
 export async function sendSupervisorInviteEmail(to, { projectName, tempPassword }) {
   const t = getTransporter()
   if (!t) {
+    warnEmailNotConfigured(`supervisor invite for ${to}`)
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`[mailer] Gmail not configured — dev invite for ${to}: project "${projectName}", temp password: ${tempPassword}`)
+      console.log(`[mailer] dev invite for ${to}: project "${projectName}", temp password: ${tempPassword}`)
     }
     return { delivered: false }
   }
@@ -85,8 +98,9 @@ export async function sendSupervisorInviteEmail(to, { projectName, tempPassword 
 export async function sendContractorInviteEmail(to, { projectName, tempPassword }) {
   const t = getTransporter()
   if (!t) {
+    warnEmailNotConfigured(`contractor invite for ${to}`)
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`[mailer] Gmail not configured — dev contractor invite for ${to}: project "${projectName}", temp password: ${tempPassword}`)
+      console.log(`[mailer] dev contractor invite for ${to}: project "${projectName}", temp password: ${tempPassword}`)
     }
     return { delivered: false }
   }

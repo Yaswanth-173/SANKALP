@@ -9,6 +9,8 @@ import { validateEmail, validateResetPassword } from '../utils/validators.js'
 import { useTranslation } from '../i18n/index.js'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055'
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+const DEMO_MODE_MESSAGE = 'This is a demo deployment with no connected backend, so password reset isn\'t available here.'
 
 function ForgotPasswordPage() {
   const navigate = useNavigate()
@@ -33,6 +35,7 @@ function ForgotPasswordPage() {
   }, [resendCooldown])
 
   const requestOtp = async () => {
+    if (DEMO_MODE) throw new Error(DEMO_MODE_MESSAGE)
     let res
     try {
       res = await fetch(`${API_URL}/api/auth/forgot-password`, {
@@ -99,6 +102,11 @@ function ForgotPasswordPage() {
     if (Object.keys(validationErrors).length > 0) return
 
     setStatus('submitting')
+    if (DEMO_MODE) {
+      setFormError(DEMO_MODE_MESSAGE)
+      setStatus('error')
+      return
+    }
     try {
       const res = await fetch(`${API_URL}/api/auth/reset-password`, {
         method: 'POST',

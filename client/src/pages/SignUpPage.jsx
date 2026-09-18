@@ -10,6 +10,8 @@ import { useTranslation } from '../i18n/index.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055'
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+const DEMO_MODE_MESSAGE = 'This is a demo deployment with no connected backend, so new accounts can\'t be created here. Ask whoever shared this demo with you for the demo sign-in credentials.'
 
 const initialForm = {
   fullName: '',
@@ -56,6 +58,11 @@ function SignUpPage() {
     if (Object.keys(validationErrors).length > 0) return
 
     setStatus('submitting')
+    if (DEMO_MODE) {
+      setFormError(DEMO_MODE_MESSAGE)
+      setStatus('error')
+      return
+    }
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',

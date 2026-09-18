@@ -15,9 +15,13 @@ import budgetCategoriesRoutes from './routes/budgetCategories.routes.js'
 
 const app = express()
 
+// A trailing slash on CLIENT_URL (e.g. "https://app.vercel.app/") is an easy
+// deployment typo — the browser's Origin header never has one, so it would
+// silently fail every cross-origin request's CORS check. Stripped here so
+// that mistake doesn't turn into a hard-to-diagnose "blocked by CORS" report.
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean)
 
 app.disable('x-powered-by')
