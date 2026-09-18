@@ -21,6 +21,7 @@ import BudgetExpensesPage from './pages/BudgetExpensesPage.jsx'
 import SupervisorDashboardPage from './pages/SupervisorDashboardPage.jsx'
 import SupervisorProjectDetailPage from './pages/SupervisorProjectDetailPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import { contractorNavItems } from './utils/supervisorNav.js'
 
 function App() {
   return (
@@ -158,6 +159,24 @@ function App() {
       />
 
       <Route
+        path="/contractor"
+        element={
+          <ProtectedRoute allowRoles={['contractor']}>
+            <SupervisorDashboardPage basePath="/contractor" navItems={contractorNavItems} subtitle="Projects you've been assigned to." />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/contractor/projects/:id"
+        element={
+          <ProtectedRoute allowRoles={['contractor']}>
+            <SupervisorProjectDetailPage basePath="/contractor" navItems={contractorNavItems} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/dashboard/cost-comparison"
         element={
           <ProtectedRoute allowRoles={['customer']}>
@@ -169,7 +188,7 @@ function App() {
       <Route
         path="/dashboard/progress"
         element={
-          <ProtectedRoute allowRoles={['customer']}>
+          <ProtectedRoute allowRoles={['customer', 'supervisor', 'contractor']}>
             <ProgressUpdatesPage />
           </ProtectedRoute>
         }
@@ -178,7 +197,7 @@ function App() {
       <Route
         path="/dashboard/budget"
         element={
-          <ProtectedRoute allowRoles={['customer']}>
+          <ProtectedRoute allowRoles={['customer', 'supervisor']}>
             <BudgetExpensesPage />
           </ProtectedRoute>
         }

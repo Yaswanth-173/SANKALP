@@ -291,4 +291,74 @@ export async function ensureSchema() {
   await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()')
 
   await query('ALTER TABLE project_updates ADD COLUMN IF NOT EXISTS location VARCHAR(160)')
+
+  // Contractor directory members can optionally be linked to a real login
+  // (user_id), so an individual contractor can sign in and see only the
+  // projects/tasks they've been assigned to. Most directory rows will stay
+  // unlinked — that's fine, they're still assignable for display purposes,
+  // just not able to log in until a customer invites them with an email.
+  await query('ALTER TABLE contractor_team_members ADD COLUMN IF NOT EXISTS email VARCHAR(255)')
+  await query('ALTER TABLE contractor_team_members ADD COLUMN IF NOT EXISTS phone VARCHAR(20)')
+  await query('ALTER TABLE contractor_team_members ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL')
+  await query('CREATE INDEX IF NOT EXISTS contractor_team_members_user_idx ON contractor_team_members (user_id)')
+
+  // Task assignment: which contractor is doing this task, its own planned
+  // schedule, and its own progress — independent of (but able to inform)
+  // the project-level progress that project_updates drives.
+  await query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assigned_contractor_id VARCHAR(20) REFERENCES contractor_team_members(id) ON DELETE SET NULL')
+  await query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_date DATE')
+  await query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date DATE')
+  await query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS progress_percent INT NOT NULL DEFAULT 0")
+  await query('ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_progress_percent_check')
+  await query('ALTER TABLE tasks ADD CONSTRAINT tasks_progress_percent_check CHECK (progress_percent BETWEEN 0 AND 100)')
+  await query('CREATE INDEX IF NOT EXISTS tasks_assigned_contractor_idx ON tasks (assigned_contractor_id)')
+
+  // Optional links from a progress update back to the task/contractor it
+  // came from, so Task <-> Progress Update can be shown as connected
+  // without duplicating any task or contractor data onto project_updates.
+  await query('ALTER TABLE project_updates ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES tasks(id) ON DELETE SET NULL')
+  await query('ALTER TABLE project_updates ADD COLUMN IF NOT EXISTS contractor_id VARCHAR(20) REFERENCES contractor_team_members(id) ON DELETE SET NULL')
+
+  // Admin-managed master category list. Project-scoped `budget_categories`
+  // keeps its own per-project allocation rows — this table is the shared,
+  // orderable taxonomy those rows and expenses.category draw their names
+  // from, replacing the hardcoded BUDGET_CATEGORIES array.
+  await query(`
+    CREATE TABLE IF NOT EXISTS budget_category_defs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(60) NOT NULL UNIQUE,
+      description VARCHAR(240),
+      parent_category_id UUID REFERENCES budget_category_defs(id) ON DELETE SET NULL,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  const DEFAULT_BUDGET_CATEGORIES = ['Foundation', 'Structure', 'Electrical', 'Plumbing', 'Finishing', 'Others']
+  for (let i = 0; i < DEFAULT_BUDGET_CATEGORIES.length; i++) {
+    await query(
+      `INSERT INTO budget_category_defs (name, sort_order) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`,
+      [DEFAULT_BUDGET_CATEGORIES[i], i]
+    )
+  }
+
+  // File metadata for authorization-gated access. The bytes still live on
+  // disk (see server/src/middleware/upload.js) but nothing is served by a
+  // guessable static URL any more — every read checks this row's project_id
+  // against the requester's project membership first.
+  await query(`
+    CREATE TABLE IF NOT EXISTS project_files (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind VARCHAR(20) NOT NULL,
+      filename VARCHAR(255) NOT NULL,
+      original_name VARCHAR(255),
+      mime_type VARCHAR(100) NOT NULL,
+      size_bytes INT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS project_files_project_idx ON project_files (project_id)')
 }

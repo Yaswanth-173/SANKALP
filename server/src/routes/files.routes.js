@@ -1,11 +1,10 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { listContractors } from '../controllers/contractorsController.js'
+import { getFile } from '../controllers/filesController.js'
 
 const router = Router()
 
 router.use(requireAuth)
-router.get('/', listContractors)
+router.get('/:fileId', getFile)
 
 export default router
-

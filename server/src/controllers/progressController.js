@@ -63,6 +63,10 @@ const publicUpdate = (u) => ({
   authorName: u.author_name,
   authorRole: u.author_role,
   authorId: u.author_id,
+  taskId: u.task_id,
+  taskTitle: u.task_title || null,
+  contractorId: u.contractor_id,
+  contractorName: u.contractor_name || null,
   createdAt: u.created_at,
 })
 
@@ -80,8 +84,12 @@ export async function getProjectProgress(req, res) {
     const project = publicProject(projectRows[0])
 
     const { rows: updateRows } = await query(
-      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role FROM project_updates pu
+      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role,
+              ctm.name AS contractor_name, t.title AS task_title
+       FROM project_updates pu
        JOIN users u ON u.id = pu.author_id
+       LEFT JOIN contractor_team_members ctm ON ctm.id = pu.contractor_id
+       LEFT JOIN tasks t ON t.id = pu.task_id
        WHERE pu.project_id = $1 ORDER BY pu.created_at DESC LIMIT 50`,
       [id]
     )
@@ -107,7 +115,7 @@ export async function getProjectProgress(req, res) {
 
 export async function addProgressUpdate(req, res) {
   const { id: projectId } = req.params
-  const { title, description, progressPercent, photoUrls, location } = req.body ?? {}
+  const { title, description, progressPercent, photoUrls, location, taskId } = req.body ?? {}
 
   if (!title || title.trim().length < 2) {
     return res.status(400).json({ message: 'Give the update a title' })
@@ -121,11 +129,26 @@ export async function addProgressUpdate(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
+    // A contractor's own posts are auto-tagged with their contractor
+    // directory record, so "who posted this" and "which trade" both show
+    // up without asking them to pick themselves from a list.
+    let contractorId = null
+    if (req.user.role === 'contractor') {
+      const { rows } = await query('SELECT id FROM contractor_team_members WHERE user_id = $1', [req.user.id])
+      contractorId = rows[0]?.id || null
+    }
+
+    let validTaskId = null
+    if (taskId) {
+      const { rows } = await query('SELECT id FROM tasks WHERE id = $1 AND project_id = $2', [taskId, projectId])
+      validTaskId = rows[0]?.id || null
+    }
+
     const update = await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `INSERT INTO project_updates (project_id, author_id, title, description, progress_percent, photo_urls, location)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [projectId, req.user.id, title.trim(), description?.trim() || null, progressPercent ?? null, JSON.stringify(cleanPhotoUrls), location?.trim() || null]
+        `INSERT INTO project_updates (project_id, author_id, title, description, progress_percent, photo_urls, location, task_id, contractor_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [projectId, req.user.id, title.trim(), description?.trim() || null, progressPercent ?? null, JSON.stringify(cleanPhotoUrls), location?.trim() || null, validTaskId, contractorId]
       )
       if (progressPercent != null) {
         await client.query('UPDATE projects SET progress_percent = $1, updated_at = now() WHERE id = $2', [progressPercent, projectId])
@@ -133,8 +156,17 @@ export async function addProgressUpdate(req, res) {
       return rows[0]
     })
 
-    const { rows: authorRows } = await query('SELECT full_name, role FROM users WHERE id = $1', [req.user.id])
-    res.status(201).json({ update: publicUpdate({ ...update, author_name: authorRows[0]?.full_name, author_role: authorRows[0]?.role }) })
+    const { rows: enriched } = await query(
+      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role,
+              ctm.name AS contractor_name, t.title AS task_title
+       FROM project_updates pu
+       JOIN users u ON u.id = pu.author_id
+       LEFT JOIN contractor_team_members ctm ON ctm.id = pu.contractor_id
+       LEFT JOIN tasks t ON t.id = pu.task_id
+       WHERE pu.id = $1`,
+      [update.id]
+    )
+    res.status(201).json({ update: publicUpdate(enriched[0]) })
   } catch (err) {
     console.error('Add progress update error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -179,8 +211,17 @@ export async function editProgressUpdate(req, res) {
     })
     if (!updated) return res.status(404).json({ message: 'Update not found' })
 
-    const { rows: authorRows } = await query('SELECT full_name, role FROM users WHERE id = $1', [updated.author_id])
-    res.json({ update: publicUpdate({ ...updated, author_name: authorRows[0]?.full_name, author_role: authorRows[0]?.role }) })
+    const { rows: enriched } = await query(
+      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role,
+              ctm.name AS contractor_name, t.title AS task_title
+       FROM project_updates pu
+       JOIN users u ON u.id = pu.author_id
+       LEFT JOIN contractor_team_members ctm ON ctm.id = pu.contractor_id
+       LEFT JOIN tasks t ON t.id = pu.task_id
+       WHERE pu.id = $1`,
+      [updated.id]
+    )
+    res.json({ update: publicUpdate(enriched[0]) })
   } catch (err) {
     console.error('Edit progress update error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })

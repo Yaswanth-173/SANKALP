@@ -8,7 +8,11 @@ import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { apiFetch } from '../utils/api.js'
 import { supervisorNavItems } from '../utils/supervisorNav.js'
 
-function SupervisorDashboardPage() {
+// Reused as-is for the contractor role (see App.jsx's /contractor route) —
+// the underlying data is already role-agnostic (GET /api/projects returns
+// whatever project_members this account belongs to), so only the link
+// target, nav items, and copy need to vary per role.
+function SupervisorDashboardPage({ basePath = '/supervisor', navItems = supervisorNavItems, subtitle = "Projects you've been added to supervise." }) {
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -27,13 +31,13 @@ function SupervisorDashboardPage() {
   }, [])
 
   return (
-    <DashboardShell sidebarProps={{ navItems: supervisorNavItems, showLocationPicker: false }}>
+    <DashboardShell sidebarProps={{ navItems, showLocationPicker: false }}>
       {({ onMenuClick }) => (
         <>
           <DashboardHeader
             onMenuClick={onMenuClick}
             title="Your Projects"
-            subtitle="Projects you've been added to supervise."
+            subtitle={subtitle}
           />
 
           {error && <p className="mt-5 text-sm text-red-400">{error}</p>}
@@ -57,7 +61,7 @@ function SupervisorDashboardPage() {
                   transition={{ duration: 0.35, delay: Math.min(i * 0.05, 0.3) }}
                 >
                   <Link
-                    to={`/supervisor/projects/${project.id}`}
+                    to={`${basePath}/projects/${project.id}`}
                     className="block rounded-2xl border border-ink/10 bg-navy-900/50 p-5 transition-colors duration-200 hover:border-gold-500/30"
                   >
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-300">

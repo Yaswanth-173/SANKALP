@@ -7,23 +7,32 @@ import Spinner from '../components/Spinner.jsx'
 import FormField from '../components/FormField.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { usePreferences } from '../context/PreferencesContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { apiFetch } from '../utils/api.js'
 import { uploadDocument } from '../utils/upload.js'
+import { supervisorNavItems } from '../utils/supervisorNav.js'
 
-// Mirrors server/src/controllers/budgetController.js's BUDGET_CATEGORIES —
-// kept in sync manually since the client has no reason to fetch a static
-// list over the network (same pattern used for STATE_CITIES elsewhere).
-const BUDGET_CATEGORIES = ['Foundation', 'Structure', 'Electrical', 'Plumbing', 'Finishing', 'Others']
+// The default 6 names created by ensureSchema.js — used only as a render
+// placeholder before /api/budget-categories resolves, and as the fallback
+// if that project has literally never had any category activity. The
+// admin-managed list from the API is the actual source of truth (see
+// `categoryNames` state below); this is not a hardcoded master list.
+const DEFAULT_BUDGET_CATEGORIES = ['Foundation', 'Structure', 'Electrical', 'Plumbing', 'Finishing', 'Others']
 const PAYMENT_MODES = ['cash', 'upi', 'card', 'bank_transfer']
 
 // Fixed categorical hue order, validated with the dataviz skill's validator
 // against this app's actual card surfaces (dark #0a0e1a / light #ffffff) —
 // see the chat history for the exact `validate_palette.js` runs. Every
-// category always gets the same slot, never a cycled/generated hue.
+// one of the default 6 categories always gets the same slot, never a
+// cycled/generated hue. A category an admin adds beyond these 6 falls back
+// to a neutral, unvalidated gray (FALLBACK_CATEGORY_COLOR) rather than a
+// made-up hue — re-validating an unbounded admin-defined palette isn't
+// something that can happen automatically at request time.
 const CATEGORY_COLORS = {
   dark: { Foundation: '#3987e5', Structure: '#d95926', Electrical: '#199e70', Plumbing: '#c98500', Finishing: '#d55181', Others: '#008300' },
   light: { Foundation: '#2a78d6', Structure: '#eb6834', Electrical: '#1baf7a', Plumbing: '#eda100', Finishing: '#e87ba4', Others: '#008300' },
 }
+const FALLBACK_CATEGORY_COLOR = { dark: '#8b93a7', light: '#6b7280' }
 // Budgeted vs Spent — also validated against both modes. "Spent" reuses the
 // same gold/amber family the rest of the app already uses for money/price.
 const BAR_COLORS = {
@@ -170,7 +179,7 @@ function ExpenseDonut({ categories, colors }) {
 }
 
 const expenseFormInitial = {
-  category: BUDGET_CATEGORIES[0], subcategory: '', description: '', amount: '', paymentMode: 'cash', status: 'paid',
+  category: '', subcategory: '', description: '', amount: '', paymentMode: 'cash', status: 'paid',
   expenseDate: new Date().toISOString().slice(0, 10), vendor: '', material: '', invoiceNumber: '', notes: '',
 }
 
@@ -191,12 +200,39 @@ function budgetAlertFor(category) {
 
 function BudgetExpensesPage() {
   const { theme } = usePreferences()
-  const colors = theme === 'light' ? CATEGORY_COLORS.light : CATEGORY_COLORS.dark
+  const { user } = useAuth()
+  const isCustomer = user?.role === 'customer'
+  const roleSidebarProps = user?.role === 'supervisor' ? { navItems: supervisorNavItems, showLocationPicker: false } : undefined
   const barColors = theme === 'light' ? BAR_COLORS.light : BAR_COLORS.dark
 
   const [projects, setProjects] = useState([])
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [selectedProjectId, setSelectedProjectId] = useState(null)
+
+  // The admin-managed master list (GET /api/budget-categories) — the
+  // frontend holds no hardcoded source of truth for what categories exist,
+  // only this placeholder default shown for the instant before the real
+  // list loads.
+  const [categoryNames, setCategoryNames] = useState(DEFAULT_BUDGET_CATEGORIES)
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await apiFetch('/api/budget-categories')
+        const names = (res.categories || []).map((c) => c.name)
+        if (names.length) setCategoryNames(names)
+      } catch {
+        // Non-fatal — the placeholder default keeps the page usable.
+      }
+    })()
+  }, [])
+
+  const colors = useMemo(() => {
+    const base = theme === 'light' ? CATEGORY_COLORS.light : CATEGORY_COLORS.dark
+    const fallback = theme === 'light' ? FALLBACK_CATEGORY_COLOR.light : FALLBACK_CATEGORY_COLOR.dark
+    const merged = { ...base }
+    for (const name of categoryNames) if (!merged[name]) merged[name] = fallback
+    return merged
+  }, [theme, categoryNames])
 
   const [overview, setOverview] = useState(null)
   const [expenses, setExpenses] = useState([])
@@ -255,7 +291,7 @@ function BudgetExpensesPage() {
       ])
       const safeOverview = overviewRes?.categories
         ? overviewRes
-        : { totalBudget: 0, totalSpent: 0, remaining: 0, totalExpenseCount: 0, categories: BUDGET_CATEGORIES.map((category) => ({ category, budgetedAmount: 0, spentAmount: 0 })), recentExpenses: [] }
+        : { totalBudget: 0, totalSpent: 0, remaining: 0, totalExpenseCount: 0, categories: categoryNames.map((category) => ({ category, budgetedAmount: 0, spentAmount: 0 })), recentExpenses: [] }
       setOverview(safeOverview)
       setExpenses(expensesRes.expenses || [])
       setPlannerAmounts(Object.fromEntries(safeOverview.categories.map((c) => [c.category, String(c.budgetedAmount || '')])))
@@ -278,7 +314,7 @@ function BudgetExpensesPage() {
 
   const openAddExpense = () => {
     setEditingExpenseId(null)
-    setExpenseForm(expenseFormInitial)
+    setExpenseForm({ ...expenseFormInitial, category: categoryNames[0] || '' })
     setExistingReceiptUrl(null)
     setReceiptFile(null)
     setExpenseError('')
@@ -317,7 +353,7 @@ function BudgetExpensesPage() {
     setSubmitting(true)
     setExpenseError('')
     try {
-      const receiptUrl = receiptFile ? await uploadDocument(receiptFile) : undefined
+      const receiptUrl = receiptFile ? await uploadDocument(selectedProjectId, receiptFile) : undefined
       const body = { ...expenseForm, amount: amountNum, receiptUrl }
       if (editingExpenseId) {
         await apiFetch(`/api/projects/${selectedProjectId}/expenses/${editingExpenseId}`, { method: 'PUT', body: JSON.stringify(body) })
@@ -356,7 +392,7 @@ function BudgetExpensesPage() {
       await apiFetch(`/api/projects/${selectedProjectId}/budget`, {
         method: 'PUT',
         body: JSON.stringify({
-          categories: BUDGET_CATEGORIES.map((category) => ({ category, budgetedAmount: Number(plannerAmounts[category]) || 0 })),
+          categories: categoryNames.map((category) => ({ category, budgetedAmount: Number(plannerAmounts[category]) || 0 })),
           totalBudget: plannerTotalBudget !== '' ? Number(plannerTotalBudget) : undefined,
         }),
       })
@@ -441,16 +477,22 @@ function BudgetExpensesPage() {
 
   if (!projectsLoading && projects.length === 0) {
     return (
-      <DashboardShell>
+      <DashboardShell sidebarProps={roleSidebarProps}>
         {({ onMenuClick }) => (
           <>
             <DashboardHeader onMenuClick={onMenuClick} title="Budget & Expenses" subtitle="Calculate budget, track expenses and manage project costs." />
             <div className="mt-16 flex flex-col items-center gap-3 text-center text-ink/40">
               <ProjectsIcon className="h-10 w-10" />
-              <p className="text-sm">Create a project first to start tracking its budget.</p>
-              <Link to="/dashboard/projects" className="mt-1 rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
-                + New Project
-              </Link>
+              {isCustomer ? (
+                <>
+                  <p className="text-sm">Create a project first to start tracking its budget.</p>
+                  <Link to="/dashboard/projects" className="mt-1 rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                    + New Project
+                  </Link>
+                </>
+              ) : (
+                <p className="text-sm">You haven't been assigned to any projects yet.</p>
+              )}
             </div>
           </>
         )}
@@ -459,7 +501,7 @@ function BudgetExpensesPage() {
   }
 
   return (
-    <DashboardShell>
+    <DashboardShell sidebarProps={roleSidebarProps}>
       {({ onMenuClick }) => (
         <>
           <DashboardHeader onMenuClick={onMenuClick} title="Budget & Expenses" subtitle="Calculate budget, track expenses and manage project costs." />
@@ -581,7 +623,7 @@ function BudgetExpensesPage() {
                               <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Category</label>
                               <select value={filters.category} onChange={(e) => setFilters((p) => ({ ...p, category: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
                                 <option value="all">All</option>
-                                {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                                {categoryNames.map((c) => <option key={c} value={c}>{c}</option>)}
                               </select>
                             </div>
                             <div>
@@ -655,9 +697,11 @@ function BudgetExpensesPage() {
                                           <a href={`${(import.meta.env.VITE_API_URL || 'http://localhost:5055')}${e.receiptUrl}`} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300">Receipt</a>
                                         )}
                                         <button onClick={() => openEditExpense(e)} className="text-xs text-ink/60 hover:text-ink">Edit</button>
-                                        <button onClick={() => handleDeleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs text-red-400/80 hover:text-red-400 disabled:opacity-50">
-                                          {deletingId === e.id ? '...' : 'Delete'}
-                                        </button>
+                                        {isCustomer && (
+                                          <button onClick={() => handleDeleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs text-red-400/80 hover:text-red-400 disabled:opacity-50">
+                                            {deletingId === e.id ? '...' : 'Delete'}
+                                          </button>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -671,11 +715,14 @@ function BudgetExpensesPage() {
 
                     {tab === 'planner' && (
                       <div>
+                        {!isCustomer && (
+                          <p className="mb-3 rounded-lg bg-ink/5 px-3 py-2 text-xs text-ink/50">Only the project owner can change budget allocations — you can still see how spending compares below.</p>
+                        )}
                         <div className="max-w-xs">
-                          <FormField id="totalBudget" label="Total project budget (₹)" type="number" value={plannerTotalBudget} onChange={(e) => setPlannerTotalBudget(e.target.value)} placeholder="e.g. 1500000" />
+                          <FormField id="totalBudget" label="Total project budget (₹)" type="number" value={plannerTotalBudget} onChange={(e) => setPlannerTotalBudget(e.target.value)} placeholder="e.g. 1500000" disabled={!isCustomer} />
                         </div>
                         <div className="mt-5 space-y-4">
-                          {BUDGET_CATEGORIES.map((category) => {
+                          {categoryNames.map((category) => {
                             const spent = overview.categories.find((c) => c.category === category)?.spentAmount || 0
                             const budgeted = Number(plannerAmounts[category]) || 0
                             const pct = budgeted > 0 ? Math.min(100, Math.round((spent / budgeted) * 100)) : 0
@@ -695,7 +742,8 @@ function BudgetExpensesPage() {
                                     type="number"
                                     value={plannerAmounts[category] || ''}
                                     onChange={(e) => setPlannerAmounts((p) => ({ ...p, [category]: e.target.value }))}
-                                    className="w-28 shrink-0 rounded-lg border border-ink/15 bg-navy-950/40 px-2.5 py-1.5 text-xs text-ink outline-none"
+                                    disabled={!isCustomer}
+                                    className="w-28 shrink-0 rounded-lg border border-ink/15 bg-navy-950/40 px-2.5 py-1.5 text-xs text-ink outline-none disabled:opacity-50"
                                     placeholder="0"
                                   />
                                 </div>
@@ -703,10 +751,12 @@ function BudgetExpensesPage() {
                             )
                           })}
                         </div>
-                        <button onClick={handleSavePlanner} disabled={savingPlanner} className="mt-5 flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
-                          {savingPlanner && <Spinner className="h-4 w-4" />}
-                          Save Budget
-                        </button>
+                        {isCustomer && (
+                          <button onClick={handleSavePlanner} disabled={savingPlanner} className="mt-5 flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
+                            {savingPlanner && <Spinner className="h-4 w-4" />}
+                            Save Budget
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -814,7 +864,7 @@ function BudgetExpensesPage() {
                         onChange={(e) => setExpenseForm((p) => ({ ...p, category: e.target.value }))}
                         className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-4 py-2.5 text-sm text-ink outline-none"
                       >
-                        {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        {categoryNames.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className="grid grid-cols-2 gap-3">

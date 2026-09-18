@@ -81,3 +81,21 @@ export async function sendSupervisorInviteEmail(to, { projectName, tempPassword 
   })
   return { delivered: true }
 }
+
+export async function sendContractorInviteEmail(to, { projectName, tempPassword }) {
+  const t = getTransporter()
+  if (!t) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[mailer] Gmail not configured — dev contractor invite for ${to}: project "${projectName}", temp password: ${tempPassword}`)
+    }
+    return { delivered: false }
+  }
+
+  await t.sendMail({
+    from: `Sankalp <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `You've been assigned to "${projectName}" on Sankalp`,
+    text: `You've been assigned as a contractor on the Sankalp project "${projectName}".\n\nSign in with:\nEmail: ${to}\nTemporary password: ${tempPassword}\n\nPlease change your password after signing in.`,
+  })
+  return { delivered: true }
+}

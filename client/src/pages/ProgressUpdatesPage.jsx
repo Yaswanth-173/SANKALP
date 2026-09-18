@@ -8,8 +8,10 @@ import FormField from '../components/FormField.jsx'
 import ProgressRing from '../components/tasks/ProgressRing.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { usePreferences } from '../context/PreferencesContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { supervisorNavItems, contractorNavItems } from '../utils/supervisorNav.js'
 import { apiFetch } from '../utils/api.js'
-import { uploadImages } from '../utils/upload.js'
+import { uploadImages, resolveFileUrl } from '../utils/upload.js'
 
 const iconBase = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }
 const TimelineTabIcon = (p) => <svg {...iconBase} {...p}><path d="M4 6h16M4 12h16M4 18h10" /></svg>
@@ -40,6 +42,8 @@ const TASK_TYPE_ICONS = {
   work: (p) => <svg {...iconBase} {...p}><rect x="5" y="4" width="14" height="17" rx="1.5" /><path d="M9 3v3h6V3" /></svg>,
   site_visit: (p) => <svg {...iconBase} {...p}><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.5" /></svg>,
 }
+
+const AUTHOR_ROLE_LABELS = { supervisor: 'Site Supervisor', contractor: 'Contractor', customer: 'Customer' }
 
 const PRIORITY_STYLES = {
   high: 'bg-red-500/10 text-red-300',
@@ -240,6 +244,12 @@ const updateFormInitial = { title: '', description: '', progressPercent: '', loc
 
 function ProgressUpdatesPage() {
   const { theme } = usePreferences()
+  const { user } = useAuth()
+  const canManageProject = user?.role === 'customer' || user?.role === 'supervisor'
+  const roleSidebarProps =
+    user?.role === 'supervisor' ? { navItems: supervisorNavItems, showLocationPicker: false }
+    : user?.role === 'contractor' ? { navItems: contractorNavItems, showLocationPicker: false }
+    : undefined
   const chartColor = theme === 'light' ? CHART_COLOR.light : CHART_COLOR.dark
 
   const [projects, setProjects] = useState([])
@@ -273,6 +283,29 @@ function ProgressUpdatesPage() {
   const [taskForm, setTaskForm] = useState({ title: '', type: 'work', priority: 'medium' })
   const [addingTask, setAddingTask] = useState(false)
   const [showTaskForm, setShowTaskForm] = useState(false)
+
+  // Contractors already attached to this project (assignable to tasks) vs.
+  // the full directory (used to pick who to attach next). Two different
+  // lists on purpose — a task can only be assigned to someone already on
+  // the project, per server/src/controllers/tasksController.js's assignTask.
+  const [projectContractors, setProjectContractors] = useState([])
+  const [directory, setDirectory] = useState([])
+  const [showAssignContractor, setShowAssignContractor] = useState(false)
+  const [assignContractorForm, setAssignContractorForm] = useState({ teamMemberId: '', email: '', phone: '' })
+  const [assigningContractor, setAssigningContractor] = useState(false)
+  const [taskAssignDrafts, setTaskAssignDrafts] = useState({}) // { [taskId]: { contractorMemberId, startDate, dueDate } }
+
+  useEffect(() => {
+    if (!canManageProject) return
+    ;(async () => {
+      try {
+        const res = await apiFetch('/api/contractors')
+        setDirectory((res.contractors || []).flatMap((c) => c.team.map((m) => ({ ...m, companyName: c.name, category: c.category }))))
+      } catch {
+        // Non-fatal — the "assign a new contractor" picker just stays empty.
+      }
+    })()
+  }, [canManageProject])
 
   const loadProjects = async () => {
     const res = await apiFetch('/api/projects')
@@ -310,12 +343,14 @@ function ProgressUpdatesPage() {
     setDataLoading(true)
     setError('')
     try {
-      const [progressRes, tasksRes] = await Promise.all([
+      const [progressRes, tasksRes, contractorsRes] = await Promise.all([
         apiFetch(`/api/projects/${projectId}/progress`),
         apiFetch(`/api/projects/${projectId}/tasks`),
+        apiFetch(`/api/projects/${projectId}/contractors`),
       ])
       setData(progressRes?.project ? progressRes : null)
       setTasks(tasksRes.tasks || [])
+      setProjectContractors(contractorsRes.contractors || [])
     } catch (err) {
       setError(err.message)
     } finally {
@@ -329,6 +364,12 @@ function ProgressUpdatesPage() {
 
   const project = data?.project
   const milestones = data?.milestones || []
+  // Kept as the raw, relative URLs the API returns — editing an update and
+  // re-submitting its existing photos must send back the same relative
+  // paths that were stored, not an API_URL-prefixed copy (which would
+  // silently rot if this app is ever pointed at a different API host).
+  // Every render site resolves to an absolute URL individually via
+  // resolveFileUrl(), right where it builds the <img src>.
   const updates = data?.updates || []
   const taskCounts = data?.taskCounts || { pending: 0, in_progress: 0, completed: 0 }
   const totalTasks = taskCounts.pending + taskCounts.in_progress + taskCounts.completed
@@ -379,7 +420,7 @@ function ProgressUpdatesPage() {
   }, [allChartPoints, chartRange])
 
   const photos = useMemo(
-    () => updates.flatMap((u) => (u.photoUrls || []).map((url) => ({ url, updateTitle: u.title, createdAt: u.createdAt }))),
+    () => updates.flatMap((u) => (u.photoUrls || []).map((url) => ({ url: resolveFileUrl(url), updateTitle: u.title, createdAt: u.createdAt }))),
     [updates]
   )
 
@@ -491,7 +532,7 @@ function ProgressUpdatesPage() {
     setSubmitting(true)
     setUpdateError('')
     try {
-      const uploaded = await uploadImages(photoFiles)
+      const uploaded = await uploadImages(selectedProjectId, photoFiles)
       const photoUrls = [...existingPhotoUrls, ...uploaded].slice(0, 6)
       const body = JSON.stringify({
         title: updateForm.title.trim(),
@@ -534,7 +575,10 @@ function ProgressUpdatesPage() {
     const next = task.status === 'pending' ? 'in_progress' : task.status === 'in_progress' ? 'completed' : 'pending'
     setTaskActionId(task.id)
     try {
-      await apiFetch(`/api/tasks/${task.id}/status`, { method: 'PATCH', body: JSON.stringify({ status: next }) })
+      await apiFetch(`/api/projects/${selectedProjectId}/tasks/${task.id}/progress`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: next, progressPercent: next === 'completed' ? 100 : task.progressPercent }),
+      })
       await loadProgress(selectedProjectId)
     } catch (err) {
       showToast(err.message)
@@ -573,8 +617,49 @@ function ProgressUpdatesPage() {
   const handleDeleteTask = async (taskId) => {
     setTaskActionId(taskId)
     try {
-      await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+      await apiFetch(`/api/projects/${selectedProjectId}/tasks/${taskId}`, { method: 'DELETE' })
       showToast('Task removed')
+      await loadProgress(selectedProjectId)
+    } catch (err) {
+      showToast(err.message)
+    } finally {
+      setTaskActionId(null)
+    }
+  }
+
+  const handleAssignContractorToProject = async (e) => {
+    e.preventDefault()
+    if (assigningContractor || !assignContractorForm.teamMemberId) return
+    setAssigningContractor(true)
+    try {
+      await apiFetch(`/api/projects/${selectedProjectId}/contractors`, {
+        method: 'POST',
+        body: JSON.stringify(assignContractorForm),
+      })
+      showToast('Contractor assigned to the project')
+      setAssignContractorForm({ teamMemberId: '', email: '', phone: '' })
+      setShowAssignContractor(false)
+      await loadProgress(selectedProjectId)
+    } catch (err) {
+      showToast(err.message)
+    } finally {
+      setAssigningContractor(false)
+    }
+  }
+
+  const handleAssignTask = async (taskId) => {
+    const draft = taskAssignDrafts[taskId] || {}
+    setTaskActionId(taskId)
+    try {
+      await apiFetch(`/api/projects/${selectedProjectId}/tasks/${taskId}/assign`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          contractorMemberId: draft.contractorMemberId || null,
+          startDate: draft.startDate || null,
+          dueDate: draft.dueDate || null,
+        }),
+      })
+      showToast('Task assignment saved')
       await loadProgress(selectedProjectId)
     } catch (err) {
       showToast(err.message)
@@ -595,16 +680,24 @@ function ProgressUpdatesPage() {
 
   if (!projectsLoading && projects.length === 0) {
     return (
-      <DashboardShell>
+      <DashboardShell sidebarProps={roleSidebarProps}>
         {({ onMenuClick }) => (
           <>
             <DashboardHeader onMenuClick={onMenuClick} title="Progress Updates" subtitle="Track your project progress and receive updates." />
             <div className="mt-16 flex flex-col items-center gap-3 text-center text-ink/40">
               <ProjectsIcon className="h-10 w-10" />
-              <p className="text-sm">Create a project first to start tracking its progress.</p>
-              <Link to="/dashboard/projects" className="mt-1 rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
-                + New Project
-              </Link>
+              {canManageProject ? (
+                <>
+                  <p className="text-sm">Create a project first to start tracking its progress.</p>
+                  {user?.role === 'customer' && (
+                    <Link to="/dashboard/projects" className="mt-1 rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                      + New Project
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm">You haven't been assigned to any projects yet.</p>
+              )}
             </div>
           </>
         )}
@@ -613,7 +706,7 @@ function ProgressUpdatesPage() {
   }
 
   return (
-    <DashboardShell>
+    <DashboardShell sidebarProps={roleSidebarProps}>
       {({ onMenuClick }) => (
         <>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -774,13 +867,67 @@ function ProgressUpdatesPage() {
                             <p className="text-xs text-ink/40">
                               {taskCounts.completed} completed · {taskCounts.in_progress} in progress · {taskCounts.pending} pending
                             </p>
-                            <button
-                              onClick={() => setShowTaskForm((v) => !v)}
-                              className="rounded-full border border-gold-500/40 px-3 py-1 text-[11px] font-semibold text-gold-300 hover:bg-gold-500/10"
-                            >
-                              {showTaskForm ? 'Cancel' : '+ Add Task'}
-                            </button>
+                            {canManageProject && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setShowAssignContractor((v) => !v)}
+                                  className="rounded-full border border-ink/15 px-3 py-1 text-[11px] font-semibold text-ink/70 hover:bg-ink/5"
+                                >
+                                  {showAssignContractor ? 'Cancel' : '+ Assign Contractor'}
+                                </button>
+                                <button
+                                  onClick={() => setShowTaskForm((v) => !v)}
+                                  className="rounded-full border border-gold-500/40 px-3 py-1 text-[11px] font-semibold text-gold-300 hover:bg-gold-500/10"
+                                >
+                                  {showTaskForm ? 'Cancel' : '+ Add Task'}
+                                </button>
+                              </div>
+                            )}
                           </div>
+
+                          {projectContractors.length > 0 && (
+                            <div className="mb-3 flex flex-wrap gap-1.5">
+                              {projectContractors.map((c) => (
+                                <span key={c.id} className="rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-[10px] text-ink/60">
+                                  {c.name} — {c.role}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {showAssignContractor && canManageProject && (
+                            <form onSubmit={handleAssignContractorToProject} className="mb-3 space-y-2 rounded-xl border border-ink/10 bg-navy-950/40 p-3">
+                              <select
+                                value={assignContractorForm.teamMemberId}
+                                onChange={(e) => setAssignContractorForm((p) => ({ ...p, teamMemberId: e.target.value }))}
+                                className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none"
+                              >
+                                <option value="">Choose from the contractor directory…</option>
+                                {directory.map((m) => (
+                                  <option key={m.id} value={m.id}>{m.name} — {m.role} ({m.companyName})</option>
+                                ))}
+                              </select>
+                              <p className="text-[10px] text-ink/40">If this contractor has never been assigned before, they'll need an email + phone so we can create their login.</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  value={assignContractorForm.email}
+                                  onChange={(e) => setAssignContractorForm((p) => ({ ...p, email: e.target.value }))}
+                                  placeholder="Email (if new)"
+                                  className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
+                                />
+                                <input
+                                  value={assignContractorForm.phone}
+                                  onChange={(e) => setAssignContractorForm((p) => ({ ...p, phone: e.target.value }))}
+                                  placeholder="Phone (if new)"
+                                  className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
+                                />
+                              </div>
+                              <button type="submit" disabled={assigningContractor || !assignContractorForm.teamMemberId} className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink/10 py-1.5 text-xs font-semibold text-ink hover:bg-ink/15 disabled:opacity-50">
+                                {assigningContractor && <Spinner className="h-3 w-3" />}
+                                Assign to Project
+                              </button>
+                            </form>
+                          )}
 
                           {showTaskForm && (
                             <form onSubmit={handleAddTask} className="mb-3 space-y-2 rounded-xl border border-ink/10 bg-navy-950/40 p-3">
@@ -816,6 +963,12 @@ function ProgressUpdatesPage() {
                               {tasks.map((task) => {
                                 const style = STATUS_STYLES[task.status]
                                 const TypeIcon = TASK_TYPE_ICONS[task.type] || TasksTabIcon
+                                const draft = taskAssignDrafts[task.id] || {
+                                  contractorMemberId: task.assignedContractorId || '',
+                                  startDate: task.startDate || '',
+                                  dueDate: task.dueDate || '',
+                                }
+                                const setDraft = (patch) => setTaskAssignDrafts((p) => ({ ...p, [task.id]: { ...draft, ...patch } }))
                                 return (
                                   <div key={task.id} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
                                     <div className="flex items-center gap-2.5">
@@ -823,15 +976,32 @@ function ProgressUpdatesPage() {
                                         <TypeIcon className="h-3.5 w-3.5" />
                                       </span>
                                       <p className="min-w-0 flex-1 truncate text-sm text-ink/90">{task.title}</p>
-                                      <button
-                                        onClick={() => handleDeleteTask(task.id)}
-                                        disabled={taskActionId === task.id}
-                                        aria-label="Delete task"
-                                        className="shrink-0 text-[11px] text-red-400/70 hover:text-red-400 disabled:opacity-50"
-                                      >
-                                        ✕
-                                      </button>
+                                      {canManageProject && (
+                                        <button
+                                          onClick={() => handleDeleteTask(task.id)}
+                                          disabled={taskActionId === task.id}
+                                          aria-label="Delete task"
+                                          className="shrink-0 text-[11px] text-red-400/70 hover:text-red-400 disabled:opacity-50"
+                                        >
+                                          ✕
+                                        </button>
+                                      )}
                                     </div>
+
+                                    {task.assignedContractorName && (
+                                      <p className="mt-1.5 text-[11px] text-ink/50">
+                                        Assigned: <span className="text-ink/80">{task.assignedContractorName}</span> — {task.assignedContractorRole}
+                                        {task.dueDate && <span> · Due {formatDate(task.dueDate)}</span>}
+                                      </p>
+                                    )}
+
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
+                                        <div className="h-full rounded-full bg-gold-400" style={{ width: `${task.progressPercent || 0}%` }} />
+                                      </div>
+                                      <span className="w-8 shrink-0 text-right text-[10px] text-ink/40">{task.progressPercent || 0}%</span>
+                                    </div>
+
                                     <div className="mt-2 flex items-center justify-between gap-2">
                                       <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>{task.priority}</span>
                                       <button
@@ -843,6 +1013,30 @@ function ProgressUpdatesPage() {
                                         {style.label}
                                       </button>
                                     </div>
+
+                                    {canManageProject && (
+                                      <div className="mt-2.5 grid grid-cols-[1fr_auto_auto_auto] items-center gap-1.5 border-t border-ink/10 pt-2.5">
+                                        <select
+                                          value={draft.contractorMemberId}
+                                          onChange={(e) => setDraft({ contractorMemberId: e.target.value })}
+                                          className="rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-[10px] text-ink outline-none"
+                                        >
+                                          <option value="">Unassigned</option>
+                                          {projectContractors.map((c) => (
+                                            <option key={c.id} value={c.id}>{c.name} — {c.role}</option>
+                                          ))}
+                                        </select>
+                                        <input type="date" value={draft.startDate} onChange={(e) => setDraft({ startDate: e.target.value })} className="w-[104px] rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-[10px] text-ink outline-none" />
+                                        <input type="date" value={draft.dueDate} onChange={(e) => setDraft({ dueDate: e.target.value })} className="w-[104px] rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-[10px] text-ink outline-none" />
+                                        <button
+                                          onClick={() => handleAssignTask(task.id)}
+                                          disabled={taskActionId === task.id}
+                                          className="rounded-lg bg-ink/10 px-2 py-1 text-[10px] font-semibold text-ink hover:bg-ink/15 disabled:opacity-50"
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 )
                               })}
@@ -925,8 +1119,8 @@ function ProgressUpdatesPage() {
                           {latestUpdate.photoUrls?.length > 0 && (
                             <div className="mt-3 grid grid-cols-3 gap-2">
                               {latestUpdate.photoUrls.slice(0, 3).map((url, i) => (
-                                <button key={i} onClick={() => setLightboxUrl(url)}>
-                                  <img src={url} alt="" className="h-24 w-full rounded-lg object-cover hover:opacity-90" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                                <button key={i} onClick={() => setLightboxUrl(resolveFileUrl(url))}>
+                                  <img src={resolveFileUrl(url)} alt="" className="h-24 w-full rounded-lg object-cover hover:opacity-90" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                                 </button>
                               ))}
                             </div>
@@ -938,7 +1132,7 @@ function ProgressUpdatesPage() {
                               <span>
                                 <span className="block text-[10px] text-ink/35">Updated by</span>
                                 {latestUpdate.authorName}
-                                {latestUpdate.authorRole && <span className="text-ink/35"> · {latestUpdate.authorRole === 'supervisor' ? 'Site Supervisor' : 'Customer'}</span>}
+                                {latestUpdate.authorRole && <span className="text-ink/35"> · {AUTHOR_ROLE_LABELS[latestUpdate.authorRole] || 'Customer'}</span>}
                               </span>
                             </div>
                             {(latestUpdate.location || project.location) && (
@@ -1053,7 +1247,7 @@ function ProgressUpdatesPage() {
                             {(feedExpanded ? filteredFeed : updates).slice(0, feedExpanded ? 20 : 5).map((u) => (
                               <div key={u.id} className="flex items-center gap-2.5">
                                 {u.photoUrls?.[0] ? (
-                                  <img src={u.photoUrls[0]} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                                  <img src={resolveFileUrl(u.photoUrls[0])} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                                 ) : (
                                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/30">
                                     <DocThumbIcon className="h-4 w-4" />

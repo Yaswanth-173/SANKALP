@@ -7,7 +7,7 @@ import { BackArrowIcon } from '../components/dashboard/icons.jsx'
 import { apiFetch } from '../utils/api.js'
 import { supervisorNavItems } from '../utils/supervisorNav.js'
 
-function SupervisorProjectDetailPage() {
+function SupervisorProjectDetailPage({ basePath = '/supervisor', navItems = supervisorNavItems }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const [project, setProject] = useState(null)
@@ -28,7 +28,7 @@ function SupervisorProjectDetailPage() {
   }, [id])
 
   return (
-    <DashboardShell sidebarProps={{ navItems: supervisorNavItems, showLocationPicker: false }}>
+    <DashboardShell sidebarProps={{ navItems, showLocationPicker: false }}>
       {({ onMenuClick }) => (
         <>
           <DashboardHeader
@@ -38,7 +38,7 @@ function SupervisorProjectDetailPage() {
           />
 
           <button
-            onClick={() => navigate('/supervisor')}
+            onClick={() => navigate(basePath)}
             className="mt-4 flex items-center gap-1.5 text-xs font-medium text-ink/50 hover:text-ink"
           >
             <BackArrowIcon className="h-3.5 w-3.5" /> All projects

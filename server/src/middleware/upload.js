@@ -3,14 +3,19 @@ import path from 'node:path'
 import fs from 'node:fs'
 import multer from 'multer'
 
-// Real file uploads to local disk, served back as a plain static URL. Not
-// Supabase Storage — no Supabase project is actually connected to this app
-// (confirmed: no client, no credentials configured anywhere), so this is the
-// honest substitute given the infrastructure that's actually deployed. On
-// Render's free tier this disk is ephemeral (wiped on redeploy) — acceptable
-// for now, called out explicitly rather than silently shipped; swapping to
-// Supabase Storage or another object store later only means changing
-// `saveUploadedFile`'s return URL, not any caller.
+// Real file uploads to local disk. Not Supabase Storage — no Supabase
+// project is actually connected to this app (confirmed: no client, no
+// credentials configured anywhere), so this is the honest substitute given
+// the infrastructure that's actually deployed. On Render's free tier this
+// disk is ephemeral (wiped on redeploy) — acceptable for now, called out
+// explicitly rather than silently shipped.
+//
+// Files are never served from a public/static path. Each upload is recorded
+// as a row in `project_files` (project_id, uploaded_by, mime type, size) and
+// read back through GET /api/files/:fileId (see filesController.js), which
+// re-checks the requester's project membership on every read. Swapping to
+// Supabase Storage or another object store later only means changing where
+// filesController writes/reads bytes, not the authorization model.
 export const UPLOAD_DIR = path.join(process.cwd(), 'uploads')
 fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
@@ -42,6 +47,11 @@ function makeUploader(allowedTypes) {
 export const uploadImages = makeUploader(ALLOWED_IMAGE_TYPES)
 export const uploadDocument = makeUploader(ALLOWED_DOCUMENT_TYPES)
 
-export function publicUploadUrl(filename) {
-  return `/uploads/${filename}`
+export function handleMulterError(err, req, res, next) {
+  if (err) {
+    if (err.message === 'UNSUPPORTED_FILE_TYPE') return res.status(400).json({ message: 'Unsupported file type' })
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ message: 'File is too large (max 8MB)' })
+    return res.status(400).json({ message: 'Upload failed' })
+  }
+  next()
 }
