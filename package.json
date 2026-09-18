@@ -5,7 +5,7 @@
   "description": "Sankalp construction-tech platform (client/ = React+Vite, server/ = Node+Express)",
   "scripts": {
     "dev": "npm --prefix client run dev",
-    "build": "npm --prefix client run build",
+    "build": "cd client && npm install && npm run build",
     "sync": "powershell -ExecutionPolicy Bypass -File scripts/sync-to-github.ps1"
   }
 }
