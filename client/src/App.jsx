@@ -14,13 +14,13 @@ import ContractorDetailPage from './pages/ContractorDetailPage.jsx'
 import CartPage from './pages/CartPage.jsx'
 import TaskTrackerPage from './pages/TaskTrackerPage.jsx'
 import MaterialsPage from './pages/MaterialsPage.jsx'
+import CostComparisonPage from './pages/CostComparisonPage.jsx'
 import ProjectsPage from './pages/ProjectsPage.jsx'
 import ProjectDetailPage from './pages/ProjectDetailPage.jsx'
 import SupervisorDashboardPage from './pages/SupervisorDashboardPage.jsx'
 import SupervisorProjectDetailPage from './pages/SupervisorProjectDetailPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import { useTranslation } from './i18n/index.js'
-import costComparisonIcon from './assets/dashboard-icons/cost-comparison-icon.png'
 import progressUpdatesIcon from './assets/dashboard-icons/progress-updates-icon.png'
 import budgetExpensesIcon from './assets/dashboard-icons/budget-expenses-icon.png'
 
@@ -160,8 +160,16 @@ function App() {
         }
       />
 
+      <Route
+        path="/dashboard/cost-comparison"
+        element={
+          <ProtectedRoute allowRoles={['customer']}>
+            <CostComparisonPage />
+          </ProtectedRoute>
+        }
+      />
+
       {[
-        { path: 'cost-comparison', titleKey: 'cards.costComparison.title', descKey: 'cards.costComparison.description', icon: costComparisonIcon },
         { path: 'progress', titleKey: 'cards.progress.title', descKey: 'cards.progress.description', icon: progressUpdatesIcon },
         { path: 'budget', titleKey: 'cards.budget.title', descKey: 'cards.budget.description', icon: budgetExpensesIcon },
       ].map(({ path, titleKey, descKey, icon }) => (

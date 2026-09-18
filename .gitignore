@@ -14,3 +14,6 @@ Thumbs.db
 # (not referenced by any code — the real data lives under server/src/data/)
 /sankalp_51_contractor_icons_preview.png
 /sankalp_51_contractors_357_members.csv
+
+.vercel
+.env*
