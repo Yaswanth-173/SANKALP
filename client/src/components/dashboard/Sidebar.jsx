@@ -13,7 +13,6 @@ import {
   LogoutIcon,
   MessagesIcon,
   NotesIcon,
-  ProjectsIcon,
   SettingsIcon,
 } from './icons.jsx'
 
@@ -27,7 +26,6 @@ function Sidebar({ onClose, navItems: navItemsProp, showLocationPicker = true })
 
   const navItems = navItemsProp || [
     { to: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon, end: true },
-    { to: '/dashboard/projects', label: 'Projects', icon: ProjectsIcon },
     { to: '/dashboard/calendar', label: t('nav.calendar'), icon: CalendarIcon },
     { to: '/dashboard/notes', label: t('nav.notes'), icon: NotesIcon },
     { to: '/dashboard/messages', label: t('nav.messages'), icon: MessagesIcon },
