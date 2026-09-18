@@ -168,6 +168,7 @@ export async function ensureSchema() {
   await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS image_source TEXT')
   await query("ALTER TABLE material_products ADD COLUMN IF NOT EXISTS stock_status VARCHAR(20) NOT NULL DEFAULT 'in_stock'")
   await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS stock INT NOT NULL DEFAULT 0')
+  await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS min_order_qty INT NOT NULL DEFAULT 1')
   await query('CREATE INDEX IF NOT EXISTS material_products_shop_idx ON material_products (shop_id)')
 
   await query(`

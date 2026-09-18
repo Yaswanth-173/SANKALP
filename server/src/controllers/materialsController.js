@@ -18,6 +18,7 @@ const publicProduct = (p) => ({
   imageSource: p.image_source,
   stockStatus: p.stock_status,
   stock: Number(p.stock || 0),
+  minOrderQty: Number(p.min_order_qty || 1),
 })
 
 // Great-circle distance between two lat/lng points, in kilometers.

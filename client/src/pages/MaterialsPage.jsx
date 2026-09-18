@@ -15,6 +15,18 @@ function formatPrice(n) {
   return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 }
 
+// Brand isn't a separate field in the catalog — several product names
+// already embed a real manufacturer (e.g. "UltraTech OPC 53 Grade Cement").
+// Same derivation as the Cost Comparison page, so "UltraTech" means the
+// same thing on both pages.
+const KNOWN_BRANDS = ['UltraTech', 'ACC', 'Ambuja', 'Asian Paints', 'Havells', 'Kajaria', 'Cera', 'Dalmia', 'JK Cement']
+function deriveBrand(name) {
+  for (const brand of KNOWN_BRANDS) {
+    if (name.includes(brand)) return brand
+  }
+  return 'Generic'
+}
+
 // Nominatim sometimes returns a different name than what our shop directory
 // uses for the same city — map the common ones onto our list.
 const CITY_ALIASES = {
@@ -68,7 +80,11 @@ function MaterialsPage() {
   const [deliveryOnly, setDeliveryOnly] = useState(false)
   const [inStockOnly, setInStockOnly] = useState(false)
   const [priceMin, setPriceMin] = useState('')
-  const [priceMax, setPriceMax] = useState('')
+  const [priceMax, setPriceMax] = useState(null)
+  const [brandFilter, setBrandFilter] = useState('all')
+  const [supplierFilter, setSupplierFilter] = useState('all')
+  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
+  const [wishlist, setWishlist] = useState(new Set())
 
   const detectCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -162,15 +178,18 @@ function MaterialsPage() {
   }, [coords])
 
   const allProducts = useMemo(
-    () => shops.flatMap((s) => s.products.map((p) => ({ ...p, shopId: s.id, shopName: s.name }))),
+    () => shops.flatMap((s) => s.products.map((p) => ({ ...p, shopId: s.id, shopName: s.name, brand: deriveBrand(p.name) }))),
     [shops]
   )
   const productById = useMemo(() => new Map(allProducts.map((p) => [p.id, p])), [allProducts])
   const categories = useMemo(() => [...new Set(shops.map((s) => s.category))], [shops])
   const locations = useMemo(() => [...new Set(shops.map((s) => s.location))].sort(), [shops])
+  const suppliers = useMemo(() => [...new Set(shops.map((s) => s.name))].sort(), [shops])
+  const brands = useMemo(() => [...new Set(allProducts.map((p) => p.brand))].sort(), [allProducts])
+  const priceCeil = useMemo(() => Math.max(100, ...allProducts.map((p) => p.price)), [allProducts])
+  const effectivePriceMax = priceMax ?? priceCeil
 
   const min = priceMin.trim() === '' ? null : Number(priceMin)
-  const max = priceMax.trim() === '' ? null : Number(priceMax)
 
   const visibleShops = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -180,18 +199,31 @@ function MaterialsPage() {
       .filter((s) => distanceFilter === 'all' || s.distanceKm === null || s.distanceKm <= Number(distanceFilter))
       .filter((s) => minRating === 0 || (s.rating ?? 0) >= minRating)
       .filter((s) => !deliveryOnly || s.deliveryAvailable)
+      .filter((s) => supplierFilter === 'all' || s.name === supplierFilter)
       .map((s) => ({
         ...s,
-        products: s.products.filter((p) => {
-          if (q && !p.name.toLowerCase().includes(q)) return false
-          if (inStockOnly && p.stockStatus === 'out_of_stock') return false
-          if (min !== null && p.price < min) return false
-          if (max !== null && p.price > max) return false
-          return true
-        }),
+        products: s.products
+          .map((p) => ({ ...p, brand: deriveBrand(p.name) }))
+          .filter((p) => {
+            if (q && !p.name.toLowerCase().includes(q)) return false
+            if (inStockOnly && p.stockStatus === 'out_of_stock') return false
+            if (brandFilter !== 'all' && p.brand !== brandFilter) return false
+            if (min !== null && p.price < min) return false
+            if (p.price > effectivePriceMax) return false
+            return true
+          }),
       }))
       .filter((s) => s.products.length > 0)
-  }, [shops, categoryFilter, locationFilter, distanceFilter, minRating, deliveryOnly, inStockOnly, min, max, query])
+  }, [shops, categoryFilter, locationFilter, distanceFilter, minRating, deliveryOnly, inStockOnly, supplierFilter, brandFilter, min, effectivePriceMax, query])
+
+  const toggleWishlist = (productId) => {
+    setWishlist((prev) => {
+      const next = new Set(prev)
+      if (next.has(productId)) next.delete(productId)
+      else next.add(productId)
+      return next
+    })
+  }
 
   // With shops now covering ~450 towns/cities across India, rendering every
   // matching shop at once (e.g. under "All India") would be sluggish — cap
@@ -283,6 +315,22 @@ function MaterialsPage() {
             title="Material Details"
             subtitle="Browse materials from local shops, add to cart and order deliveries."
           />
+
+          {!showOrders && (
+            <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-gold-500/20 bg-gradient-to-br from-gold-500/10 via-navy-900/50 to-navy-900/50 p-5 sm:grid-cols-4">
+              {[
+                { label: 'Quality Materials', icon: '✓' },
+                { label: 'Verified Suppliers', icon: '🛡' },
+                { label: 'Fast Delivery', icon: '🚚' },
+                { label: 'Better Prices', icon: '₹' },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-sm text-gold-300">{item.icon}</span>
+                  <span className="text-xs font-medium text-ink/75 sm:text-sm">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-md flex-1">
@@ -456,6 +504,26 @@ function MaterialsPage() {
                   <option value={4}>4★ &amp; up</option>
                   <option value={3.5}>3.5★ &amp; up</option>
                 </select>
+                <select
+                  value={brandFilter}
+                  onChange={(e) => setBrandFilter(e.target.value)}
+                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/70 outline-none"
+                >
+                  <option value="all">All Brands</option>
+                  {brands.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+                <select
+                  value={supplierFilter}
+                  onChange={(e) => setSupplierFilter(e.target.value)}
+                  className="max-w-[160px] rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/70 outline-none"
+                >
+                  <option value="all">All Suppliers</option>
+                  {suppliers.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
                 <input
                   type="number"
                   min="0"
@@ -464,14 +532,18 @@ function MaterialsPage() {
                   placeholder="Min ₹"
                   className="w-20 rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
                 />
-                <input
-                  type="number"
-                  min="0"
-                  value={priceMax}
-                  onChange={(e) => setPriceMax(e.target.value)}
-                  placeholder="Max ₹"
-                  className="w-20 rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
-                />
+                <span className="flex items-center gap-2 rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/60">
+                  Up to {formatPrice(effectivePriceMax)}
+                  <input
+                    type="range"
+                    min="0"
+                    max={priceCeil}
+                    step={Math.max(1, Math.round(priceCeil / 100))}
+                    value={effectivePriceMax}
+                    onChange={(e) => setPriceMax(Number(e.target.value))}
+                    className="w-24 accent-gold-500"
+                  />
+                </span>
                 <button
                   onClick={() => setInStockOnly((v) => !v)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
@@ -488,6 +560,20 @@ function MaterialsPage() {
                 >
                   Delivery available
                 </button>
+                <div className="ml-auto flex items-center gap-1 rounded-full border border-ink/10 p-1">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'grid' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
+                  >
+                    Grid
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'list' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
+                  >
+                    List
+                  </button>
+                </div>
               </div>
 
               {isCapped && (
@@ -551,17 +637,33 @@ function MaterialsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className={viewMode === 'grid' ? 'mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'mt-4 flex flex-col gap-2.5'}>
                       {shop.products.map((product) => {
                         const quantity = cart[product.id] || 0
                         const outOfStock = product.stockStatus === 'out_of_stock'
+                        const isWishlisted = wishlist.has(product.id)
                         return (
-                          <div key={product.id} className="flex flex-col gap-2.5 rounded-xl border border-ink/10 bg-navy-950/40 p-3">
-                            <div className="flex items-center gap-3">
+                          <div key={product.id} className={`flex gap-2.5 rounded-xl border border-ink/10 bg-navy-950/40 p-3 ${viewMode === 'grid' ? 'flex-col' : 'items-center'}`}>
+                            <div className="flex flex-1 items-center gap-3">
                               <ProductImage product={product} className="h-14 w-14" />
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm text-ink/90">{product.name}</p>
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="truncate text-sm text-ink/90">{product.name}</p>
+                                  <button
+                                    onClick={() => toggleWishlist(product.id)}
+                                    aria-label="Save to wishlist"
+                                    className={`shrink-0 ${isWishlisted ? 'text-red-400' : 'text-ink/25 hover:text-ink/50'}`}
+                                  >
+                                    <svg viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20s-7-4.35-9.5-8.5C.7 8.2 2.4 5 5.6 5c1.7 0 3.2.9 4.1 2.3.9 1.5.3-2.3 4.1-2.3 3.2 0 4.9 3.2 3.1 6.5C19 15.65 12 20 12 20Z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                {product.brand !== 'Generic' && (
+                                  <p className="text-[10px] font-medium uppercase tracking-wide text-gold-300/70">{product.brand}</p>
+                                )}
                                 <p className="text-xs text-ink/40">{formatPrice(product.price)} / {product.unit}</p>
+                                <p className="text-[10px] text-ink/35">Min. Order: {product.minOrderQty} × {product.unit}</p>
                                 <span
                                   className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
                                     product.stockStatus === 'out_of_stock'
@@ -575,7 +677,7 @@ function MaterialsPage() {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className={viewMode === 'grid' ? 'flex items-center gap-2' : 'flex shrink-0 items-center gap-2'}>
                               {quantity === 0 ? (
                                 <button
                                   onClick={() => increment(product.id)}

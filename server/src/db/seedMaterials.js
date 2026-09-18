@@ -366,6 +366,32 @@ function stockFor(productId) {
   return 50
 }
 
+// A retail minimum-order-quantity convention, not a manufacturer spec —
+// keyed by unit rather than per-product, similar in spirit to the flat
+// DELIVERY_CHARGE elsewhere: an honest, labeled simplification rather than
+// a fabricated per-product fact. Units that are already sold as a bulk lot
+// ("lot of 1000", "ton") keep a minimum of 1 of that lot.
+const MIN_ORDER_BY_UNIT = {
+  bag: 5,
+  kg: 25,
+  roll: 2,
+  piece: 10,
+  pair: 2,
+  set: 1,
+  box: 2,
+  bucket: 1,
+  coil: 1,
+  length: 5,
+  sheet: 5,
+  container: 1,
+  pack: 5,
+  ton: 1,
+  'lot of 1000': 1,
+}
+function minOrderFor(unit) {
+  return MIN_ORDER_BY_UNIT[unit] || 1
+}
+
 const CATEGORY_PRODUCTS = {
   Cement: CEMENT_PRODUCTS,
   Steel: STEEL_PRODUCTS,
@@ -438,12 +464,13 @@ export async function seedMaterials() {
         const image = MATERIAL_IMAGES[product.name] || {}
         const stockStatus = stockStatusFor(productId)
         const stock = stockFor(productId)
+        const minOrderQty = minOrderFor(product.unit)
         await client.query(
-          `INSERT INTO material_products (id, shop_id, name, unit, price, icon, image_url, image_source, stock_status, stock)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `INSERT INTO material_products (id, shop_id, name, unit, price, icon, image_url, image_source, stock_status, stock, min_order_qty)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            ON CONFLICT (id) DO UPDATE SET shop_id = $2, name = $3, unit = $4, price = $5, icon = $6,
-             image_url = $7, image_source = $8, stock_status = $9, stock = $10`,
-          [productId, shop.id, product.name, product.unit, product.price, product.icon, image.url || null, image.source || null, stockStatus, stock]
+             image_url = $7, image_source = $8, stock_status = $9, stock = $10, min_order_qty = $11`,
+          [productId, shop.id, product.name, product.unit, product.price, product.icon, image.url || null, image.source || null, stockStatus, stock, minOrderQty]
         )
       }
     }
