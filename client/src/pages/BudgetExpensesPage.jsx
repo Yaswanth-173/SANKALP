@@ -200,8 +200,9 @@ function BudgetExpensesPage() {
     ;(async () => {
       try {
         const res = await apiFetch('/api/projects')
-        setProjects(res.projects)
-        if (res.projects.length) setSelectedProjectId(res.projects[0].id)
+        const list = res.projects || []
+        setProjects(list)
+        if (list.length) setSelectedProjectId(list[0].id)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -219,10 +220,13 @@ function BudgetExpensesPage() {
         apiFetch(`/api/projects/${projectId}/budget`),
         apiFetch(`/api/projects/${projectId}/expenses`),
       ])
-      setOverview(overviewRes)
-      setExpenses(expensesRes.expenses)
-      setPlannerAmounts(Object.fromEntries(overviewRes.categories.map((c) => [c.category, String(c.budgetedAmount || '')])))
-      setPlannerTotalBudget(overviewRes.totalBudget ? String(overviewRes.totalBudget) : '')
+      const safeOverview = overviewRes?.categories
+        ? overviewRes
+        : { totalBudget: 0, totalSpent: 0, remaining: 0, totalExpenseCount: 0, categories: BUDGET_CATEGORIES.map((category) => ({ category, budgetedAmount: 0, spentAmount: 0 })), recentExpenses: [] }
+      setOverview(safeOverview)
+      setExpenses(expensesRes.expenses || [])
+      setPlannerAmounts(Object.fromEntries(safeOverview.categories.map((c) => [c.category, String(c.budgetedAmount || '')])))
+      setPlannerTotalBudget(safeOverview.totalBudget ? String(safeOverview.totalBudget) : '')
     } catch (err) {
       setError(err.message)
     } finally {

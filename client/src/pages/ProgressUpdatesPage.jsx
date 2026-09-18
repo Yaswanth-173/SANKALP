@@ -136,8 +136,9 @@ function ProgressUpdatesPage() {
     ;(async () => {
       try {
         const res = await apiFetch('/api/projects')
-        setProjects(res.projects)
-        if (res.projects.length) setSelectedProjectId(res.projects[0].id)
+        const list = res.projects || []
+        setProjects(list)
+        if (list.length) setSelectedProjectId(list[0].id)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -155,8 +156,8 @@ function ProgressUpdatesPage() {
         apiFetch(`/api/projects/${projectId}/progress`),
         apiFetch(`/api/projects/${projectId}/tasks`),
       ])
-      setData(progressRes)
-      setTasks(tasksRes.tasks)
+      setData(progressRes?.project ? progressRes : null)
+      setTasks(tasksRes.tasks || [])
     } catch (err) {
       setError(err.message)
     } finally {

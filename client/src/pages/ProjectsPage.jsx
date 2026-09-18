@@ -21,7 +21,7 @@ function ProjectsPage() {
     ;(async () => {
       try {
         const data = await apiFetch('/api/projects')
-        setProjects(data.projects)
+        setProjects(data.projects || [])
       } catch (err) {
         setError(err.message)
       } finally {
