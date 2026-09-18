@@ -15,6 +15,10 @@ const publicExpense = (e) => ({
   paymentMode: e.payment_mode,
   status: e.status,
   expenseDate: e.expense_date,
+  vendor: e.vendor,
+  invoiceNumber: e.invoice_number,
+  notes: e.notes,
+  receiptUrl: e.receipt_url,
   createdAt: e.created_at,
 })
 
@@ -113,16 +117,21 @@ export async function listExpenses(req, res) {
   }
 }
 
-export async function createExpense(req, res) {
-  const { id: projectId } = req.params
-  const { category, description, amount, paymentMode, status, expenseDate } = req.body ?? {}
-
+function validateExpenseInput({ category, description, amount, paymentMode }) {
   const errors = {}
   if (!BUDGET_CATEGORIES.includes(category)) errors.category = 'Choose a valid category'
   if (!description || description.trim().length < 2) errors.description = 'Enter a description'
   const amountNum = Number(amount)
   if (!Number.isFinite(amountNum) || amountNum < 0) errors.amount = 'Enter a valid amount'
   if (paymentMode && !PAYMENT_MODES.includes(paymentMode)) errors.paymentMode = 'Invalid payment mode'
+  return { errors, amountNum }
+}
+
+export async function createExpense(req, res) {
+  const { id: projectId } = req.params
+  const { category, description, amount, paymentMode, status, expenseDate, vendor, invoiceNumber, notes, receiptUrl } = req.body ?? {}
+
+  const { errors, amountNum } = validateExpenseInput({ category, description, amount, paymentMode })
   if (Object.keys(errors).length) return res.status(400).json({ message: 'Please fix the highlighted fields', errors })
 
   try {
@@ -130,13 +139,47 @@ export async function createExpense(req, res) {
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
     const { rows } = await query(
-      `INSERT INTO expenses (project_id, created_by, category, description, amount, payment_mode, status, expense_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE)) RETURNING *`,
-      [projectId, req.user.id, category, description.trim(), amountNum, paymentMode || 'cash', status === 'pending' ? 'pending' : 'paid', expenseDate || null]
+      `INSERT INTO expenses (project_id, created_by, category, description, amount, payment_mode, status, expense_date, vendor, invoice_number, notes, receipt_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE), $9, $10, $11, $12) RETURNING *`,
+      [
+        projectId, req.user.id, category, description.trim(), amountNum, paymentMode || 'cash',
+        status === 'pending' ? 'pending' : 'paid', expenseDate || null,
+        vendor?.trim() || null, invoiceNumber?.trim() || null, notes?.trim() || null, receiptUrl || null,
+      ]
     )
     res.status(201).json({ expense: publicExpense(rows[0]) })
   } catch (err) {
     console.error('Create expense error', err)
+    res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+export async function updateExpense(req, res) {
+  const { id: projectId, expenseId } = req.params
+  const { category, description, amount, paymentMode, status, expenseDate, vendor, invoiceNumber, notes, receiptUrl } = req.body ?? {}
+
+  const { errors, amountNum } = validateExpenseInput({ category, description, amount, paymentMode })
+  if (Object.keys(errors).length) return res.status(400).json({ message: 'Please fix the highlighted fields', errors })
+
+  try {
+    const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
+    if (!allowed) return res.status(404).json({ message: 'Project not found' })
+
+    const { rows } = await query(
+      `UPDATE expenses SET category = $1, description = $2, amount = $3, payment_mode = $4, status = $5,
+         expense_date = COALESCE($6, expense_date), vendor = $7, invoice_number = $8, notes = $9,
+         receipt_url = COALESCE($10, receipt_url)
+       WHERE id = $11 AND project_id = $12 RETURNING *`,
+      [
+        category, description.trim(), amountNum, paymentMode || 'cash', status === 'pending' ? 'pending' : 'paid',
+        expenseDate || null, vendor?.trim() || null, invoiceNumber?.trim() || null, notes?.trim() || null,
+        receiptUrl || null, expenseId, projectId,
+      ]
+    )
+    if (!rows.length) return res.status(404).json({ message: 'Expense not found' })
+    res.json({ expense: publicExpense(rows[0]) })
+  } catch (err) {
+    console.error('Update expense error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }

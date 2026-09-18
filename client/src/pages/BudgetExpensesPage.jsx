@@ -8,6 +8,7 @@ import FormField from '../components/FormField.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { usePreferences } from '../context/PreferencesContext.jsx'
 import { apiFetch } from '../utils/api.js'
+import { uploadDocument } from '../utils/upload.js'
 
 // Mirrors server/src/controllers/budgetController.js's BUDGET_CATEGORIES —
 // kept in sync manually since the client has no reason to fetch a static
@@ -168,7 +169,25 @@ function ExpenseDonut({ categories, colors }) {
   )
 }
 
-const expenseFormInitial = { category: BUDGET_CATEGORIES[0], description: '', amount: '', paymentMode: 'cash', status: 'paid', expenseDate: new Date().toISOString().slice(0, 10) }
+const expenseFormInitial = {
+  category: BUDGET_CATEGORIES[0], description: '', amount: '', paymentMode: 'cash', status: 'paid',
+  expenseDate: new Date().toISOString().slice(0, 10), vendor: '', invoiceNumber: '', notes: '',
+}
+
+const filtersInitial = { dateFrom: '', dateTo: '', category: 'all', paymentMode: 'all', minAmount: '', maxAmount: '', status: 'all' }
+
+// 75/90/100%+ thresholds, computed live from real spend vs budget — never
+// stored, so there's no separate "already notified" state to manage and
+// therefore no risk of duplicate alerts (the concern the spec calls out).
+function budgetAlertFor(category) {
+  if (!category.budgetedAmount) return null
+  const pct = (category.spentAmount / category.budgetedAmount) * 100
+  if (pct > 100) return { level: 'critical', text: `${category.category} expenses have exceeded the allocated budget by ${formatPrice(category.spentAmount - category.budgetedAmount)}.` }
+  if (pct >= 100) return { level: 'critical', text: `${category.category} budget is fully utilized.` }
+  if (pct >= 90) return { level: 'warning', text: `${category.category} budget is ${Math.round(pct)}% utilized.` }
+  if (pct >= 75) return { level: 'notice', text: `${category.category} budget is ${Math.round(pct)}% utilized.` }
+  return null
+}
 
 function BudgetExpensesPage() {
   const { theme } = usePreferences()
@@ -187,10 +206,24 @@ function BudgetExpensesPage() {
   const [tab, setTab] = useState('overview')
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [expenseForm, setExpenseForm] = useState(expenseFormInitial)
+  const [editingExpenseId, setEditingExpenseId] = useState(null)
+  const [existingReceiptUrl, setExistingReceiptUrl] = useState(null)
+  const [receiptFile, setReceiptFile] = useState(null)
   const [expenseError, setExpenseError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [toast, setToast] = useState(null)
+
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [filters, setFilters] = useState(filtersInitial)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  // Debounced search — waits for a pause in typing before actually filtering.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim().toLowerCase()), 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
   const [plannerAmounts, setPlannerAmounts] = useState({})
   const [plannerTotalBudget, setPlannerTotalBudget] = useState('')
@@ -243,7 +276,35 @@ function BudgetExpensesPage() {
     setTimeout(() => setToast(null), 3200)
   }
 
-  const handleAddExpense = async (e) => {
+  const openAddExpense = () => {
+    setEditingExpenseId(null)
+    setExpenseForm(expenseFormInitial)
+    setExistingReceiptUrl(null)
+    setReceiptFile(null)
+    setExpenseError('')
+    setShowExpenseModal(true)
+  }
+
+  const openEditExpense = (expense) => {
+    setEditingExpenseId(expense.id)
+    setExpenseForm({
+      category: expense.category,
+      description: expense.description,
+      amount: String(expense.amount),
+      paymentMode: expense.paymentMode,
+      status: expense.status,
+      expenseDate: expense.expenseDate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      vendor: expense.vendor || '',
+      invoiceNumber: expense.invoiceNumber || '',
+      notes: expense.notes || '',
+    })
+    setExistingReceiptUrl(expense.receiptUrl || null)
+    setReceiptFile(null)
+    setExpenseError('')
+    setShowExpenseModal(true)
+  }
+
+  const handleSubmitExpense = async (e) => {
     e.preventDefault()
     if (submitting) return
     const amountNum = Number(expenseForm.amount)
@@ -254,13 +315,18 @@ function BudgetExpensesPage() {
     setSubmitting(true)
     setExpenseError('')
     try {
-      await apiFetch(`/api/projects/${selectedProjectId}/expenses`, {
-        method: 'POST',
-        body: JSON.stringify({ ...expenseForm, amount: amountNum }),
-      })
+      const receiptUrl = receiptFile ? await uploadDocument(receiptFile) : undefined
+      const body = { ...expenseForm, amount: amountNum, receiptUrl }
+      if (editingExpenseId) {
+        await apiFetch(`/api/projects/${selectedProjectId}/expenses/${editingExpenseId}`, { method: 'PUT', body: JSON.stringify(body) })
+        showToast('Expense updated')
+      } else {
+        await apiFetch(`/api/projects/${selectedProjectId}/expenses`, { method: 'POST', body: JSON.stringify(body) })
+        showToast('Expense added')
+      }
       setShowExpenseModal(false)
       setExpenseForm(expenseFormInitial)
-      showToast('Expense added')
+      setEditingExpenseId(null)
       await loadBudget(selectedProjectId)
     } catch (err) {
       setExpenseError(err.message)
@@ -301,9 +367,29 @@ function BudgetExpensesPage() {
     }
   }
 
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((e) => {
+      if (search) {
+        const haystack = `${e.description} ${e.vendor || ''} ${e.invoiceNumber || ''} ${e.category}`.toLowerCase()
+        if (!haystack.includes(search)) return false
+      }
+      if (filters.category !== 'all' && e.category !== filters.category) return false
+      if (filters.paymentMode !== 'all' && e.paymentMode !== filters.paymentMode) return false
+      if (filters.status !== 'all' && e.status !== filters.status) return false
+      if (filters.dateFrom && e.expenseDate < filters.dateFrom) return false
+      if (filters.dateTo && e.expenseDate > filters.dateTo) return false
+      if (filters.minAmount !== '' && e.amount < Number(filters.minAmount)) return false
+      if (filters.maxAmount !== '' && e.amount > Number(filters.maxAmount)) return false
+      return true
+    })
+  }, [expenses, search, filters])
+
   const handleExportCsv = () => {
-    const header = ['Date', 'Category', 'Description', 'Amount', 'Payment Mode', 'Status']
-    const rows = expenses.map((e) => [e.expenseDate, e.category, `"${e.description.replace(/"/g, '""')}"`, e.amount, e.paymentMode, e.status])
+    const header = ['Date', 'Category', 'Description', 'Amount', 'Payment Mode', 'Status', 'Vendor', 'Invoice Number']
+    const rows = filteredExpenses.map((e) => [
+      e.expenseDate, e.category, `"${e.description.replace(/"/g, '""')}"`, e.amount, e.paymentMode, e.status,
+      `"${(e.vendor || '').replace(/"/g, '""')}"`, e.invoiceNumber || '',
+    ])
     const csv = [header, ...rows].map((r) => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -370,8 +456,8 @@ function BudgetExpensesPage() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleExportCsv} disabled={expenses.length === 0} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30 disabled:opacity-40">Export</button>
-                  <button onClick={() => { setExpenseForm(expenseFormInitial); setExpenseError(''); setShowExpenseModal(true) }} className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">+ Add Expense</button>
+                  <button onClick={handleExportCsv} disabled={filteredExpenses.length === 0} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30 disabled:opacity-40">Export</button>
+                  <button onClick={openAddExpense} className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">+ Add Expense</button>
                 </div>
               </div>
 
@@ -411,57 +497,149 @@ function BudgetExpensesPage() {
 
                   <div className="mt-4 rounded-2xl border border-ink/10 bg-navy-900/50 p-5">
                     {tab === 'overview' && (
-                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                        <div>
-                          <p className="text-sm font-semibold text-ink">Budget vs Expenses</p>
-                          <div className="mt-2"><BudgetBarChart categories={overview.categories} colors={barColors} /></div>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-ink">Expense Breakdown</p>
-                          <div className="mt-3"><ExpenseDonut categories={overview.categories} colors={colors} /></div>
+                      <div>
+                        {(() => {
+                          const alerts = overview.categories.map(budgetAlertFor).filter(Boolean)
+                          if (alerts.length === 0) return null
+                          const styleFor = { critical: 'border-red-400/30 bg-red-400/5 text-red-300', warning: 'border-amber-400/30 bg-amber-400/5 text-amber-300', notice: 'border-gold-500/30 bg-gold-500/5 text-gold-300' }
+                          return (
+                            <div className="mb-5 space-y-2">
+                              {alerts.map((a, i) => (
+                                <div key={i} className={`rounded-xl border px-4 py-2.5 text-xs font-medium ${styleFor[a.level]}`}>{a.text}</div>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                          <div>
+                            <p className="text-sm font-semibold text-ink">Budget vs Expenses</p>
+                            <div className="mt-2"><BudgetBarChart categories={overview.categories} colors={barColors} /></div>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-ink">Expense Breakdown</p>
+                            <div className="mt-3"><ExpenseDonut categories={overview.categories} colors={colors} /></div>
+                          </div>
                         </div>
                       </div>
                     )}
 
                     {tab === 'expenses' && (
-                      expenses.length === 0 ? (
-                        <p className="py-8 text-center text-sm text-ink/40">No expenses logged yet.</p>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-sm">
-                            <thead className="text-xs uppercase tracking-wider text-ink/40">
-                              <tr>
-                                <th className="px-2 py-2">Date</th>
-                                <th className="px-2 py-2">Category</th>
-                                <th className="px-2 py-2">Description</th>
-                                <th className="px-2 py-2">Amount</th>
-                                <th className="px-2 py-2">Payment</th>
-                                <th className="px-2 py-2">Status</th>
-                                <th className="px-2 py-2"></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {expenses.map((e) => (
-                                <tr key={e.id} className="border-t border-ink/10">
-                                  <td className="px-2 py-2.5 text-ink/60">{formatDate(e.expenseDate)}</td>
-                                  <td className="px-2 py-2.5"><span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: `${colors[e.category]}22`, color: colors[e.category] }}>{e.category}</span></td>
-                                  <td className="px-2 py-2.5 text-ink/80">{e.description}</td>
-                                  <td className="px-2 py-2.5 font-semibold text-gold-300">{formatPrice(e.amount)}</td>
-                                  <td className="px-2 py-2.5 text-ink/60 capitalize">{e.paymentMode.replace(/_/g, ' ')}</td>
-                                  <td className="px-2 py-2.5">
-                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${e.status === 'paid' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{e.status}</span>
-                                  </td>
-                                  <td className="px-2 py-2.5">
-                                    <button onClick={() => handleDeleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs text-red-400/80 hover:text-red-400 disabled:opacity-50">
-                                      {deletingId === e.id ? '...' : 'Delete'}
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="Search description, vendor, invoice #..."
+                            className="min-w-[220px] flex-1 rounded-full border border-ink/15 bg-navy-950/40 px-4 py-2 text-xs text-ink outline-none placeholder:text-ink/35"
+                          />
+                          <button
+                            onClick={() => setFiltersOpen((v) => !v)}
+                            className={`rounded-full border px-3.5 py-2 text-xs font-medium ${filtersOpen ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60'}`}
+                          >
+                            Filters
+                          </button>
                         </div>
-                      )
+
+                        {filtersOpen && (
+                          <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-ink/10 bg-navy-950/40 p-3 sm:grid-cols-4">
+                            <div>
+                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">From</label>
+                              <input type="date" value={filters.dateFrom} onChange={(e) => setFilters((p) => ({ ...p, dateFrom: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">To</label>
+                              <input type="date" value={filters.dateTo} onChange={(e) => setFilters((p) => ({ ...p, dateTo: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Category</label>
+                              <select value={filters.category} onChange={(e) => setFilters((p) => ({ ...p, category: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
+                                <option value="all">All</option>
+                                {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Payment Mode</label>
+                              <select value={filters.paymentMode} onChange={(e) => setFilters((p) => ({ ...p, paymentMode: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
+                                <option value="all">All</option>
+                                {PAYMENT_MODES.map((m) => <option key={m} value={m} className="capitalize">{m.replace(/_/g, ' ')}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Min Amount</label>
+                              <input type="number" value={filters.minAmount} onChange={(e) => setFilters((p) => ({ ...p, minAmount: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Max Amount</label>
+                              <input type="number" value={filters.maxAmount} onChange={(e) => setFilters((p) => ({ ...p, maxAmount: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Status</label>
+                              <select value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
+                                <option value="all">All</option>
+                                <option value="paid">Paid</option>
+                                <option value="pending">Pending</option>
+                              </select>
+                            </div>
+                            <div className="flex items-end">
+                              <button onClick={() => setFilters(filtersInitial)} className="w-full rounded-lg border border-ink/15 py-1.5 text-xs font-medium text-ink/60 hover:border-ink/30">Clear Filters</button>
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="mt-3 text-[11px] text-ink/35">Showing {filteredExpenses.length} of {expenses.length} expenses</p>
+
+                        {expenses.length === 0 ? (
+                          <p className="py-8 text-center text-sm text-ink/40">No expenses recorded yet.</p>
+                        ) : filteredExpenses.length === 0 ? (
+                          <p className="py-8 text-center text-sm text-ink/40">No expenses match these filters.</p>
+                        ) : (
+                          <div className="mt-2 overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                              <thead className="text-xs uppercase tracking-wider text-ink/40">
+                                <tr>
+                                  <th className="px-2 py-2">Date</th>
+                                  <th className="px-2 py-2">Category</th>
+                                  <th className="px-2 py-2">Description</th>
+                                  <th className="px-2 py-2">Amount</th>
+                                  <th className="px-2 py-2">Payment</th>
+                                  <th className="px-2 py-2">Status</th>
+                                  <th className="px-2 py-2">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredExpenses.map((e) => (
+                                  <tr key={e.id} className="border-t border-ink/10">
+                                    <td className="px-2 py-2.5 text-ink/60">{formatDate(e.expenseDate)}</td>
+                                    <td className="px-2 py-2.5"><span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: `${colors[e.category]}22`, color: colors[e.category] }}>{e.category}</span></td>
+                                    <td className="px-2 py-2.5 text-ink/80">
+                                      {e.description}
+                                      {(e.vendor || e.invoiceNumber) && (
+                                        <p className="text-[10px] text-ink/35">{[e.vendor, e.invoiceNumber && `#${e.invoiceNumber}`].filter(Boolean).join(' · ')}</p>
+                                      )}
+                                    </td>
+                                    <td className="px-2 py-2.5 font-semibold text-gold-300">{formatPrice(e.amount)}</td>
+                                    <td className="px-2 py-2.5 text-ink/60 capitalize">{e.paymentMode.replace(/_/g, ' ')}</td>
+                                    <td className="px-2 py-2.5">
+                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${e.status === 'paid' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{e.status}</span>
+                                    </td>
+                                    <td className="px-2 py-2.5">
+                                      <div className="flex items-center gap-2.5">
+                                        {e.receiptUrl && (
+                                          <a href={`${(import.meta.env.VITE_API_URL || 'http://localhost:5055')}${e.receiptUrl}`} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300">Receipt</a>
+                                        )}
+                                        <button onClick={() => openEditExpense(e)} className="text-xs text-ink/60 hover:text-ink">Edit</button>
+                                        <button onClick={() => handleDeleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs text-red-400/80 hover:text-red-400 disabled:opacity-50">
+                                          {deletingId === e.id ? '...' : 'Delete'}
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {tab === 'planner' && (
@@ -556,11 +734,11 @@ function BudgetExpensesPage() {
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.96 }}
-                  onSubmit={handleAddExpense}
-                  className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
+                  onSubmit={handleSubmitExpense}
+                  className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-display text-sm font-semibold text-ink">Add Expense</p>
+                    <p className="font-display text-sm font-semibold text-ink">{editingExpenseId ? 'Edit Expense' : 'Add Expense'}</p>
                     <button type="button" onClick={() => setShowExpenseModal(false)} className="text-ink/40 hover:text-ink">✕</button>
                   </div>
                   {expenseError && <p className="mt-3 text-sm text-red-400">{expenseError}</p>}
@@ -593,10 +771,27 @@ function BudgetExpensesPage() {
                       </div>
                     </div>
                     <FormField id="expenseDate" label="Date" type="date" value={expenseForm.expenseDate} onChange={(e) => setExpenseForm((p) => ({ ...p, expenseDate: e.target.value }))} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField id="vendor" label="Vendor/Supplier (optional)" value={expenseForm.vendor} onChange={(e) => setExpenseForm((p) => ({ ...p, vendor: e.target.value }))} placeholder="e.g. Sri Venkateswara Traders" />
+                      <FormField id="invoiceNumber" label="Invoice # (optional)" value={expenseForm.invoiceNumber} onChange={(e) => setExpenseForm((p) => ({ ...p, invoiceNumber: e.target.value }))} placeholder="e.g. INV-2026-041" />
+                    </div>
+                    <FormField id="notes" label="Notes (optional)" value={expenseForm.notes} onChange={(e) => setExpenseForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Anything else worth recording" />
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Receipt / Invoice (optional)</label>
+                      {existingReceiptUrl && !receiptFile && (
+                        <p className="mb-1.5 text-[11px] text-ink/40">Current: <a href={`${(import.meta.env.VITE_API_URL || 'http://localhost:5055')}${existingReceiptUrl}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">view file</a> (uploading a new one replaces it)</p>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+                        onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                        className="block w-full text-xs text-ink/60 file:mr-3 file:rounded-lg file:border-0 file:bg-gold-500/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gold-300 hover:file:bg-gold-500/25"
+                      />
+                    </div>
                   </div>
                   <button type="submit" disabled={submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
                     {submitting && <Spinner className="h-4 w-4" />}
-                    Add Expense
+                    {editingExpenseId ? 'Save Changes' : 'Save Expense'}
                   </button>
                 </motion.form>
               </>

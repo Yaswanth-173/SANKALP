@@ -282,4 +282,10 @@ export async function ensureSchema() {
     )
   `)
   await query('CREATE INDEX IF NOT EXISTS expenses_project_idx ON expenses (project_id, expense_date DESC)')
+  await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS vendor VARCHAR(120)')
+  await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(60)')
+  await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS notes VARCHAR(500)')
+  await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT')
+
+  await query('ALTER TABLE project_updates ADD COLUMN IF NOT EXISTS location VARCHAR(160)')
 }

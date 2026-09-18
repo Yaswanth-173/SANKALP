@@ -79,10 +79,6 @@ export default {
     budget: { title: 'Budget & Expenses', description: 'Calculate budget, track expenses and manage project costs.' },
   },
 
-  placeholder: {
-    comingSoon: "This part of your Sankalp dashboard is coming soon. We're building it next.",
-  },
-
   calendar: {
     title: 'CALENDAR',
     subtitle: 'Keep track of site visits, deliveries and milestones.',

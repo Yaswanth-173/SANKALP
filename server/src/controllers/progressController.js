@@ -59,6 +59,7 @@ const publicUpdate = (u) => ({
   description: u.description,
   progressPercent: u.progress_percent,
   photoUrls: u.photo_urls || [],
+  location: u.location,
   authorName: u.author_name,
   createdAt: u.created_at,
 })
@@ -104,7 +105,7 @@ export async function getProjectProgress(req, res) {
 
 export async function addProgressUpdate(req, res) {
   const { id: projectId } = req.params
-  const { title, description, progressPercent, photoUrls } = req.body ?? {}
+  const { title, description, progressPercent, photoUrls, location } = req.body ?? {}
 
   if (!title || title.trim().length < 2) {
     return res.status(400).json({ message: 'Give the update a title' })
@@ -120,9 +121,9 @@ export async function addProgressUpdate(req, res) {
 
     const update = await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `INSERT INTO project_updates (project_id, author_id, title, description, progress_percent, photo_urls)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [projectId, req.user.id, title.trim(), description?.trim() || null, progressPercent ?? null, JSON.stringify(cleanPhotoUrls)]
+        `INSERT INTO project_updates (project_id, author_id, title, description, progress_percent, photo_urls, location)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [projectId, req.user.id, title.trim(), description?.trim() || null, progressPercent ?? null, JSON.stringify(cleanPhotoUrls), location?.trim() || null]
       )
       if (progressPercent != null) {
         await client.query('UPDATE projects SET progress_percent = $1, updated_at = now() WHERE id = $2', [progressPercent, projectId])

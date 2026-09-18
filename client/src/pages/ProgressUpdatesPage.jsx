@@ -9,6 +9,7 @@ import ProgressRing from '../components/tasks/ProgressRing.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { usePreferences } from '../context/PreferencesContext.jsx'
 import { apiFetch } from '../utils/api.js'
+import { uploadImages } from '../utils/upload.js'
 
 const iconBase = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }
 const TimelineTabIcon = (p) => <svg {...iconBase} {...p}><path d="M4 6h16M4 12h16M4 18h10" /></svg>
@@ -235,7 +236,7 @@ function ProgressChart({ points, color }) {
   )
 }
 
-const updateFormInitial = { title: '', description: '', progressPercent: '', photoUrls: '' }
+const updateFormInitial = { title: '', description: '', progressPercent: '', location: '' }
 
 function ProgressUpdatesPage() {
   const { theme } = usePreferences()
@@ -264,6 +265,8 @@ function ProgressUpdatesPage() {
   const [lightboxUrl, setLightboxUrl] = useState(null)
   const [weather, setWeather] = useState(null)
   const [chartRange, setChartRange] = useState('6m')
+  const [photoFiles, setPhotoFiles] = useState([])
+  const [locatingUser, setLocatingUser] = useState(false)
 
   const loadProjects = async () => {
     const res = await apiFetch('/api/projects')
@@ -324,13 +327,16 @@ function ProgressUpdatesPage() {
   const taskCounts = data?.taskCounts || { pending: 0, in_progress: 0, completed: 0 }
   const totalTasks = taskCounts.pending + taskCounts.in_progress + taskCounts.completed
 
+  // Prefer the latest update's own captured location (real, per-update) over
+  // the project's saved one, so weather reflects where work actually was.
+  const weatherLocation = updates[0]?.location || project?.location
   useEffect(() => {
     setWeather(null)
-    if (!project?.location) return
+    if (!weatherLocation) return
     let cancelled = false
-    fetchWeatherFor(project.location).then((w) => { if (!cancelled) setWeather(w) })
+    fetchWeatherFor(weatherLocation).then((w) => { if (!cancelled) setWeather(w) })
     return () => { cancelled = true }
-  }, [project?.location])
+  }, [weatherLocation])
 
   const showToast = (message) => {
     setToast(message)
@@ -406,8 +412,38 @@ function ProgressUpdatesPage() {
 
   const openModal = () => {
     setUpdateForm(updateFormInitial)
+    setPhotoFiles([])
     setUpdateError('')
     setShowUpdateModal(true)
+  }
+
+  // Optional current-location capture (spec: never force the permission
+  // prompt — if it's denied or unavailable, the update just has no location
+  // of its own and the UI falls back to the project's saved location).
+  const detectUpdateLocation = () => {
+    if (!navigator.geolocation) return
+    setLocatingUser(true)
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`)
+          const data = await res.json()
+          const place = data?.address?.city || data?.address?.town || data?.address?.village || data?.address?.state_district || data?.address?.state
+          if (place) setUpdateForm((p) => ({ ...p, location: place }))
+        } catch {
+          // Silently ignore — location stays whatever the user typed (or blank).
+        } finally {
+          setLocatingUser(false)
+        }
+      },
+      () => setLocatingUser(false),
+      { timeout: 8000 }
+    )
+  }
+
+  const removePhotoFile = (index) => {
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmitUpdate = async (e) => {
@@ -420,16 +456,14 @@ function ProgressUpdatesPage() {
     setSubmitting(true)
     setUpdateError('')
     try {
-      const photoUrls = updateForm.photoUrls
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
+      const photoUrls = await uploadImages(photoFiles)
       await apiFetch(`/api/projects/${selectedProjectId}/progress-updates`, {
         method: 'POST',
         body: JSON.stringify({
           title: updateForm.title.trim(),
           description: updateForm.description.trim() || undefined,
           progressPercent: updateForm.progressPercent !== '' ? Number(updateForm.progressPercent) : undefined,
+          location: updateForm.location.trim() || undefined,
           photoUrls,
         }),
       })
@@ -770,10 +804,10 @@ function ProgressUpdatesPage() {
                               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50"><PersonIcon className="h-3.5 w-3.5" /></span>
                               <span><span className="block text-[10px] text-ink/35">Updated by</span>{latestUpdate.authorName}</span>
                             </div>
-                            {project.location && (
+                            {(latestUpdate.location || project.location) && (
                               <div className="flex items-center gap-2 text-xs text-ink/60">
                                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50"><LocationDotIcon className="h-3.5 w-3.5" /></span>
-                                <span><span className="block text-[10px] text-ink/35">Location</span>{project.location}</span>
+                                <span><span className="block text-[10px] text-ink/35">Location</span>{latestUpdate.location || project.location}</span>
                               </div>
                             )}
                             {weather && (
@@ -924,13 +958,41 @@ function ProgressUpdatesPage() {
                       onChange={(e) => setUpdateForm((p) => ({ ...p, progressPercent: e.target.value }))}
                       placeholder="e.g. 65"
                     />
-                    <FormField
-                      id="photoUrls"
-                      label="Photo URLs (optional, comma-separated)"
-                      value={updateForm.photoUrls}
-                      onChange={(e) => setUpdateForm((p) => ({ ...p, photoUrls: e.target.value }))}
-                      placeholder="https://..., https://..."
-                    />
+                    <div>
+                      <label className="mb-1.5 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-ink/60">
+                        Location (optional)
+                        <button type="button" onClick={detectUpdateLocation} disabled={locatingUser} className="flex items-center gap-1 text-[10px] font-medium normal-case text-gold-300 hover:text-gold-200 disabled:opacity-50">
+                          {locatingUser && <Spinner className="h-3 w-3" />}
+                          <LocationDotIcon className="h-3 w-3" /> Use current location
+                        </button>
+                      </label>
+                      <input
+                        value={updateForm.location}
+                        onChange={(e) => setUpdateForm((p) => ({ ...p, location: e.target.value }))}
+                        placeholder={project?.location || 'e.g. Site — Block A'}
+                        className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/70"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Site Photos (optional)</label>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        multiple
+                        onChange={(e) => setPhotoFiles((prev) => [...prev, ...Array.from(e.target.files || [])].slice(0, 6))}
+                        className="block w-full text-xs text-ink/60 file:mr-3 file:rounded-lg file:border-0 file:bg-gold-500/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gold-300 hover:file:bg-gold-500/25"
+                      />
+                      {photoFiles.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {photoFiles.map((file, i) => (
+                            <div key={i} className="relative">
+                              <img src={URL.createObjectURL(file)} alt="" className="h-14 w-14 rounded-lg object-cover" />
+                              <button type="button" onClick={() => removePhotoFile(i)} className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[9px] text-white">✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <button type="submit" disabled={submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
                     {submitting && <Spinner className="h-4 w-4" />}

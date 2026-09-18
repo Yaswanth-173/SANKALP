@@ -10,6 +10,8 @@ import contractorsRoutes from './routes/contractors.routes.js'
 import tasksRoutes from './routes/tasks.routes.js'
 import materialsRoutes from './routes/materials.routes.js'
 import projectsRoutes from './routes/projects.routes.js'
+import uploadsRoutes from './routes/uploads.routes.js'
+import { UPLOAD_DIR } from './middleware/upload.js'
 
 const app = express()
 
@@ -36,6 +38,8 @@ app.use('/api/contractors', contractorsRoutes)
 app.use('/api/tasks', tasksRoutes)
 app.use('/api/materials', materialsRoutes)
 app.use('/api/projects', projectsRoutes)
+app.use('/api/uploads', uploadsRoutes)
+app.use('/uploads', express.static(UPLOAD_DIR))
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })

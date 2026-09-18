@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { createProject, listMyProjects, getProject, inviteSupervisor } from '../controllers/projectsController.js'
 import { getProjectProgress, addProgressUpdate } from '../controllers/progressController.js'
-import { getBudgetOverview, setBudgetCategories, listExpenses, createExpense, deleteExpense } from '../controllers/budgetController.js'
+import { getBudgetOverview, setBudgetCategories, listExpenses, createExpense, updateExpense, deleteExpense } from '../controllers/budgetController.js'
 import { listProjectTasks } from '../controllers/tasksController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 
@@ -22,6 +22,7 @@ router.get('/:id/budget', requireRole('customer', 'supervisor'), getBudgetOvervi
 router.put('/:id/budget', requireRole('customer'), setBudgetCategories)
 router.get('/:id/expenses', requireRole('customer', 'supervisor'), listExpenses)
 router.post('/:id/expenses', requireRole('customer', 'supervisor'), createExpense)
+router.put('/:id/expenses/:expenseId', requireRole('customer', 'supervisor'), updateExpense)
 router.delete('/:id/expenses/:expenseId', requireRole('customer'), deleteExpense)
 
 export default router
