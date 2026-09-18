@@ -29,6 +29,121 @@ function reviewCountFor(id) {
 // used consistently across the comparison cards and the cost calculator.
 const DELIVERY_CHARGE = 50
 
+function deliveryDaysFor(hours) {
+  if (hours == null) return null
+  if (hours <= 24) return '1 day'
+  if (hours <= 48) return '1-2 days'
+  if (hours <= 72) return '2-3 days'
+  return '3-4 days'
+}
+
+// Brand isn't a separate field in our catalog, but several product names
+// already embed a real manufacturer (e.g. "UltraTech OPC 53 Grade Cement") —
+// this derives a Brand facet from that text instead of fabricating new data.
+// Longer/more specific names are checked first so "Asian Paints" wins over
+// any shorter accidental substring.
+const KNOWN_BRANDS = ['UltraTech', 'ACC', 'Ambuja', 'Asian Paints', 'Havells', 'Kajaria', 'Cera', 'Dalmia', 'JK Cement']
+function deriveBrand(name) {
+  for (const brand of KNOWN_BRANDS) {
+    if (name.includes(brand)) return brand
+  }
+  return 'Generic'
+}
+
+// Synthetic but deterministic (seeded from the listing id) so the same
+// material always shows the same trend rather than a new random one on every
+// render. We don't track real historical prices yet — this is illustrative,
+// and always ends on the material's real current price.
+function priceHistoryFor(listing) {
+  const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
+  const seed = hashString(listing.id)
+  return months.map((month, i) => {
+    if (i === months.length - 1) return { month, price: listing.price }
+    const wobble = ((seed >> (i * 3)) % 21) - 10 // -10..+10 percent
+    return { month, price: Math.round(listing.price * (1 + wobble / 100)) }
+  })
+}
+
+function PriceHistoryChart({ listing }) {
+  const data = useMemo(() => priceHistoryFor(listing), [listing])
+  const [hoverIdx, setHoverIdx] = useState(null)
+  const width = 240
+  const height = 90
+  const padX = 8
+  const padY = 12
+  const prices = data.map((d) => d.price)
+  const lo = Math.min(...prices)
+  const hi = Math.max(...prices)
+  const range = hi - lo || 1
+  const points = data.map((d, i) => {
+    const x = padX + (i / (data.length - 1)) * (width - padX * 2)
+    const y = padY + (1 - (d.price - lo) / range) * (height - padY * 2)
+    return { x, y, ...d }
+  })
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${height - padY} L ${points[0].x.toFixed(1)} ${height - padY} Z`
+
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wider text-ink/40">Price History <span className="text-ink/30">(Last 6 Months)</span></p>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="mt-2 w-full"
+        onMouseLeave={() => setHoverIdx(null)}
+      >
+        <defs>
+          <linearGradient id="price-history-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#eab424" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#eab424" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill="url(#price-history-fill)" />
+        <path d={linePath} fill="none" stroke="#eab424" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r={hoverIdx === i ? 3.5 : 2} fill="#eab424" />
+            <rect
+              x={p.x - (width / data.length) / 2}
+              y={0}
+              width={width / data.length}
+              height={height}
+              fill="transparent"
+              onMouseEnter={() => setHoverIdx(i)}
+            />
+          </g>
+        ))}
+        {hoverIdx !== null && (
+          <line x1={points[hoverIdx].x} y1={padY} x2={points[hoverIdx].x} y2={height - padY} stroke="#eab424" strokeOpacity="0.35" strokeWidth="1" />
+        )}
+      </svg>
+      <div className="flex justify-between text-[10px] text-ink/35">
+        {data.map((d) => (
+          <span key={d.month}>{d.month}</span>
+        ))}
+      </div>
+      {hoverIdx !== null && (
+        <p className="mt-1 text-center text-xs text-ink/60">{data[hoverIdx].month}: <span className="font-semibold text-gold-300">{formatPrice(data[hoverIdx].price)}</span></p>
+      )}
+      <p className="mt-1 text-center text-[10px] text-ink/30">Average Market Price — illustrative trend</p>
+    </div>
+  )
+}
+
+function ToggleSwitch({ checked, onChange, label }) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-ink/70">
+      {label}
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${checked ? 'bg-gold-500' : 'bg-ink/15'}`}
+      >
+        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      </button>
+    </label>
+  )
+}
+
 const SORT_OPTIONS = [
   { value: 'lowestPrice', label: 'Lowest Price' },
   { value: 'highestRated', label: 'Highest Rated' },
@@ -42,18 +157,22 @@ function CostComparisonPage() {
   const [shops, setShops] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [queryInput, setQueryInput] = useState('')
   const [query, setQuery] = useState('')
-  const [categoryFilters, setCategoryFilters] = useState(new Set())
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [locationFilter, setLocationFilter] = useState('all')
+  const [brandFilters, setBrandFilters] = useState(new Set())
+  const [supplierFilter, setSupplierFilter] = useState('all')
   const [minRating, setMinRating] = useState(0)
-  const [priceMin, setPriceMin] = useState('')
-  const [priceMax, setPriceMax] = useState('')
+  const [maxPrice, setMaxPrice] = useState(null)
   const [inStockOnly, setInStockOnly] = useState(false)
   const [deliveryOnly, setDeliveryOnly] = useState(false)
   const [sortBy, setSortBy] = useState('lowestPrice')
+  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'table'
   const [compareIds, setCompareIds] = useState(new Set())
   const [showCompareModal, setShowCompareModal] = useState(false)
   const [viewListing, setViewListing] = useState(null)
+  const [wishlist, setWishlist] = useState(new Set())
   const [calcListingId, setCalcListingId] = useState(null)
   const [calcQuantity, setCalcQuantity] = useState(1)
 
@@ -80,6 +199,7 @@ function CostComparisonPage() {
       shops.flatMap((shop) =>
         shop.products.map((p) => ({
           ...p,
+          brand: deriveBrand(p.name),
           shopId: shop.id,
           shopName: shop.name,
           shopAddress: shop.address,
@@ -97,19 +217,31 @@ function CostComparisonPage() {
 
   const categories = useMemo(() => [...new Set(shops.map((s) => s.category))].sort(), [shops])
   const locations = useMemo(() => [...new Set(shops.map((s) => s.location))].sort(), [shops])
+  const priceCeil = useMemo(() => Math.max(100, ...listings.map((l) => l.price)), [listings])
+  const effectiveMaxPrice = maxPrice ?? priceCeil
 
-  const min = priceMin.trim() === '' ? null : Number(priceMin)
-  const max = priceMax.trim() === '' ? null : Number(priceMax)
+  // Search + category + location narrow down the "context" — brand and
+  // supplier options are derived from what's actually in that context, so
+  // the dropdowns never offer choices that would return zero results.
+  const contextListings = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return listings.filter((l) => {
+      if (q && !l.name.toLowerCase().includes(q) && !l.shopCategory.toLowerCase().includes(q) && !l.shopName.toLowerCase().includes(q)) return false
+      if (categoryFilter !== 'all' && l.shopCategory !== categoryFilter) return false
+      if (locationFilter !== 'all' && l.shopLocation !== locationFilter) return false
+      return true
+    })
+  }, [listings, query, categoryFilter, locationFilter])
+
+  const brands = useMemo(() => [...new Set(contextListings.map((l) => l.brand))].sort(), [contextListings])
+  const suppliers = useMemo(() => [...new Set(contextListings.map((l) => l.shopName))].sort(), [contextListings])
 
   const filteredListings = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    let result = listings.filter((l) => {
-      if (q && !l.name.toLowerCase().includes(q) && !l.shopCategory.toLowerCase().includes(q) && !l.shopName.toLowerCase().includes(q)) return false
-      if (categoryFilters.size > 0 && !categoryFilters.has(l.shopCategory)) return false
-      if (locationFilter !== 'all' && l.shopLocation !== locationFilter) return false
+    let result = contextListings.filter((l) => {
+      if (brandFilters.size > 0 && !brandFilters.has(l.brand)) return false
+      if (supplierFilter !== 'all' && l.shopName !== supplierFilter) return false
       if (minRating > 0 && (l.shopRating ?? 0) < minRating) return false
-      if (min !== null && l.price < min) return false
-      if (max !== null && l.price > max) return false
+      if (l.price > effectiveMaxPrice) return false
       if (inStockOnly && l.stockStatus === 'out_of_stock') return false
       if (deliveryOnly && !l.shopDeliveryAvailable) return false
       return true
@@ -122,38 +254,47 @@ function CostComparisonPage() {
         if (a.shopDeliveryAvailable !== b.shopDeliveryAvailable) return a.shopDeliveryAvailable ? -1 : 1
         return (a.shopDeliveryEtaHours ?? 999) - (b.shopDeliveryEtaHours ?? 999)
       }
-      // bestValue: rating per rupee, higher is better
       const scoreA = (a.shopRating ?? 3.5) / a.price
       const scoreB = (b.shopRating ?? 3.5) / b.price
       return scoreB - scoreA
     })
     return result
-  }, [listings, query, categoryFilters, locationFilter, minRating, min, max, inStockOnly, deliveryOnly, sortBy])
+  }, [contextListings, brandFilters, supplierFilter, minRating, effectiveMaxPrice, inStockOnly, deliveryOnly, sortBy])
+
+  // "Similar Materials" — the cheapest listing from every OTHER category,
+  // so it's always real, existing data rather than a fabricated teaser row.
+  const similarMaterials = useMemo(() => {
+    const cheapestByCategory = new Map()
+    for (const l of listings) {
+      if (l.shopCategory === categoryFilter) continue
+      const current = cheapestByCategory.get(l.shopCategory)
+      if (!current || l.price < current.price) cheapestByCategory.set(l.shopCategory, l)
+    }
+    return [...cheapestByCategory.values()].slice(0, 8)
+  }, [listings, categoryFilter])
 
   useEffect(() => {
-    // Keep the calculator's selection in sync with the currently filtered
-    // list — otherwise changing search/filters can leave it silently
-    // pointing at a product that's no longer shown anywhere on the page.
     if (filteredListings.length === 0) return
     const stillVisible = filteredListings.some((l) => l.id === calcListingId)
     if (!stillVisible) setCalcListingId(filteredListings[0].id)
   }, [filteredListings, calcListingId])
 
-  const toggleCategory = (cat) => {
-    setCategoryFilters((prev) => {
+  const toggleBrand = (brand) => {
+    setBrandFilters((prev) => {
       const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
+      if (next.has(brand)) next.delete(brand)
+      else next.add(brand)
       return next
     })
   }
 
   const clearFilters = () => {
-    setCategoryFilters(new Set())
+    setCategoryFilter('all')
     setLocationFilter('all')
+    setBrandFilters(new Set())
+    setSupplierFilter('all')
     setMinRating(0)
-    setPriceMin('')
-    setPriceMax('')
+    setMaxPrice(null)
     setInStockOnly(false)
     setDeliveryOnly(false)
   }
@@ -163,6 +304,15 @@ function CostComparisonPage() {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else if (next.size < MAX_COMPARE) next.add(id)
+      return next
+    })
+  }
+
+  const toggleWishlist = (id) => {
+    setWishlist((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -192,7 +342,6 @@ function CostComparisonPage() {
   }, [cart, listingById])
 
   const cartCount = Object.values(cart).reduce((sum, q) => sum + q, 0)
-  const cartTotal = cartGroups.reduce((sum, g) => sum + g.subtotal, 0)
 
   const showToast = (message) => {
     setToast(message)
@@ -204,7 +353,7 @@ function CostComparisonPage() {
     if (!group) return
     setPlacingShopId(shopId)
     try {
-      const data = await apiFetch('/api/materials/orders', {
+      await apiFetch('/api/materials/orders', {
         method: 'POST',
         body: JSON.stringify({ shopId, items: group.items.map((i) => ({ productId: i.id, quantity: i.quantity })) }),
       })
@@ -214,7 +363,6 @@ function CostComparisonPage() {
         return next
       })
       showToast(`Order placed with ${group.shopName} — check Calendar for delivery`)
-      void data
     } catch (err) {
       showToast(err.message)
     } finally {
@@ -242,6 +390,8 @@ function CostComparisonPage() {
   const calcDelivery = calcListing?.shopDeliveryAvailable ? DELIVERY_CHARGE : 0
   const calcTotal = calcSubtotal + calcDelivery
 
+  const runSearch = () => setQuery(queryInput)
+
   return (
     <DashboardShell>
       {({ onMenuClick }) => (
@@ -256,12 +406,32 @@ function CostComparisonPage() {
             <div className="relative min-w-[220px] flex-1">
               <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
               <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && runSearch()}
                 placeholder="Search materials, brands, suppliers..."
-                className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-4 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-gold-500/50"
+                className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-9 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-gold-500/50"
               />
+              {query && (
+                <button
+                  onClick={() => { setQuery(''); setQueryInput('') }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/35 hover:text-ink"
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="rounded-full border border-ink/15 bg-navy-900/60 px-3.5 py-2.5 text-xs font-medium text-ink outline-none focus:border-gold-500/50"
+            >
+              <option value="all">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
             <select
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
@@ -282,8 +452,14 @@ function CostComparisonPage() {
               ))}
             </select>
             <button
+              onClick={runSearch}
+              className="rounded-full bg-gold-500 px-5 py-2.5 text-xs font-semibold text-charcoal hover:bg-gold-400"
+            >
+              Search
+            </button>
+            <button
               onClick={() => setCartOpen(true)}
-              className="relative flex items-center gap-1.5 rounded-full bg-gold-500 px-4 py-2.5 text-xs font-semibold text-charcoal hover:bg-gold-400"
+              className="relative flex items-center gap-1.5 rounded-full border border-ink/15 px-4 py-2.5 text-xs font-semibold text-ink hover:border-gold-500/40"
             >
               <CartIcon className="h-4 w-4" /> Cart
               {cartCount > 0 && (
@@ -317,46 +493,42 @@ function CostComparisonPage() {
           ) : (
             <div className="mt-6 grid grid-cols-1 gap-5 xl:grid-cols-[220px_1fr_280px]">
               {/* Filters sidebar */}
-              <div className="rounded-2xl border border-ink/10 bg-navy-900/50 p-4 xl:order-1">
+              <div className="rounded-2xl border border-ink/10 bg-navy-900/50 p-4 xl:order-1 xl:h-fit">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-ink">Filters</p>
                   <button onClick={clearFilters} className="text-xs font-medium text-gold-300 hover:text-gold-200">Clear All</button>
                 </div>
 
-                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Category ({categories.length})</p>
-                <div className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
-                  {categories.map((cat) => (
-                    <label key={cat} className="flex items-center gap-2 text-sm text-ink/70">
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Category</p>
+                <p className="mt-1 text-sm text-ink/80">{categoryFilter === 'all' ? 'All Categories' : categoryFilter} ({filteredListings.length})</p>
+
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Brand</p>
+                <div className="mt-2 max-h-36 space-y-1.5 overflow-y-auto">
+                  {brands.map((brand) => (
+                    <label key={brand} className="flex items-center gap-2 text-sm text-ink/70">
                       <input
                         type="checkbox"
-                        checked={categoryFilters.has(cat)}
-                        onChange={() => toggleCategory(cat)}
+                        checked={brandFilters.has(brand)}
+                        onChange={() => toggleBrand(brand)}
                         className="h-3.5 w-3.5 rounded border-ink/20 bg-navy-900 accent-gold-500"
                       />
-                      {cat}
+                      {brand}
                     </label>
                   ))}
                 </div>
 
                 <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Price Range</p>
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2">
                   <input
-                    type="number"
+                    type="range"
                     min="0"
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value)}
-                    placeholder="Min"
-                    className="w-full rounded-lg border border-ink/10 bg-navy-950/40 px-2.5 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
+                    max={priceCeil}
+                    step={Math.max(1, Math.round(priceCeil / 100))}
+                    value={effectiveMaxPrice}
+                    onChange={(e) => setMaxPrice(Number(e.target.value))}
+                    className="w-full accent-gold-500"
                   />
-                  <span className="text-ink/30">–</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value)}
-                    placeholder="Max"
-                    className="w-full rounded-lg border border-ink/10 bg-navy-950/40 px-2.5 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
-                  />
+                  <p className="mt-1 text-xs text-ink/50">₹0 – {formatPrice(effectiveMaxPrice)}</p>
                 </div>
 
                 <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Rating</p>
@@ -364,53 +536,111 @@ function CostComparisonPage() {
                   {[4.5, 4, 3.5].map((r) => (
                     <label key={r} className="flex items-center gap-2 text-sm text-ink/70">
                       <input
-                        type="radio"
-                        name="minRating"
+                        type="checkbox"
                         checked={minRating === r}
-                        onChange={() => setMinRating(r)}
-                        className="h-3.5 w-3.5 accent-gold-500"
+                        onChange={() => setMinRating(minRating === r ? 0 : r)}
+                        className="h-3.5 w-3.5 rounded border-ink/20 bg-navy-900 accent-gold-500"
                       />
-                      <span className="flex items-center gap-1">
-                        <StarIcon className="h-3.5 w-3.5 text-gold-300" /> {r}+ &amp; up
+                      <span className="flex items-center gap-0.5">
+                        {Array.from({ length: Math.floor(r) }).map((_, i) => (
+                          <StarIcon key={i} className="h-3.5 w-3.5 text-gold-300" />
+                        ))}
                       </span>
+                      &amp; above
                     </label>
                   ))}
-                  <label className="flex items-center gap-2 text-sm text-ink/70">
-                    <input
-                      type="radio"
-                      name="minRating"
-                      checked={minRating === 0}
-                      onChange={() => setMinRating(0)}
-                      className="h-3.5 w-3.5 accent-gold-500"
-                    />
-                    Any rating
-                  </label>
                 </div>
 
-                <div className="mt-4 space-y-2 border-t border-ink/10 pt-3">
-                  <label className="flex items-center gap-2 text-sm text-ink/70">
-                    <input type="checkbox" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} className="h-3.5 w-3.5 rounded border-ink/20 bg-navy-900 accent-gold-500" />
-                    In Stock Only
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-ink/70">
-                    <input type="checkbox" checked={deliveryOnly} onChange={(e) => setDeliveryOnly(e.target.checked)} className="h-3.5 w-3.5 rounded border-ink/20 bg-navy-900 accent-gold-500" />
-                    Delivery Available
-                  </label>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Supplier</p>
+                <select
+                  value={supplierFilter}
+                  onChange={(e) => setSupplierFilter(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-ink/15 bg-navy-950/40 px-2.5 py-2 text-xs text-ink outline-none"
+                >
+                  <option value="all">All Suppliers</option>
+                  {suppliers.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+
+                <div className="mt-4 space-y-2.5 border-t border-ink/10 pt-3">
+                  <ToggleSwitch checked={inStockOnly} onChange={setInStockOnly} label="In Stock Only" />
+                  <ToggleSwitch checked={deliveryOnly} onChange={setDeliveryOnly} label="Delivery Available" />
                 </div>
+
+                <button
+                  onClick={() => document.getElementById('comparison-results')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="mt-4 w-full rounded-lg bg-gold-500 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400"
+                >
+                  Apply Filters
+                </button>
               </div>
 
-              {/* Product grid */}
-              <div className="xl:order-2">
-                <p className="text-xs text-ink/40">Showing {filteredListings.length} result{filteredListings.length === 1 ? '' : 's'}{query ? ` for "${query}"` : ''}</p>
+              {/* Product grid / table */}
+              <div id="comparison-results" className="xl:order-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-ink/40">Showing {filteredListings.length} result{filteredListings.length === 1 ? '' : 's'}{query ? ` for "${query}"` : ''}</p>
+                  <div className="flex items-center gap-1 rounded-full border border-ink/10 p-1">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'grid' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
+                    >
+                      Grid
+                    </button>
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'table' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
+                    >
+                      Table
+                    </button>
+                  </div>
+                </div>
 
                 {filteredListings.length === 0 ? (
                   <p className="mt-10 text-center text-sm text-ink/40">No materials match your filters.</p>
+                ) : viewMode === 'table' ? (
+                  <div className="mt-3 overflow-x-auto rounded-2xl border border-ink/10">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-navy-900/60 text-xs uppercase tracking-wider text-ink/40">
+                        <tr>
+                          <th className="px-4 py-3">Material</th>
+                          <th className="px-4 py-3">Brand</th>
+                          <th className="px-4 py-3">Supplier</th>
+                          <th className="px-4 py-3">Price</th>
+                          <th className="px-4 py-3">Rating</th>
+                          <th className="px-4 py-3">Stock</th>
+                          <th className="px-4 py-3">Delivery</th>
+                          <th className="px-4 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredListings.slice(0, 60).map((listing) => (
+                          <tr key={listing.id} className="border-t border-ink/10">
+                            <td className="flex items-center gap-2.5 px-4 py-2.5">
+                              <ProductImage product={listing} className="h-9 w-9 rounded-md object-cover" />
+                              {listing.name}
+                            </td>
+                            <td className="px-4 py-2.5 text-ink/60">{listing.brand}</td>
+                            <td className="px-4 py-2.5 text-ink/60">{listing.shopName}</td>
+                            <td className="px-4 py-2.5 font-semibold text-gold-300">{formatPrice(listing.price)}<span className="text-ink/40"> /{listing.unit}</span></td>
+                            <td className="px-4 py-2.5 text-ink/60">{listing.shopRating != null ? listing.shopRating.toFixed(1) : '—'}</td>
+                            <td className="px-4 py-2.5 text-ink/60 capitalize">{listing.stockStatus.replace(/_/g, ' ')}</td>
+                            <td className="px-4 py-2.5 text-ink/60">{listing.shopDeliveryAvailable ? deliveryDaysFor(listing.shopDeliveryEtaHours) : 'Pickup only'}</td>
+                            <td className="px-4 py-2.5">
+                              <button onClick={() => handleBuyNow(listing)} disabled={listing.stockStatus === 'out_of_stock'} className="rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-40">Buy Now</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
                     {filteredListings.slice(0, 60).map((listing, i) => {
                       const quantity = cart[listing.id] || 0
                       const outOfStock = listing.stockStatus === 'out_of_stock'
                       const isComparing = compareIds.has(listing.id)
+                      const isWishlisted = wishlist.has(listing.id)
                       return (
                         <motion.div
                           key={listing.id}
@@ -430,16 +660,29 @@ function CostComparisonPage() {
                               />
                               Compare
                             </label>
-                            {sortBy === 'lowestPrice' && i === 0 && (
-                              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Lowest Price</span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {sortBy === 'lowestPrice' && i === 0 && (
+                                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Lowest Price</span>
+                              )}
+                              <button onClick={() => toggleWishlist(listing.id)} aria-label="Save to wishlist" className={isWishlisted ? 'text-red-400' : 'text-ink/30 hover:text-ink/60'}>
+                                <svg viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 20s-7-4.35-9.5-8.5C.7 8.2 2.4 5 5.6 5c1.7 0 3.2.9 4.1 2.3.9 1.5.3-2.3 4.1-2.3 3.2 0 4.9 3.2 3.1 6.5C19 15.65 12 20 12 20Z" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
 
                           <ProductImage product={listing} className="h-28 w-full rounded-xl object-cover" />
 
                           <div>
-                            <p className="text-xs font-medium uppercase tracking-wide text-gold-300/80">{listing.shopName}</p>
+                            <p className="text-xs font-medium uppercase tracking-wide text-gold-300/80">{listing.brand}</p>
                             <p className="mt-0.5 text-sm text-ink/90">{listing.name}</p>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-xs text-ink/60">
+                            <CheckCircleIcon className="h-3.5 w-3.5 text-emerald-400" />
+                            {listing.shopName}
+                            {listing.shopDistanceKm != null && <span className="text-ink/35">· {listing.shopDistanceKm} km</span>}
                           </div>
 
                           <div className="flex items-center gap-2 text-xs text-ink/50">
@@ -463,9 +706,12 @@ function CostComparisonPage() {
                             {outOfStock ? 'Out of stock' : listing.stockStatus === 'low_stock' ? 'Low stock' : 'In stock'}
                           </span>
 
-                          <div className="flex items-center gap-1.5 text-[11px] text-ink/45">
-                            <TruckIcon className="h-3.5 w-3.5" />
-                            {listing.shopDeliveryAvailable ? `Delivery in ~${listing.shopDeliveryEtaHours}h · ${formatPrice(DELIVERY_CHARGE)}` : 'Pickup only'}
+                          <div className="space-y-0.5 text-[11px] text-ink/45">
+                            <div className="flex items-center gap-1.5">
+                              <TruckIcon className="h-3.5 w-3.5" />
+                              {listing.shopDeliveryAvailable ? `Delivery: ${deliveryDaysFor(listing.shopDeliveryEtaHours)}` : 'Pickup only'}
+                            </div>
+                            {listing.shopDeliveryAvailable && <p className="pl-5">Delivery Charge: {formatPrice(DELIVERY_CHARGE)}</p>}
                           </div>
 
                           <div className="mt-1 flex items-center gap-2">
@@ -503,6 +749,46 @@ function CostComparisonPage() {
                     })}
                   </div>
                 )}
+
+                {/* Compare Selected Materials — inline, not floating */}
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/10 bg-navy-900/50 px-5 py-4">
+                  <div>
+                    <p className="text-sm font-semibold text-ink">Compare Selected Materials ({compareIds.size})</p>
+                    <p className="text-xs text-ink/40">Select 2 or more materials to compare prices, delivery, and other details.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {compareIds.size > 0 && (
+                      <button onClick={() => setCompareIds(new Set())} className="text-xs text-ink/40 hover:text-ink/70">Clear</button>
+                    )}
+                    <button
+                      onClick={() => setShowCompareModal(true)}
+                      disabled={compareIds.size < 2}
+                      className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Compare Selected
+                    </button>
+                  </div>
+                </div>
+
+                {/* Similar Materials */}
+                {similarMaterials.length > 0 && (
+                  <div className="mt-5">
+                    <p className="text-sm font-semibold text-ink">Similar Materials</p>
+                    <div className="mt-2.5 flex gap-3 overflow-x-auto pb-1">
+                      {similarMaterials.map((l) => (
+                        <button
+                          key={l.id}
+                          onClick={() => { setQueryInput(l.name); setQuery(l.name); setCategoryFilter('all') }}
+                          className="flex w-32 shrink-0 flex-col items-start gap-1.5 rounded-xl border border-ink/10 bg-navy-900/50 p-2.5 text-left hover:border-gold-500/30"
+                        >
+                          <ProductImage product={l} className="h-16 w-full rounded-lg object-cover" />
+                          <p className="line-clamp-2 text-xs text-ink/80">{l.name}</p>
+                          <p className="text-xs font-semibold text-gold-300">From {formatPrice(l.price)}/{l.unit}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Cost calculator */}
@@ -516,7 +802,7 @@ function CostComparisonPage() {
                     className="w-full rounded-lg border border-ink/15 bg-navy-950/40 px-2.5 py-2 text-xs text-ink outline-none"
                   >
                     {filteredListings.slice(0, 60).map((l) => (
-                      <option key={l.id} value={l.id}>{l.shopName} — {l.name}</option>
+                      <option key={l.id} value={l.id}>{l.brand} — {l.name}</option>
                     ))}
                   </select>
                 </div>
@@ -548,30 +834,15 @@ function CostComparisonPage() {
                 >
                   Add to Cart
                 </button>
+
+                {calcListing && (
+                  <div className="mt-5 border-t border-ink/10 pt-4">
+                    <PriceHistoryChart listing={calcListing} />
+                  </div>
+                )}
               </div>
             </div>
           )}
-
-          <AnimatePresence>
-            {compareIds.size > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 30 }}
-                className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded-full border border-gold-500/30 bg-navy-900 px-5 py-3 text-sm shadow-2xl"
-              >
-                <span className="text-ink/70">Compare Selected Materials ({compareIds.size})</span>
-                <button
-                  onClick={() => setShowCompareModal(true)}
-                  disabled={compareIds.size < 2}
-                  className="rounded-full bg-gold-500 px-4 py-1.5 text-xs font-semibold text-charcoal disabled:opacity-40"
-                >
-                  Compare
-                </button>
-                <button onClick={() => setCompareIds(new Set())} className="text-xs text-ink/40 hover:text-ink/70">Clear</button>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <AnimatePresence>
             {showCompareModal && (
@@ -595,14 +866,14 @@ function CostComparisonPage() {
                         return (
                           <div key={id} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
                             <ProductImage product={l} className="h-24 w-full rounded-lg object-cover" />
-                            <p className="mt-2 text-xs font-medium text-gold-300/80">{l.shopName}</p>
+                            <p className="mt-2 text-xs font-medium text-gold-300/80">{l.brand} · {l.shopName}</p>
                             <p className="text-sm text-ink/90">{l.name}</p>
                             <p className="mt-2 font-display text-base font-semibold text-gold-300">{formatPrice(l.price)} <span className="text-[10px] font-normal text-ink/40">/ {l.unit}</span></p>
                             <div className="mt-2 space-y-1 text-xs text-ink/55">
                               <p>Rating: {l.shopRating != null ? l.shopRating.toFixed(1) : 'N/A'}</p>
                               <p>Location: {l.shopLocation}</p>
-                              <p>Stock: {l.stockStatus.replace('_', ' ')}</p>
-                              <p>Delivery: {l.shopDeliveryAvailable ? `~${l.shopDeliveryEtaHours}h` : 'Pickup only'}</p>
+                              <p>Stock: {l.stockStatus.replace(/_/g, ' ')}</p>
+                              <p>Delivery: {l.shopDeliveryAvailable ? deliveryDaysFor(l.shopDeliveryEtaHours) : 'Pickup only'}</p>
                             </div>
                           </div>
                         )
@@ -626,7 +897,7 @@ function CostComparisonPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-gold-300/80">{viewListing.shopName}</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gold-300/80">{viewListing.brand} · {viewListing.shopName}</p>
                       <p className="font-display text-base font-semibold text-ink">{viewListing.name}</p>
                     </div>
                     <button onClick={() => setViewListing(null)} className="text-ink/40 hover:text-ink">✕</button>
@@ -638,7 +909,7 @@ function CostComparisonPage() {
                   <div className="mt-3 space-y-1.5 text-sm text-ink/60">
                     <p className="flex items-center gap-1.5"><LocationIcon className="h-4 w-4 text-ink/40" /> {viewListing.shopAddress || viewListing.shopLocation}</p>
                     {viewListing.shopRating != null && <p className="flex items-center gap-1.5"><StarIcon className="h-4 w-4 text-gold-300" /> {viewListing.shopRating.toFixed(1)} ({reviewCountFor(viewListing.id)} reviews)</p>}
-                    <p className="flex items-center gap-1.5"><TruckIcon className="h-4 w-4 text-ink/40" /> {viewListing.shopDeliveryAvailable ? `Delivery in ~${viewListing.shopDeliveryEtaHours}h` : 'Pickup only'}</p>
+                    <p className="flex items-center gap-1.5"><TruckIcon className="h-4 w-4 text-ink/40" /> {viewListing.shopDeliveryAvailable ? `Delivery: ${deliveryDaysFor(viewListing.shopDeliveryEtaHours)} · ${formatPrice(DELIVERY_CHARGE)}` : 'Pickup only'}</p>
                   </div>
                   <div className="mt-4 flex gap-2">
                     <button onClick={() => { increment(viewListing.id); setViewListing(null) }} className="flex-1 rounded-lg border border-gold-500/40 px-3 py-2 text-sm font-semibold text-gold-300 hover:bg-gold-500/10">Add to Cart</button>
@@ -666,7 +937,7 @@ function CostComparisonPage() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.9 }}
                 transition={{ type: 'spring', stiffness: 340, damping: 26 }}
-                className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border border-gold-500/40 bg-navy-900 px-5 py-2.5 text-sm text-ink shadow-2xl"
+                className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-gold-500/40 bg-navy-900 px-5 py-2.5 text-sm text-ink shadow-2xl"
               >
                 <span className="flex items-center gap-2">
                   <CheckCircleIcon className="h-4 w-4 text-emerald-400" /> {toast}
