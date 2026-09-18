@@ -224,4 +224,61 @@ export async function ensureSchema() {
   `)
   await query('CREATE INDEX IF NOT EXISTS project_members_user_idx ON project_members (user_id)')
   await query('CREATE INDEX IF NOT EXISTS project_members_project_idx ON project_members (project_id)')
+
+  // Now that projects exists, tasks can optionally be scoped to one (the
+  // free-text project_name/project_location columns stay as-is for tasks
+  // created outside a formal project).
+  await query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id) ON DELETE SET NULL')
+  await query('CREATE INDEX IF NOT EXISTS tasks_project_idx ON tasks (project_id)')
+
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS progress_percent INT NOT NULL DEFAULT 0')
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date DATE')
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS expected_completion DATE')
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS total_budget NUMERIC(14,2)')
+
+  // A progress log entry the customer/supervisor posts against a project.
+  // photo_urls is a JSON array of pasted image URLs — there's no file
+  // storage configured, so this doesn't pretend to support real uploads.
+  await query(`
+    CREATE TABLE IF NOT EXISTS project_updates (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      progress_percent INT,
+      photo_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS project_updates_project_idx ON project_updates (project_id, created_at DESC)')
+
+  // Fixed, shared category taxonomy for both budget planning and expense
+  // tracking, so the budget-vs-spent chart and the planner bars line up.
+  await query(`
+    CREATE TABLE IF NOT EXISTS budget_categories (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      category VARCHAR(60) NOT NULL,
+      budgeted_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (project_id, category)
+    )
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      category VARCHAR(60) NOT NULL,
+      description VARCHAR(200) NOT NULL,
+      amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+      payment_mode VARCHAR(20) NOT NULL DEFAULT 'cash',
+      status VARCHAR(20) NOT NULL DEFAULT 'paid',
+      expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS expenses_project_idx ON expenses (project_id, expense_date DESC)')
 }

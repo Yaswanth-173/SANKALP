@@ -6,18 +6,22 @@ import { sendSupervisorInviteEmail } from '../utils/mailer.js'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_RE = /^(?:\+91[\s-]?)?[6-9]\d{9}$/
 
-const publicProject = (p) => ({
+export const publicProject = (p) => ({
   id: p.id,
   name: p.name,
   location: p.location,
   status: p.status,
   customerId: p.customer_id,
   customerName: p.customer_name || undefined,
+  progressPercent: p.progress_percent ?? 0,
+  startDate: p.start_date,
+  expectedCompletion: p.expected_completion,
+  totalBudget: p.total_budget != null ? Number(p.total_budget) : null,
   createdAt: p.created_at,
 })
 
 export async function createProject(req, res) {
-  const { name, location } = req.body ?? {}
+  const { name, location, startDate, expectedCompletion, totalBudget } = req.body ?? {}
 
   if (!name || name.trim().length < 2) {
     return res.status(400).json({ message: 'Give the project a name' })
@@ -25,8 +29,16 @@ export async function createProject(req, res) {
 
   try {
     const { rows } = await query(
-      `INSERT INTO projects (customer_id, name, location) VALUES ($1, $2, $3) RETURNING *`,
-      [req.user.id, name.trim(), location?.trim() || null]
+      `INSERT INTO projects (customer_id, name, location, start_date, expected_completion, total_budget)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        req.user.id,
+        name.trim(),
+        location?.trim() || null,
+        startDate || null,
+        expectedCompletion || null,
+        totalBudget != null && totalBudget !== '' ? Number(totalBudget) : null,
+      ]
     )
     res.status(201).json({ project: publicProject(rows[0]) })
   } catch (err) {
@@ -62,7 +74,7 @@ export async function listMyProjects(req, res) {
   }
 }
 
-async function canAccessProject(userId, role, projectId) {
+export async function canAccessProject(userId, role, projectId) {
   if (role === 'customer') {
     const { rows } = await query('SELECT id FROM projects WHERE id = $1 AND customer_id = $2', [projectId, userId])
     return rows.length > 0

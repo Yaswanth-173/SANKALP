@@ -1,4 +1,5 @@
 import { query } from '../config/db.js'
+import { canAccessProject } from './projectsController.js'
 
 const TYPES = ['materials', 'work', 'site_visit']
 const STATUSES = ['pending', 'in_progress', 'completed']
@@ -12,6 +13,7 @@ const publicTask = (t) => ({
   title: t.title,
   description: t.description,
   projectName: t.project_name,
+  projectId: t.project_id,
   projectLocation: t.project_location,
   personName: t.person_name,
   priority: t.priority,
@@ -35,7 +37,7 @@ export async function listTasks(req, res) {
 }
 
 export async function createTask(req, res) {
-  const { type, title, description, projectName, projectLocation, personName, priority } = req.body ?? {}
+  const { type, title, description, projectName, projectLocation, personName, priority, projectId } = req.body ?? {}
 
   const errors = {}
   if (!title || !title.trim()) errors.title = 'Enter a title'
@@ -46,10 +48,15 @@ export async function createTask(req, res) {
     return res.status(400).json({ message: 'Please fix the highlighted fields', errors })
   }
 
+  if (projectId) {
+    const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
+    if (!allowed) return res.status(404).json({ message: 'Project not found' })
+  }
+
   try {
     const { rows } = await query(
-      `INSERT INTO tasks (user_id, type, title, description, project_name, project_location, person_name, priority)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO tasks (user_id, type, title, description, project_name, project_location, person_name, priority, project_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         req.user.id,
         type,
@@ -59,11 +66,28 @@ export async function createTask(req, res) {
         projectLocation?.trim() || null,
         personName?.trim() || null,
         priority || 'medium',
+        projectId || null,
       ]
     )
     res.status(201).json({ task: publicTask(rows[0]) })
   } catch (err) {
     console.error('Create task error', err)
+    res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+// Full task list for a project, gated by project access (not just
+// user_id = requester) so a supervisor can see the customer's tasks too.
+export async function listProjectTasks(req, res) {
+  const { id: projectId } = req.params
+  try {
+    const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
+    if (!allowed) return res.status(404).json({ message: 'Project not found' })
+
+    const { rows } = await query('SELECT * FROM tasks WHERE project_id = $1 ORDER BY created_at DESC', [projectId])
+    res.json({ tasks: rows.map(publicTask) })
+  } catch (err) {
+    console.error('List project tasks error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }
