@@ -61,6 +61,8 @@ const publicUpdate = (u) => ({
   photoUrls: u.photo_urls || [],
   location: u.location,
   authorName: u.author_name,
+  authorRole: u.author_role,
+  authorId: u.author_id,
   createdAt: u.created_at,
 })
 
@@ -78,7 +80,7 @@ export async function getProjectProgress(req, res) {
     const project = publicProject(projectRows[0])
 
     const { rows: updateRows } = await query(
-      `SELECT pu.*, u.full_name AS author_name FROM project_updates pu
+      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role FROM project_updates pu
        JOIN users u ON u.id = pu.author_id
        WHERE pu.project_id = $1 ORDER BY pu.created_at DESC LIMIT 50`,
       [id]
@@ -131,10 +133,89 @@ export async function addProgressUpdate(req, res) {
       return rows[0]
     })
 
-    const { rows: authorRows } = await query('SELECT full_name FROM users WHERE id = $1', [req.user.id])
-    res.status(201).json({ update: publicUpdate({ ...update, author_name: authorRows[0]?.full_name }) })
+    const { rows: authorRows } = await query('SELECT full_name, role FROM users WHERE id = $1', [req.user.id])
+    res.status(201).json({ update: publicUpdate({ ...update, author_name: authorRows[0]?.full_name, author_role: authorRows[0]?.role }) })
   } catch (err) {
     console.error('Add progress update error', err)
+    res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+export async function editProgressUpdate(req, res) {
+  const { id: projectId, updateId } = req.params
+  const { title, description, progressPercent, photoUrls, location } = req.body ?? {}
+
+  if (!title || title.trim().length < 2) {
+    return res.status(400).json({ message: 'Give the update a title' })
+  }
+  if (progressPercent != null && (progressPercent < 0 || progressPercent > 100)) {
+    return res.status(400).json({ message: 'Progress must be between 0 and 100' })
+  }
+  const cleanPhotoUrls = Array.isArray(photoUrls) ? photoUrls.filter((u) => typeof u === 'string' && u.trim()).slice(0, 6) : []
+
+  try {
+    const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
+    if (!allowed) return res.status(404).json({ message: 'Project not found' })
+
+    const updated = await withTransaction(async (client) => {
+      const { rows } = await client.query(
+        `UPDATE project_updates SET title = $1, description = $2, progress_percent = $3, photo_urls = $4, location = $5
+         WHERE id = $6 AND project_id = $7 RETURNING *`,
+        [title.trim(), description?.trim() || null, progressPercent ?? null, JSON.stringify(cleanPhotoUrls), location?.trim() || null, updateId, projectId]
+      )
+      if (!rows.length) return null
+
+      // Only push this onto the project's live progress % if it's still the
+      // most recent update — editing an older entry shouldn't override a
+      // newer one's progress.
+      const { rows: latestRows } = await client.query(
+        'SELECT id FROM project_updates WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [projectId]
+      )
+      if (progressPercent != null && latestRows[0]?.id === updateId) {
+        await client.query('UPDATE projects SET progress_percent = $1, updated_at = now() WHERE id = $2', [progressPercent, projectId])
+      }
+      return rows[0]
+    })
+    if (!updated) return res.status(404).json({ message: 'Update not found' })
+
+    const { rows: authorRows } = await query('SELECT full_name, role FROM users WHERE id = $1', [updated.author_id])
+    res.json({ update: publicUpdate({ ...updated, author_name: authorRows[0]?.full_name, author_role: authorRows[0]?.role }) })
+  } catch (err) {
+    console.error('Edit progress update error', err)
+    res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+export async function deleteProgressUpdate(req, res) {
+  const { id: projectId, updateId } = req.params
+  try {
+    const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
+    if (!allowed) return res.status(404).json({ message: 'Project not found' })
+
+    const deleted = await withTransaction(async (client) => {
+      const { rowCount } = await client.query('DELETE FROM project_updates WHERE id = $1 AND project_id = $2', [updateId, projectId])
+      if (!rowCount) return false
+
+      // Recompute the project's live progress % from whatever update is now
+      // the most recent one that actually set a percentage, so deleting the
+      // latest one doesn't leave a stale/incorrect number behind.
+      const { rows } = await client.query(
+        `SELECT progress_percent FROM project_updates
+         WHERE project_id = $1 AND progress_percent IS NOT NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [projectId]
+      )
+      if (rows.length) {
+        await client.query('UPDATE projects SET progress_percent = $1, updated_at = now() WHERE id = $2', [rows[0].progress_percent, projectId])
+      }
+      return true
+    })
+    if (!deleted) return res.status(404).json({ message: 'Update not found' })
+
+    res.json({ message: 'Update deleted' })
+  } catch (err) {
+    console.error('Delete progress update error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }

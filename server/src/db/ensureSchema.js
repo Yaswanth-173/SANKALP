@@ -286,6 +286,9 @@ export async function ensureSchema() {
   await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(60)')
   await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS notes VARCHAR(500)')
   await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT')
+  await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS subcategory VARCHAR(80)')
+  await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS material VARCHAR(120)')
+  await query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()')
 
   await query('ALTER TABLE project_updates ADD COLUMN IF NOT EXISTS location VARCHAR(160)')
 }

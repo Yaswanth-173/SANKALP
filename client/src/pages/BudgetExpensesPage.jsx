@@ -170,8 +170,8 @@ function ExpenseDonut({ categories, colors }) {
 }
 
 const expenseFormInitial = {
-  category: BUDGET_CATEGORIES[0], description: '', amount: '', paymentMode: 'cash', status: 'paid',
-  expenseDate: new Date().toISOString().slice(0, 10), vendor: '', invoiceNumber: '', notes: '',
+  category: BUDGET_CATEGORIES[0], subcategory: '', description: '', amount: '', paymentMode: 'cash', status: 'paid',
+  expenseDate: new Date().toISOString().slice(0, 10), vendor: '', material: '', invoiceNumber: '', notes: '',
 }
 
 const filtersInitial = { dateFrom: '', dateTo: '', category: 'all', paymentMode: 'all', minAmount: '', maxAmount: '', status: 'all' }
@@ -289,12 +289,14 @@ function BudgetExpensesPage() {
     setEditingExpenseId(expense.id)
     setExpenseForm({
       category: expense.category,
+      subcategory: expense.subcategory || '',
       description: expense.description,
       amount: String(expense.amount),
       paymentMode: expense.paymentMode,
       status: expense.status,
       expenseDate: expense.expenseDate?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       vendor: expense.vendor || '',
+      material: expense.material || '',
       invoiceNumber: expense.invoiceNumber || '',
       notes: expense.notes || '',
     })
@@ -370,7 +372,7 @@ function BudgetExpensesPage() {
   const filteredExpenses = useMemo(() => {
     return expenses.filter((e) => {
       if (search) {
-        const haystack = `${e.description} ${e.vendor || ''} ${e.invoiceNumber || ''} ${e.category}`.toLowerCase()
+        const haystack = `${e.description} ${e.vendor || ''} ${e.invoiceNumber || ''} ${e.category} ${e.material || ''} ${e.subcategory || ''}`.toLowerCase()
         if (!haystack.includes(search)) return false
       }
       if (filters.category !== 'all' && e.category !== filters.category) return false
@@ -383,6 +385,31 @@ function BudgetExpensesPage() {
       return true
     })
   }, [expenses, search, filters])
+
+  // Category-level "budget vs actual" report, straight from the same live
+  // numbers the charts use.
+  const handleExportReportCsv = () => {
+    if (!overview) return
+    const header = ['Category', 'Budgeted', 'Spent', 'Remaining', 'Percent Used']
+    const rows = overview.categories.map((c) => [
+      c.category, c.budgetedAmount, c.spentAmount, c.budgetedAmount - c.spentAmount,
+      c.budgetedAmount > 0 ? `${Math.round((c.spentAmount / c.budgetedAmount) * 100)}%` : 'n/a',
+    ])
+    rows.push(['TOTAL', overview.totalBudget, overview.totalSpent, overview.remaining,
+      overview.totalBudget > 0 ? `${Math.round((overview.totalSpent / overview.totalBudget) * 100)}%` : 'n/a'])
+    const csv = [header, ...rows].map((r) => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `budget-report-${selectedProjectId}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // PDF via the browser's own print-to-PDF rather than pulling in a PDF
+  // library — same output, no extra dependency.
+  const handleExportReportPdf = () => window.print()
 
   const handleExportCsv = () => {
     const header = ['Date', 'Category', 'Description', 'Amount', 'Payment Mode', 'Status', 'Vendor', 'Invoice Number']
@@ -697,6 +724,43 @@ function BudgetExpensesPage() {
                         <p className="py-8 text-center text-sm text-ink/40">Add an expense to see a spending report.</p>
                       ) : (
                         <div className="space-y-5">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-ink">Budget vs Actual</p>
+                            <div className="flex gap-2">
+                              <button onClick={handleExportReportCsv} className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30">Export CSV</button>
+                              <button onClick={handleExportReportPdf} className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30">Export PDF</button>
+                            </div>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                              <thead className="text-xs uppercase tracking-wider text-ink/40">
+                                <tr>
+                                  <th className="px-2 py-2">Category</th>
+                                  <th className="px-2 py-2">Budgeted</th>
+                                  <th className="px-2 py-2">Spent</th>
+                                  <th className="px-2 py-2">Remaining</th>
+                                  <th className="px-2 py-2">Used</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {overview.categories.map((c) => {
+                                  const remaining = c.budgetedAmount - c.spentAmount
+                                  const pct = c.budgetedAmount > 0 ? Math.round((c.spentAmount / c.budgetedAmount) * 100) : null
+                                  return (
+                                    <tr key={c.category} className="border-t border-ink/10">
+                                      <td className="px-2 py-2 text-ink/80">{c.category}</td>
+                                      <td className="px-2 py-2 text-ink/60">{formatPrice(c.budgetedAmount)}</td>
+                                      <td className="px-2 py-2 text-gold-300">{formatPrice(c.spentAmount)}</td>
+                                      <td className={`px-2 py-2 ${remaining < 0 ? 'text-red-400' : 'text-emerald-300'}`}>{formatPrice(remaining)}</td>
+                                      <td className="px-2 py-2 text-ink/60">{pct != null ? `${pct}%` : '—'}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                             {[
                               { label: 'Top Category', value: reportStats.topCategory ? `${reportStats.topCategory.category} (${formatPrice(reportStats.topCategory.spentAmount)})` : '—' },
@@ -752,6 +816,10 @@ function BudgetExpensesPage() {
                       >
                         {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField id="subcategory" label="Subcategory (optional)" value={expenseForm.subcategory} onChange={(e) => setExpenseForm((p) => ({ ...p, subcategory: e.target.value }))} placeholder="e.g. Cement & Concrete" />
+                      <FormField id="material" label="Material (optional)" value={expenseForm.material} onChange={(e) => setExpenseForm((p) => ({ ...p, material: e.target.value }))} placeholder="e.g. UltraTech OPC 53" />
                     </div>
                     <FormField id="description" label="Description" value={expenseForm.description} onChange={(e) => setExpenseForm((p) => ({ ...p, description: e.target.value }))} placeholder="e.g. Cement — 50 bags" />
                     <FormField id="amount" label="Amount (₹)" type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} placeholder="e.g. 21000" />

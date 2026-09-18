@@ -15,11 +15,14 @@ const publicExpense = (e) => ({
   paymentMode: e.payment_mode,
   status: e.status,
   expenseDate: e.expense_date,
+  subcategory: e.subcategory,
+  material: e.material,
   vendor: e.vendor,
   invoiceNumber: e.invoice_number,
   notes: e.notes,
   receiptUrl: e.receipt_url,
   createdAt: e.created_at,
+  updatedAt: e.updated_at,
 })
 
 export async function getBudgetOverview(req, res) {
@@ -129,7 +132,7 @@ function validateExpenseInput({ category, description, amount, paymentMode }) {
 
 export async function createExpense(req, res) {
   const { id: projectId } = req.params
-  const { category, description, amount, paymentMode, status, expenseDate, vendor, invoiceNumber, notes, receiptUrl } = req.body ?? {}
+  const { category, description, amount, paymentMode, status, expenseDate, vendor, invoiceNumber, notes, receiptUrl, subcategory, material } = req.body ?? {}
 
   const { errors, amountNum } = validateExpenseInput({ category, description, amount, paymentMode })
   if (Object.keys(errors).length) return res.status(400).json({ message: 'Please fix the highlighted fields', errors })
@@ -139,12 +142,13 @@ export async function createExpense(req, res) {
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
     const { rows } = await query(
-      `INSERT INTO expenses (project_id, created_by, category, description, amount, payment_mode, status, expense_date, vendor, invoice_number, notes, receipt_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE), $9, $10, $11, $12) RETURNING *`,
+      `INSERT INTO expenses (project_id, created_by, category, description, amount, payment_mode, status, expense_date, vendor, invoice_number, notes, receipt_url, subcategory, material)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE), $9, $10, $11, $12, $13, $14) RETURNING *`,
       [
         projectId, req.user.id, category, description.trim(), amountNum, paymentMode || 'cash',
         status === 'pending' ? 'pending' : 'paid', expenseDate || null,
         vendor?.trim() || null, invoiceNumber?.trim() || null, notes?.trim() || null, receiptUrl || null,
+        subcategory?.trim() || null, material?.trim() || null,
       ]
     )
     res.status(201).json({ expense: publicExpense(rows[0]) })
@@ -156,7 +160,7 @@ export async function createExpense(req, res) {
 
 export async function updateExpense(req, res) {
   const { id: projectId, expenseId } = req.params
-  const { category, description, amount, paymentMode, status, expenseDate, vendor, invoiceNumber, notes, receiptUrl } = req.body ?? {}
+  const { category, description, amount, paymentMode, status, expenseDate, vendor, invoiceNumber, notes, receiptUrl, subcategory, material } = req.body ?? {}
 
   const { errors, amountNum } = validateExpenseInput({ category, description, amount, paymentMode })
   if (Object.keys(errors).length) return res.status(400).json({ message: 'Please fix the highlighted fields', errors })
@@ -168,12 +172,12 @@ export async function updateExpense(req, res) {
     const { rows } = await query(
       `UPDATE expenses SET category = $1, description = $2, amount = $3, payment_mode = $4, status = $5,
          expense_date = COALESCE($6, expense_date), vendor = $7, invoice_number = $8, notes = $9,
-         receipt_url = COALESCE($10, receipt_url)
+         receipt_url = COALESCE($10, receipt_url), subcategory = $13, material = $14, updated_at = now()
        WHERE id = $11 AND project_id = $12 RETURNING *`,
       [
         category, description.trim(), amountNum, paymentMode || 'cash', status === 'pending' ? 'pending' : 'paid',
         expenseDate || null, vendor?.trim() || null, invoiceNumber?.trim() || null, notes?.trim() || null,
-        receiptUrl || null, expenseId, projectId,
+        receiptUrl || null, expenseId, projectId, subcategory?.trim() || null, material?.trim() || null,
       ]
     )
     if (!rows.length) return res.status(404).json({ message: 'Expense not found' })

@@ -267,6 +267,12 @@ function ProgressUpdatesPage() {
   const [chartRange, setChartRange] = useState('6m')
   const [photoFiles, setPhotoFiles] = useState([])
   const [locatingUser, setLocatingUser] = useState(false)
+  const [editingUpdateId, setEditingUpdateId] = useState(null)
+  const [existingPhotoUrls, setExistingPhotoUrls] = useState([])
+  const [deletingUpdateId, setDeletingUpdateId] = useState(null)
+  const [taskForm, setTaskForm] = useState({ title: '', type: 'work', priority: 'medium' })
+  const [addingTask, setAddingTask] = useState(false)
+  const [showTaskForm, setShowTaskForm] = useState(false)
 
   const loadProjects = async () => {
     const res = await apiFetch('/api/projects')
@@ -411,10 +417,39 @@ function ProgressUpdatesPage() {
   }
 
   const openModal = () => {
+    setEditingUpdateId(null)
     setUpdateForm(updateFormInitial)
     setPhotoFiles([])
+    setExistingPhotoUrls([])
     setUpdateError('')
     setShowUpdateModal(true)
+  }
+
+  const openEditUpdate = (update) => {
+    setEditingUpdateId(update.id)
+    setUpdateForm({
+      title: update.title,
+      description: update.description || '',
+      progressPercent: update.progressPercent != null ? String(update.progressPercent) : '',
+      location: update.location || '',
+    })
+    setPhotoFiles([])
+    setExistingPhotoUrls(update.photoUrls || [])
+    setUpdateError('')
+    setShowUpdateModal(true)
+  }
+
+  const handleDeleteUpdate = async (updateId) => {
+    setDeletingUpdateId(updateId)
+    try {
+      await apiFetch(`/api/projects/${selectedProjectId}/progress-updates/${updateId}`, { method: 'DELETE' })
+      showToast('Update deleted')
+      await Promise.all([loadProgress(selectedProjectId), refreshProjectsList()])
+    } catch (err) {
+      showToast(err.message)
+    } finally {
+      setDeletingUpdateId(null)
+    }
   }
 
   // Optional current-location capture (spec: never force the permission
@@ -456,19 +491,24 @@ function ProgressUpdatesPage() {
     setSubmitting(true)
     setUpdateError('')
     try {
-      const photoUrls = await uploadImages(photoFiles)
-      await apiFetch(`/api/projects/${selectedProjectId}/progress-updates`, {
-        method: 'POST',
-        body: JSON.stringify({
-          title: updateForm.title.trim(),
-          description: updateForm.description.trim() || undefined,
-          progressPercent: updateForm.progressPercent !== '' ? Number(updateForm.progressPercent) : undefined,
-          location: updateForm.location.trim() || undefined,
-          photoUrls,
-        }),
+      const uploaded = await uploadImages(photoFiles)
+      const photoUrls = [...existingPhotoUrls, ...uploaded].slice(0, 6)
+      const body = JSON.stringify({
+        title: updateForm.title.trim(),
+        description: updateForm.description.trim() || undefined,
+        progressPercent: updateForm.progressPercent !== '' ? Number(updateForm.progressPercent) : undefined,
+        location: updateForm.location.trim() || undefined,
+        photoUrls,
       })
+      if (editingUpdateId) {
+        await apiFetch(`/api/projects/${selectedProjectId}/progress-updates/${editingUpdateId}`, { method: 'PUT', body })
+        showToast('Update saved')
+      } else {
+        await apiFetch(`/api/projects/${selectedProjectId}/progress-updates`, { method: 'POST', body })
+        showToast('Update posted')
+      }
       setShowUpdateModal(false)
-      showToast('Update posted')
+      setEditingUpdateId(null)
       await Promise.all([loadProgress(selectedProjectId), refreshProjectsList()])
     } catch (err) {
       setUpdateError(err.message)
@@ -503,8 +543,52 @@ function ProgressUpdatesPage() {
     }
   }
 
+  const handleAddTask = async (e) => {
+    e.preventDefault()
+    if (addingTask || !taskForm.title.trim()) return
+    setAddingTask(true)
+    try {
+      await apiFetch('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: taskForm.title.trim(),
+          type: taskForm.type,
+          priority: taskForm.priority,
+          projectId: selectedProjectId,
+          projectName: project?.name,
+          projectLocation: project?.location,
+        }),
+      })
+      setTaskForm({ title: '', type: 'work', priority: 'medium' })
+      setShowTaskForm(false)
+      showToast('Task added')
+      await loadProgress(selectedProjectId)
+    } catch (err) {
+      showToast(err.message)
+    } finally {
+      setAddingTask(false)
+    }
+  }
+
+  const handleDeleteTask = async (taskId) => {
+    setTaskActionId(taskId)
+    try {
+      await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+      showToast('Task removed')
+      await loadProgress(selectedProjectId)
+    } catch (err) {
+      showToast(err.message)
+    } finally {
+      setTaskActionId(null)
+    }
+  }
+
   const handleQuickAction = (key) => {
-    if (key === 'task') return setTab('tasks')
+    if (key === 'task') {
+      setTab('tasks')
+      setShowTaskForm(true)
+      return
+    }
     if (key === 'notify') return handleNotifyTeam()
     openModal()
   }
@@ -685,37 +769,86 @@ function ProgressUpdatesPage() {
                       )}
 
                       {tab === 'tasks' && (
-                        tasks.length === 0 ? (
-                          <p className="py-8 text-center text-sm text-ink/40">No tasks linked to this project yet.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {tasks.map((task) => {
-                              const style = STATUS_STYLES[task.status]
-                              const TypeIcon = TASK_TYPE_ICONS[task.type] || TasksTabIcon
-                              return (
-                                <div key={task.id} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
-                                  <div className="flex items-center gap-2.5">
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50">
-                                      <TypeIcon className="h-3.5 w-3.5" />
-                                    </span>
-                                    <p className="min-w-0 flex-1 truncate text-sm text-ink/90">{task.title}</p>
-                                  </div>
-                                  <div className="mt-2 flex items-center justify-between gap-2">
-                                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>{task.priority}</span>
-                                    <button
-                                      onClick={() => cycleTaskStatus(task)}
-                                      disabled={taskActionId === task.id}
-                                      className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${style.bg} ${style.text} disabled:opacity-50`}
-                                    >
-                                      {taskActionId === task.id && <Spinner className="h-3 w-3" />}
-                                      {style.label}
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            })}
+                        <div>
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <p className="text-xs text-ink/40">
+                              {taskCounts.completed} completed · {taskCounts.in_progress} in progress · {taskCounts.pending} pending
+                            </p>
+                            <button
+                              onClick={() => setShowTaskForm((v) => !v)}
+                              className="rounded-full border border-gold-500/40 px-3 py-1 text-[11px] font-semibold text-gold-300 hover:bg-gold-500/10"
+                            >
+                              {showTaskForm ? 'Cancel' : '+ Add Task'}
+                            </button>
                           </div>
-                        )
+
+                          {showTaskForm && (
+                            <form onSubmit={handleAddTask} className="mb-3 space-y-2 rounded-xl border border-ink/10 bg-navy-950/40 p-3">
+                              <input
+                                value={taskForm.title}
+                                onChange={(e) => setTaskForm((p) => ({ ...p, title: e.target.value }))}
+                                placeholder="Task title"
+                                className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-ink/35"
+                              />
+                              <div className="grid grid-cols-2 gap-2">
+                                <select value={taskForm.type} onChange={(e) => setTaskForm((p) => ({ ...p, type: e.target.value }))} className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
+                                  <option value="work">Work</option>
+                                  <option value="materials">Materials</option>
+                                  <option value="site_visit">Site Visit</option>
+                                </select>
+                                <select value={taskForm.priority} onChange={(e) => setTaskForm((p) => ({ ...p, priority: e.target.value }))} className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
+                                  <option value="high">High</option>
+                                  <option value="medium">Medium</option>
+                                  <option value="low">Low</option>
+                                </select>
+                              </div>
+                              <button type="submit" disabled={addingTask || !taskForm.title.trim()} className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-50">
+                                {addingTask && <Spinner className="h-3 w-3" />}
+                                Add Task
+                              </button>
+                            </form>
+                          )}
+
+                          {tasks.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-ink/40">No tasks linked to this project yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {tasks.map((task) => {
+                                const style = STATUS_STYLES[task.status]
+                                const TypeIcon = TASK_TYPE_ICONS[task.type] || TasksTabIcon
+                                return (
+                                  <div key={task.id} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50">
+                                        <TypeIcon className="h-3.5 w-3.5" />
+                                      </span>
+                                      <p className="min-w-0 flex-1 truncate text-sm text-ink/90">{task.title}</p>
+                                      <button
+                                        onClick={() => handleDeleteTask(task.id)}
+                                        disabled={taskActionId === task.id}
+                                        aria-label="Delete task"
+                                        className="shrink-0 text-[11px] text-red-400/70 hover:text-red-400 disabled:opacity-50"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                    <div className="mt-2 flex items-center justify-between gap-2">
+                                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>{task.priority}</span>
+                                      <button
+                                        onClick={() => cycleTaskStatus(task)}
+                                        disabled={taskActionId === task.id}
+                                        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${style.bg} ${style.text} disabled:opacity-50`}
+                                      >
+                                        {taskActionId === task.id && <Spinner className="h-3 w-3" />}
+                                        {style.label}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {tab === 'reports' && (
@@ -802,7 +935,11 @@ function ProgressUpdatesPage() {
                           <div className="mt-4 grid grid-cols-1 gap-3 border-t border-ink/10 pt-3 sm:grid-cols-3">
                             <div className="flex items-center gap-2 text-xs text-ink/60">
                               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50"><PersonIcon className="h-3.5 w-3.5" /></span>
-                              <span><span className="block text-[10px] text-ink/35">Updated by</span>{latestUpdate.authorName}</span>
+                              <span>
+                                <span className="block text-[10px] text-ink/35">Updated by</span>
+                                {latestUpdate.authorName}
+                                {latestUpdate.authorRole && <span className="text-ink/35"> · {latestUpdate.authorRole === 'supervisor' ? 'Site Supervisor' : 'Customer'}</span>}
+                              </span>
                             </div>
                             {(latestUpdate.location || project.location) && (
                               <div className="flex items-center gap-2 text-xs text-ink/60">
@@ -820,11 +957,21 @@ function ProgressUpdatesPage() {
                             )}
                           </div>
 
-                          {latestUpdate.photoUrls?.length > 0 && (
-                            <button onClick={() => setTab('photos')} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-gold-300 hover:text-gold-200">
-                              View All Photos <span aria-hidden>→</span>
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            {latestUpdate.photoUrls?.length > 0 && (
+                              <button onClick={() => setTab('photos')} className="flex items-center gap-1.5 text-xs font-medium text-gold-300 hover:text-gold-200">
+                                View All Photos <span aria-hidden>→</span>
+                              </button>
+                            )}
+                            <button onClick={() => openEditUpdate(latestUpdate)} className="text-xs font-medium text-ink/55 hover:text-ink">Edit</button>
+                            <button
+                              onClick={() => handleDeleteUpdate(latestUpdate.id)}
+                              disabled={deletingUpdateId === latestUpdate.id}
+                              className="text-xs font-medium text-red-400/80 hover:text-red-400 disabled:opacity-50"
+                            >
+                              {deletingUpdateId === latestUpdate.id ? 'Deleting…' : 'Delete'}
                             </button>
-                          )}
+                          </div>
                         </div>
                       )}
 
@@ -915,6 +1062,18 @@ function ProgressUpdatesPage() {
                                 <div className="min-w-0 flex-1">
                                   <p className="truncate text-xs text-ink/85">{u.title}</p>
                                   <p className="text-[10px] text-ink/40">{formatDateTime(u.createdAt)}</p>
+                                  {feedExpanded && (
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <button onClick={() => openEditUpdate(u)} className="text-[10px] text-ink/50 hover:text-ink">Edit</button>
+                                      <button
+                                        onClick={() => handleDeleteUpdate(u.id)}
+                                        disabled={deletingUpdateId === u.id}
+                                        className="text-[10px] text-red-400/70 hover:text-red-400 disabled:opacity-50"
+                                      >
+                                        {deletingUpdateId === u.id ? '…' : 'Delete'}
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                                 {u.progressPercent != null && (
                                   <span className="shrink-0 rounded-full bg-gold-500/10 px-1.5 py-0.5 text-[9px] font-medium text-gold-300">{u.progressPercent}%</span>
@@ -943,7 +1102,7 @@ function ProgressUpdatesPage() {
                   className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-display text-sm font-semibold text-ink">Post an Update</p>
+                    <p className="font-display text-sm font-semibold text-ink">{editingUpdateId ? 'Edit Update' : 'Post an Update'}</p>
                     <button type="button" onClick={() => setShowUpdateModal(false)} className="text-ink/40 hover:text-ink">✕</button>
                   </div>
                   {updateError && <p className="mt-3 text-sm text-red-400">{updateError}</p>}
@@ -975,6 +1134,22 @@ function ProgressUpdatesPage() {
                     </div>
                     <div>
                       <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Site Photos (optional)</label>
+                      {existingPhotoUrls.length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-2">
+                          {existingPhotoUrls.map((url, i) => (
+                            <div key={i} className="relative">
+                              <img src={url} alt="" className="h-14 w-14 rounded-lg object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                              <button
+                                type="button"
+                                onClick={() => setExistingPhotoUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                                className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[9px] text-white"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif"
@@ -996,7 +1171,7 @@ function ProgressUpdatesPage() {
                   </div>
                   <button type="submit" disabled={submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
                     {submitting && <Spinner className="h-4 w-4" />}
-                    Post Update
+                    {editingUpdateId ? 'Save Changes' : 'Post Update'}
                   </button>
                 </motion.form>
               </>
