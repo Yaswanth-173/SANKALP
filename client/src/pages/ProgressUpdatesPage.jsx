@@ -750,7 +750,8 @@ function ProgressUpdatesPage() {
                           </div>
 
                           <p className="mt-3 font-display text-base font-semibold text-ink">
-                            {latestUpdate.title}{latestUpdate.progressPercent != null ? ` - ${latestUpdate.progressPercent}% Complete` : ''}
+                            {latestUpdate.title}
+                            {latestUpdate.progressPercent != null && !latestUpdate.title.includes('%') ? ` - ${latestUpdate.progressPercent}% Complete` : ''}
                           </p>
                           {latestUpdate.description && <p className="mt-1.5 text-sm text-ink/60">{latestUpdate.description}</p>}
 
