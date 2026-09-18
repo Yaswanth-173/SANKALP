@@ -13,16 +13,21 @@ import {
   LogoutIcon,
   MessagesIcon,
   NotesIcon,
+  ProjectsIcon,
   SettingsIcon,
 } from './icons.jsx'
 
-function Sidebar({ onClose }) {
+// Reused by every role's portal — pass `navItems` to show a different menu
+// (see SupervisorLayout) instead of the customer's. `showLocationPicker` is
+// customer-only since it drives the materials-shopping location filter.
+function Sidebar({ onClose, navItems: navItemsProp, showLocationPicker = true }) {
   const { logout } = useAuth()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const navItems = [
+  const navItems = navItemsProp || [
     { to: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon, end: true },
+    { to: '/dashboard/projects', label: 'Projects', icon: ProjectsIcon },
     { to: '/dashboard/calendar', label: t('nav.calendar'), icon: CalendarIcon },
     { to: '/dashboard/notes', label: t('nav.notes'), icon: NotesIcon },
     { to: '/dashboard/messages', label: t('nav.messages'), icon: MessagesIcon },
@@ -65,7 +70,7 @@ function Sidebar({ onClose }) {
         <LogoTilt className="h-20 w-auto" entrance={false} />
       </div>
 
-      <LocationPicker />
+      {showLocationPicker && <LocationPicker />}
 
       <nav className="flex flex-1 flex-col gap-1.5">
         {navItems.map(({ to, label, icon: Icon, end }) => (

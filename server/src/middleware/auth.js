@@ -20,3 +20,15 @@ export async function requireAuth(req, res, next) {
     return res.status(401).json({ message: 'Invalid or expired session' })
   }
 }
+
+// Use after requireAuth. Only checks the account's role, not whether the
+// user is actually attached to the specific project/resource being
+// touched — routes still need their own ownership/membership checks.
+export function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'You do not have access to this resource' })
+    }
+    next()
+  }
+}

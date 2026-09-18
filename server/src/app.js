@@ -9,6 +9,7 @@ import messagesRoutes from './routes/messages.routes.js'
 import contractorsRoutes from './routes/contractors.routes.js'
 import tasksRoutes from './routes/tasks.routes.js'
 import materialsRoutes from './routes/materials.routes.js'
+import projectsRoutes from './routes/projects.routes.js'
 
 const app = express()
 
@@ -34,6 +35,7 @@ app.use('/api/messages', messagesRoutes)
 app.use('/api/contractors', contractorsRoutes)
 app.use('/api/tasks', tasksRoutes)
 app.use('/api/materials', materialsRoutes)
+app.use('/api/projects', projectsRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' })

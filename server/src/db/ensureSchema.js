@@ -194,4 +194,34 @@ export async function ensureSchema() {
     )
   `)
   await query('CREATE INDEX IF NOT EXISTS material_order_items_order_idx ON material_order_items (order_id)')
+
+  // Phase 1 of the multi-role portal: a project is owned by a customer;
+  // other roles (supervisor for now, contractor/worker later) are attached
+  // to it via project_members rather than a fixed column per role, so later
+  // phases can reuse this same table instead of adding more join tables.
+  await query(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(160) NOT NULL,
+      location VARCHAR(160),
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS projects_customer_idx ON projects (customer_id, created_at DESC)')
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS project_members (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role_on_project VARCHAR(20) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (project_id, user_id)
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS project_members_user_idx ON project_members (user_id)')
+  await query('CREATE INDEX IF NOT EXISTS project_members_project_idx ON project_members (project_id)')
 }

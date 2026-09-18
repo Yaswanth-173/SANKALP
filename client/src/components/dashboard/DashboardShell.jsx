@@ -3,7 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Sidebar from './Sidebar.jsx'
 import DashboardBackground from './DashboardBackground.jsx'
 
-function DashboardShell({ children }) {
+// `sidebarProps` is forwarded to Sidebar so other roles' shells can swap in
+// their own nav items without duplicating this whole layout.
+function DashboardShell({ children, sidebarProps }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (
@@ -11,7 +13,7 @@ function DashboardShell({ children }) {
       <DashboardBackground />
 
       <div className="relative z-10 hidden lg:flex">
-        <Sidebar />
+        <Sidebar {...sidebarProps} />
       </div>
 
       <AnimatePresence>
@@ -31,7 +33,7 @@ function DashboardShell({ children }) {
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="fixed inset-y-0 left-0 z-40 lg:hidden"
             >
-              <Sidebar onClose={() => setDrawerOpen(false)} />
+              <Sidebar {...sidebarProps} onClose={() => setDrawerOpen(false)} />
             </motion.div>
           </>
         )}

@@ -14,6 +14,10 @@ import ContractorDetailPage from './pages/ContractorDetailPage.jsx'
 import CartPage from './pages/CartPage.jsx'
 import TaskTrackerPage from './pages/TaskTrackerPage.jsx'
 import MaterialsPage from './pages/MaterialsPage.jsx'
+import ProjectsPage from './pages/ProjectsPage.jsx'
+import ProjectDetailPage from './pages/ProjectDetailPage.jsx'
+import SupervisorDashboardPage from './pages/SupervisorDashboardPage.jsx'
+import SupervisorProjectDetailPage from './pages/SupervisorProjectDetailPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import { useTranslation } from './i18n/index.js'
 import costComparisonIcon from './assets/dashboard-icons/cost-comparison-icon.png'
@@ -32,8 +36,26 @@ function App() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <CustomerDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/projects"
+        element={
+          <ProtectedRoute allowRoles={['customer']}>
+            <ProjectsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/projects/:id"
+        element={
+          <ProtectedRoute allowRoles={['customer']}>
+            <ProjectDetailPage />
           </ProtectedRoute>
         }
       />
@@ -41,7 +63,7 @@ function App() {
       <Route
         path="/dashboard/calendar"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <CalendarPage />
           </ProtectedRoute>
         }
@@ -50,7 +72,7 @@ function App() {
       <Route
         path="/dashboard/notes"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <NotesPage />
           </ProtectedRoute>
         }
@@ -59,7 +81,7 @@ function App() {
       <Route
         path="/dashboard/messages"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <MessagesPage />
           </ProtectedRoute>
         }
@@ -68,6 +90,7 @@ function App() {
       <Route
         path="/dashboard/settings"
         element={
+          // Shared across every role — profile/password/preferences aren't customer-specific.
           <ProtectedRoute>
             <SettingsPage />
           </ProtectedRoute>
@@ -77,7 +100,7 @@ function App() {
       <Route
         path="/dashboard/contractors"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <ContractorsPage />
           </ProtectedRoute>
         }
@@ -86,7 +109,7 @@ function App() {
       <Route
         path="/dashboard/contractors/:slug"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <ContractorDetailPage />
           </ProtectedRoute>
         }
@@ -95,7 +118,7 @@ function App() {
       <Route
         path="/dashboard/cart"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <CartPage />
           </ProtectedRoute>
         }
@@ -104,7 +127,7 @@ function App() {
       <Route
         path="/dashboard/tasks"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <TaskTrackerPage />
           </ProtectedRoute>
         }
@@ -113,8 +136,26 @@ function App() {
       <Route
         path="/dashboard/materials"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowRoles={['customer']}>
             <MaterialsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/supervisor"
+        element={
+          <ProtectedRoute allowRoles={['supervisor']}>
+            <SupervisorDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/supervisor/projects/:id"
+        element={
+          <ProtectedRoute allowRoles={['supervisor']}>
+            <SupervisorProjectDetailPage />
           </ProtectedRoute>
         }
       />
@@ -128,7 +169,7 @@ function App() {
           key={path}
           path={`/dashboard/${path}`}
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowRoles={['customer']}>
               <PlaceholderFeaturePage title={t(titleKey)} description={t(descKey)} icon={icon} />
             </ProtectedRoute>
           }

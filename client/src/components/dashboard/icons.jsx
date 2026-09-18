@@ -171,6 +171,13 @@ export const ProgressIcon = (props) => (
   </svg>
 )
 
+export const ProjectsIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 21V7l8-4 8 4v14" />
+    <path d="M9 21v-6h6v6M9 11h.01M15 11h.01M12 11h.01M9 15h.01M15 15h.01" />
+  </svg>
+)
+
 export const BudgetIcon = (props) => (
   <svg {...base} {...props}>
     <rect x="3" y="6" width="18" height="13" rx="2" />

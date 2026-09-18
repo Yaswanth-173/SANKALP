@@ -9,6 +9,7 @@ import { validateLogin } from '../utils/validators.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTranslation } from '../i18n/index.js'
 import { demoLogin } from '../utils/demoApi.js'
+import { roleHome } from '../utils/roleHome.js'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055'
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
@@ -52,7 +53,7 @@ function LoginPage() {
       if (DEMO_MODE) {
         const data = await demoLogin(form.email, form.password)
         setSession(data.user)
-        navigate('/dashboard')
+        navigate(roleHome(data.user.role))
         return
       }
       const res = await fetch(`${API_URL}/api/auth/login`, {
@@ -70,7 +71,7 @@ function LoginPage() {
       }
 
       setSession(data.user)
-      navigate('/dashboard')
+      navigate(roleHome(data.user.role))
     } catch {
       setFormError('Could not reach the server. Please check your connection and try again.')
       setStatus('error')
