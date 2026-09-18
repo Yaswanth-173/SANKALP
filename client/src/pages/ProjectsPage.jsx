@@ -13,7 +13,7 @@ function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', location: '' })
+  const [form, setForm] = useState({ name: '', location: '', startDate: '', expectedCompletion: '', totalBudget: '' })
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -40,9 +40,15 @@ function ProjectsPage() {
     setSubmitting(true)
     setFormError('')
     try {
-      const data = await apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(form) })
+      const data = await apiFetch('/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form,
+          totalBudget: form.totalBudget ? Number(form.totalBudget) : undefined,
+        }),
+      })
       setProjects((prev) => [data.project, ...prev])
-      setForm({ name: '', location: '' })
+      setForm({ name: '', location: '', startDate: '', expectedCompletion: '', totalBudget: '' })
       setShowForm(false)
     } catch (err) {
       setFormError(err.message)
@@ -80,7 +86,7 @@ function ProjectsPage() {
                 className="mt-4 overflow-hidden rounded-2xl border border-ink/10 bg-navy-900/50 p-5"
               >
                 {formError && <p className="mb-3 text-sm text-red-400">{formError}</p>}
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <FormField
                     id="name"
                     label="Project name"
@@ -95,7 +101,30 @@ function ProjectsPage() {
                     onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))}
                     placeholder="e.g. Hyderabad"
                   />
+                  <FormField
+                    id="startDate"
+                    label="Start date (optional)"
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+                  />
+                  <FormField
+                    id="expectedCompletion"
+                    label="Expected completion (optional)"
+                    type="date"
+                    value={form.expectedCompletion}
+                    onChange={(e) => setForm((p) => ({ ...p, expectedCompletion: e.target.value }))}
+                  />
+                  <FormField
+                    id="totalBudget"
+                    label="Total budget in ₹ (optional)"
+                    type="number"
+                    value={form.totalBudget}
+                    onChange={(e) => setForm((p) => ({ ...p, totalBudget: e.target.value }))}
+                    placeholder="e.g. 1500000"
+                  />
                 </div>
+                <p className="mt-3 text-[11px] text-ink/35">Adding dates and a budget unlocks the Timeline and Budget Planner views for this project.</p>
                 <button
                   type="submit"
                   disabled={submitting}

@@ -4,7 +4,6 @@ import LoginPage from './pages/LoginPage.jsx'
 import SignUpPage from './pages/SignUpPage.jsx'
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
 import CustomerDashboard from './pages/CustomerDashboard.jsx'
-import PlaceholderFeaturePage from './pages/PlaceholderFeaturePage.jsx'
 import CalendarPage from './pages/CalendarPage.jsx'
 import NotesPage from './pages/NotesPage.jsx'
 import MessagesPage from './pages/MessagesPage.jsx'
@@ -17,15 +16,13 @@ import MaterialsPage from './pages/MaterialsPage.jsx'
 import CostComparisonPage from './pages/CostComparisonPage.jsx'
 import ProjectsPage from './pages/ProjectsPage.jsx'
 import ProjectDetailPage from './pages/ProjectDetailPage.jsx'
+import ProgressUpdatesPage from './pages/ProgressUpdatesPage.jsx'
+import BudgetExpensesPage from './pages/BudgetExpensesPage.jsx'
 import SupervisorDashboardPage from './pages/SupervisorDashboardPage.jsx'
 import SupervisorProjectDetailPage from './pages/SupervisorProjectDetailPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
-import { useTranslation } from './i18n/index.js'
-import progressUpdatesIcon from './assets/dashboard-icons/progress-updates-icon.png'
-import budgetExpensesIcon from './assets/dashboard-icons/budget-expenses-icon.png'
 
 function App() {
-  const { t } = useTranslation()
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
@@ -169,20 +166,23 @@ function App() {
         }
       />
 
-      {[
-        { path: 'progress', titleKey: 'cards.progress.title', descKey: 'cards.progress.description', icon: progressUpdatesIcon },
-        { path: 'budget', titleKey: 'cards.budget.title', descKey: 'cards.budget.description', icon: budgetExpensesIcon },
-      ].map(({ path, titleKey, descKey, icon }) => (
-        <Route
-          key={path}
-          path={`/dashboard/${path}`}
-          element={
-            <ProtectedRoute allowRoles={['customer']}>
-              <PlaceholderFeaturePage title={t(titleKey)} description={t(descKey)} icon={icon} />
-            </ProtectedRoute>
-          }
-        />
-      ))}
+      <Route
+        path="/dashboard/progress"
+        element={
+          <ProtectedRoute allowRoles={['customer']}>
+            <ProgressUpdatesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/budget"
+        element={
+          <ProtectedRoute allowRoles={['customer']}>
+            <BudgetExpensesPage />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   )
 }

@@ -1,0 +1,621 @@
+import { useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import DashboardShell from '../components/dashboard/DashboardShell.jsx'
+import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
+import Spinner from '../components/Spinner.jsx'
+import FormField from '../components/FormField.jsx'
+import { ProjectsIcon } from '../components/dashboard/icons.jsx'
+import { usePreferences } from '../context/PreferencesContext.jsx'
+import { apiFetch } from '../utils/api.js'
+
+// Mirrors server/src/controllers/budgetController.js's BUDGET_CATEGORIES —
+// kept in sync manually since the client has no reason to fetch a static
+// list over the network (same pattern used for STATE_CITIES elsewhere).
+const BUDGET_CATEGORIES = ['Foundation', 'Structure', 'Electrical', 'Plumbing', 'Finishing', 'Others']
+const PAYMENT_MODES = ['cash', 'upi', 'card', 'bank_transfer']
+
+// Fixed categorical hue order, validated with the dataviz skill's validator
+// against this app's actual card surfaces (dark #0a0e1a / light #ffffff) —
+// see the chat history for the exact `validate_palette.js` runs. Every
+// category always gets the same slot, never a cycled/generated hue.
+const CATEGORY_COLORS = {
+  dark: { Foundation: '#3987e5', Structure: '#d95926', Electrical: '#199e70', Plumbing: '#c98500', Finishing: '#d55181', Others: '#008300' },
+  light: { Foundation: '#2a78d6', Structure: '#eb6834', Electrical: '#1baf7a', Plumbing: '#eda100', Finishing: '#e87ba4', Others: '#008300' },
+}
+// Budgeted vs Spent — also validated against both modes. "Spent" reuses the
+// same gold/amber family the rest of the app already uses for money/price.
+const BAR_COLORS = {
+  dark: { budgeted: '#3987e5', spent: '#c98500' },
+  light: { budgeted: '#2a78d6', spent: '#eda100' },
+}
+
+function formatPrice(n) {
+  return `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+}
+
+function formatDate(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'planner', label: 'Budget Planner' },
+  { key: 'comparison', label: 'Cost Comparison' },
+  { key: 'reports', label: 'Reports' },
+]
+
+function BudgetBarChart({ categories, colors }) {
+  const [hover, setHover] = useState(null)
+  const width = 640
+  const height = 230
+  const padL = 8
+  const padB = 34
+  const padT = 16
+  const max = Math.max(1, ...categories.flatMap((c) => [c.budgetedAmount, c.spentAmount]))
+  const groupWidth = (width - padL * 2) / categories.length
+  const barWidth = groupWidth * 0.3
+  const plotH = height - padT - padB
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-4 text-xs text-ink/60">
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors.budgeted }} /> Budgeted</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors.spent }} /> Spent</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" onMouseLeave={() => setHover(null)}>
+        {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+          <line key={f} x1={padL} x2={width - padL} y1={padT + plotH * (1 - f)} y2={padT + plotH * (1 - f)} stroke="currentColor" className="text-ink/5" strokeWidth="1" />
+        ))}
+        {categories.map((c, i) => {
+          const gx = padL + i * groupWidth + groupWidth / 2
+          const bH = (c.budgetedAmount / max) * plotH
+          const sH = (c.spentAmount / max) * plotH
+          return (
+            <g key={c.category}>
+              <rect
+                x={gx - barWidth - 2}
+                y={padT + plotH - bH}
+                width={barWidth}
+                height={bH}
+                rx="3"
+                fill={colors.budgeted}
+                onMouseEnter={() => setHover({ category: c.category, label: 'Budgeted', value: c.budgetedAmount })}
+              />
+              <rect
+                x={gx + 2}
+                y={padT + plotH - sH}
+                width={barWidth}
+                height={sH}
+                rx="3"
+                fill={colors.spent}
+                onMouseEnter={() => setHover({ category: c.category, label: 'Spent', value: c.spentAmount })}
+              />
+              <text x={gx} y={height - 12} textAnchor="middle" className="fill-current text-ink/45" fontSize="10">{c.category}</text>
+            </g>
+          )
+        })}
+      </svg>
+      <p className="mt-1 h-4 text-center text-xs text-ink/60">
+        {hover ? <>{hover.category} — {hover.label}: <span className="font-semibold text-gold-300">{formatPrice(hover.value)}</span></> : ' '}
+      </p>
+    </div>
+  )
+}
+
+function ExpenseDonut({ categories, colors }) {
+  const [hover, setHover] = useState(null)
+  const total = categories.reduce((s, c) => s + c.spentAmount, 0)
+  const size = 168
+  const stroke = 24
+  const r = (size - stroke) / 2
+  const C = 2 * Math.PI * r
+  let cumulative = 0
+
+  if (total <= 0) {
+    return <p className="py-10 text-center text-sm text-ink/40">No expenses logged yet — add one to see the breakdown.</p>
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90" onMouseLeave={() => setHover(null)}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" className="text-ink/5" strokeWidth={stroke} />
+          {categories.filter((c) => c.spentAmount > 0).map((c) => {
+            const frac = c.spentAmount / total
+            const dash = Math.max(0, frac * C - 2)
+            const offset = -cumulative
+            cumulative += frac * C
+            return (
+              <circle
+                key={c.category}
+                cx={size / 2}
+                cy={size / 2}
+                r={r}
+                fill="none"
+                stroke={colors[c.category]}
+                strokeWidth={stroke}
+                strokeDasharray={`${dash} ${C - dash}`}
+                strokeDashoffset={offset}
+                onMouseEnter={() => setHover(c)}
+                style={{ cursor: 'pointer' }}
+              />
+            )
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-display text-base font-bold text-ink">{formatPrice(total)}</span>
+          <span className="text-[10px] text-ink/40">Total Spent</span>
+        </div>
+      </div>
+      <div className="flex-1 space-y-1.5">
+        {categories.map((c) => {
+          const pct = total > 0 ? Math.round((c.spentAmount / total) * 100) : 0
+          return (
+            <div key={c.category} className={`flex items-center justify-between gap-3 rounded-lg px-2 py-1 text-xs transition-colors ${hover?.category === c.category ? 'bg-ink/5' : ''}`}>
+              <span className="flex items-center gap-2 text-ink/70">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: colors[c.category] }} />
+                {c.category}
+              </span>
+              <span className="text-ink/50">{formatPrice(c.spentAmount)} <span className="text-ink/30">({pct}%)</span></span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const expenseFormInitial = { category: BUDGET_CATEGORIES[0], description: '', amount: '', paymentMode: 'cash', status: 'paid', expenseDate: new Date().toISOString().slice(0, 10) }
+
+function BudgetExpensesPage() {
+  const { theme } = usePreferences()
+  const colors = theme === 'light' ? CATEGORY_COLORS.light : CATEGORY_COLORS.dark
+  const barColors = theme === 'light' ? BAR_COLORS.light : BAR_COLORS.dark
+
+  const [projects, setProjects] = useState([])
+  const [projectsLoading, setProjectsLoading] = useState(true)
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
+
+  const [overview, setOverview] = useState(null)
+  const [expenses, setExpenses] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const [tab, setTab] = useState('overview')
+  const [showExpenseModal, setShowExpenseModal] = useState(false)
+  const [expenseForm, setExpenseForm] = useState(expenseFormInitial)
+  const [expenseError, setExpenseError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
+  const [toast, setToast] = useState(null)
+
+  const [plannerAmounts, setPlannerAmounts] = useState({})
+  const [plannerTotalBudget, setPlannerTotalBudget] = useState('')
+  const [savingPlanner, setSavingPlanner] = useState(false)
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await apiFetch('/api/projects')
+        setProjects(res.projects)
+        if (res.projects.length) setSelectedProjectId(res.projects[0].id)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setProjectsLoading(false)
+      }
+    })()
+  }, [])
+
+  const loadBudget = async (projectId) => {
+    if (!projectId) return
+    setLoading(true)
+    setError('')
+    try {
+      const [overviewRes, expensesRes] = await Promise.all([
+        apiFetch(`/api/projects/${projectId}/budget`),
+        apiFetch(`/api/projects/${projectId}/expenses`),
+      ])
+      setOverview(overviewRes)
+      setExpenses(expensesRes.expenses)
+      setPlannerAmounts(Object.fromEntries(overviewRes.categories.map((c) => [c.category, String(c.budgetedAmount || '')])))
+      setPlannerTotalBudget(overviewRes.totalBudget ? String(overviewRes.totalBudget) : '')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedProjectId) loadBudget(selectedProjectId)
+  }, [selectedProjectId])
+
+  const showToast = (message) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3200)
+  }
+
+  const handleAddExpense = async (e) => {
+    e.preventDefault()
+    if (submitting) return
+    const amountNum = Number(expenseForm.amount)
+    if (!expenseForm.description.trim() || !Number.isFinite(amountNum) || amountNum <= 0) {
+      setExpenseError('Enter a description and a valid amount')
+      return
+    }
+    setSubmitting(true)
+    setExpenseError('')
+    try {
+      await apiFetch(`/api/projects/${selectedProjectId}/expenses`, {
+        method: 'POST',
+        body: JSON.stringify({ ...expenseForm, amount: amountNum }),
+      })
+      setShowExpenseModal(false)
+      setExpenseForm(expenseFormInitial)
+      showToast('Expense added')
+      await loadBudget(selectedProjectId)
+    } catch (err) {
+      setExpenseError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteExpense = async (expenseId) => {
+    setDeletingId(expenseId)
+    try {
+      await apiFetch(`/api/projects/${selectedProjectId}/expenses/${expenseId}`, { method: 'DELETE' })
+      showToast('Expense deleted')
+      await loadBudget(selectedProjectId)
+    } catch (err) {
+      showToast(err.message)
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleSavePlanner = async () => {
+    setSavingPlanner(true)
+    try {
+      await apiFetch(`/api/projects/${selectedProjectId}/budget`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          categories: BUDGET_CATEGORIES.map((category) => ({ category, budgetedAmount: Number(plannerAmounts[category]) || 0 })),
+          totalBudget: plannerTotalBudget !== '' ? Number(plannerTotalBudget) : undefined,
+        }),
+      })
+      showToast('Budget updated')
+      await loadBudget(selectedProjectId)
+    } catch (err) {
+      showToast(err.message)
+    } finally {
+      setSavingPlanner(false)
+    }
+  }
+
+  const handleExportCsv = () => {
+    const header = ['Date', 'Category', 'Description', 'Amount', 'Payment Mode', 'Status']
+    const rows = expenses.map((e) => [e.expenseDate, e.category, `"${e.description.replace(/"/g, '""')}"`, e.amount, e.paymentMode, e.status])
+    const csv = [header, ...rows].map((r) => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `expenses-${selectedProjectId}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const reportStats = useMemo(() => {
+    if (!overview || expenses.length === 0) return null
+    const byCategory = [...overview.categories].sort((a, b) => b.spentAmount - a.spentAmount)
+    const topCategory = byCategory[0]
+    const paidCount = expenses.filter((e) => e.status === 'paid').length
+    const pendingCount = expenses.filter((e) => e.status === 'pending').length
+    const avgAmount = expenses.reduce((s, e) => s + e.amount, 0) / expenses.length
+    const overBudget = overview.categories.filter((c) => c.budgetedAmount > 0 && c.spentAmount > c.budgetedAmount)
+    const utilization = overview.totalBudget > 0 ? Math.round((overview.totalSpent / overview.totalBudget) * 100) : null
+    return { topCategory, paidCount, pendingCount, avgAmount, overBudget, utilization }
+  }, [overview, expenses])
+
+  if (!projectsLoading && projects.length === 0) {
+    return (
+      <DashboardShell>
+        {({ onMenuClick }) => (
+          <>
+            <DashboardHeader onMenuClick={onMenuClick} title="Budget & Expenses" subtitle="Calculate budget, track expenses and manage project costs." />
+            <div className="mt-16 flex flex-col items-center gap-3 text-center text-ink/40">
+              <ProjectsIcon className="h-10 w-10" />
+              <p className="text-sm">Create a project first to start tracking its budget.</p>
+              <Link to="/dashboard/projects" className="mt-1 rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                + New Project
+              </Link>
+            </div>
+          </>
+        )}
+      </DashboardShell>
+    )
+  }
+
+  return (
+    <DashboardShell>
+      {({ onMenuClick }) => (
+        <>
+          <DashboardHeader onMenuClick={onMenuClick} title="Budget & Expenses" subtitle="Calculate budget, track expenses and manage project costs." />
+
+          {projectsLoading ? (
+            <div className="mt-16 flex justify-center"><Spinner className="h-6 w-6 text-ink/40" /></div>
+          ) : (
+            <>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedProjectId(p.id)}
+                      className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
+                        selectedProjectId === p.id ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
+                      }`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleExportCsv} disabled={expenses.length === 0} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30 disabled:opacity-40">Export</button>
+                  <button onClick={() => { setExpenseForm(expenseFormInitial); setExpenseError(''); setShowExpenseModal(true) }} className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">+ Add Expense</button>
+                </div>
+              </div>
+
+              {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+
+              {loading || !overview ? (
+                <div className="mt-16 flex justify-center"><Spinner className="h-6 w-6 text-ink/40" /></div>
+              ) : (
+                <>
+                  <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {[
+                      { label: 'Total Budget', value: formatPrice(overview.totalBudget) },
+                      { label: 'Total Spent', value: formatPrice(overview.totalSpent) },
+                      { label: 'Remaining Budget', value: formatPrice(overview.remaining), accent: overview.remaining < 0 ? 'text-red-400' : 'text-emerald-300' },
+                      { label: 'Total Expenses', value: overview.totalExpenseCount },
+                    ].map((tile) => (
+                      <div key={tile.label} className="rounded-2xl border border-ink/10 bg-navy-900/50 p-4">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-ink/40">{tile.label}</p>
+                        <p className={`mt-1.5 font-display text-lg font-semibold ${tile.accent || 'text-ink'}`}>{tile.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 flex flex-wrap gap-1 rounded-full border border-ink/10 p-1 sm:inline-flex">
+                    {TABS.map((t) => (
+                      <button
+                        key={t.key}
+                        onClick={() => setTab(t.key)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
+                          tab === t.key ? 'bg-gold-500 text-charcoal' : 'text-ink/55 hover:text-ink'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-ink/10 bg-navy-900/50 p-5">
+                    {tab === 'overview' && (
+                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <div>
+                          <p className="text-sm font-semibold text-ink">Budget vs Expenses</p>
+                          <div className="mt-2"><BudgetBarChart categories={overview.categories} colors={barColors} /></div>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-ink">Expense Breakdown</p>
+                          <div className="mt-3"><ExpenseDonut categories={overview.categories} colors={colors} /></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {tab === 'expenses' && (
+                      expenses.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-ink/40">No expenses logged yet.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-sm">
+                            <thead className="text-xs uppercase tracking-wider text-ink/40">
+                              <tr>
+                                <th className="px-2 py-2">Date</th>
+                                <th className="px-2 py-2">Category</th>
+                                <th className="px-2 py-2">Description</th>
+                                <th className="px-2 py-2">Amount</th>
+                                <th className="px-2 py-2">Payment</th>
+                                <th className="px-2 py-2">Status</th>
+                                <th className="px-2 py-2"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {expenses.map((e) => (
+                                <tr key={e.id} className="border-t border-ink/10">
+                                  <td className="px-2 py-2.5 text-ink/60">{formatDate(e.expenseDate)}</td>
+                                  <td className="px-2 py-2.5"><span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: `${colors[e.category]}22`, color: colors[e.category] }}>{e.category}</span></td>
+                                  <td className="px-2 py-2.5 text-ink/80">{e.description}</td>
+                                  <td className="px-2 py-2.5 font-semibold text-gold-300">{formatPrice(e.amount)}</td>
+                                  <td className="px-2 py-2.5 text-ink/60 capitalize">{e.paymentMode.replace(/_/g, ' ')}</td>
+                                  <td className="px-2 py-2.5">
+                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${e.status === 'paid' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{e.status}</span>
+                                  </td>
+                                  <td className="px-2 py-2.5">
+                                    <button onClick={() => handleDeleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs text-red-400/80 hover:text-red-400 disabled:opacity-50">
+                                      {deletingId === e.id ? '...' : 'Delete'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )
+                    )}
+
+                    {tab === 'planner' && (
+                      <div>
+                        <div className="max-w-xs">
+                          <FormField id="totalBudget" label="Total project budget (₹)" type="number" value={plannerTotalBudget} onChange={(e) => setPlannerTotalBudget(e.target.value)} placeholder="e.g. 1500000" />
+                        </div>
+                        <div className="mt-5 space-y-4">
+                          {BUDGET_CATEGORIES.map((category) => {
+                            const spent = overview.categories.find((c) => c.category === category)?.spentAmount || 0
+                            const budgeted = Number(plannerAmounts[category]) || 0
+                            const pct = budgeted > 0 ? Math.min(100, Math.round((spent / budgeted) * 100)) : 0
+                            return (
+                              <div key={category}>
+                                <div className="flex items-center justify-between text-xs text-ink/60">
+                                  <span className="flex items-center gap-1.5 font-medium text-ink/80">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors[category] }} /> {category}
+                                  </span>
+                                  <span>{formatPrice(spent)} spent of {formatPrice(budgeted)}</span>
+                                </div>
+                                <div className="mt-1.5 flex items-center gap-3">
+                                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink/10">
+                                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 100 ? '#e34948' : colors[category] }} />
+                                  </div>
+                                  <input
+                                    type="number"
+                                    value={plannerAmounts[category] || ''}
+                                    onChange={(e) => setPlannerAmounts((p) => ({ ...p, [category]: e.target.value }))}
+                                    className="w-28 shrink-0 rounded-lg border border-ink/15 bg-navy-950/40 px-2.5 py-1.5 text-xs text-ink outline-none"
+                                    placeholder="0"
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <button onClick={handleSavePlanner} disabled={savingPlanner} className="mt-5 flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
+                          {savingPlanner && <Spinner className="h-4 w-4" />}
+                          Save Budget
+                        </button>
+                      </div>
+                    )}
+
+                    {tab === 'comparison' && (
+                      <div className="flex flex-col items-center gap-3 py-6 text-center">
+                        <p className="text-sm text-ink/70">Comparing supplier prices before you spend is the easiest way to stay under budget.</p>
+                        <Link to="/dashboard/cost-comparison" className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                          Open Material Cost Comparison
+                        </Link>
+                      </div>
+                    )}
+
+                    {tab === 'reports' && (
+                      !reportStats ? (
+                        <p className="py-8 text-center text-sm text-ink/40">Add an expense to see a spending report.</p>
+                      ) : (
+                        <div className="space-y-5">
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            {[
+                              { label: 'Top Category', value: reportStats.topCategory ? `${reportStats.topCategory.category} (${formatPrice(reportStats.topCategory.spentAmount)})` : '—' },
+                              { label: 'Budget Utilization', value: reportStats.utilization != null ? `${reportStats.utilization}%` : 'No budget set' },
+                              { label: 'Average Expense', value: formatPrice(reportStats.avgAmount) },
+                              { label: 'Paid Expenses', value: reportStats.paidCount },
+                              { label: 'Pending Expenses', value: reportStats.pendingCount },
+                              { label: 'Categories Over Budget', value: reportStats.overBudget.length },
+                            ].map((r) => (
+                              <div key={r.label} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3.5">
+                                <p className="text-[10px] font-medium uppercase tracking-wider text-ink/40">{r.label}</p>
+                                <p className="mt-1.5 text-sm font-semibold text-ink">{r.value}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {reportStats.overBudget.length > 0 && (
+                            <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3.5">
+                              <p className="text-xs font-medium text-red-300">Over budget: {reportStats.overBudget.map((c) => c.category).join(', ')}</p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          <AnimatePresence>
+            {showExpenseModal && (
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExpenseModal(false)} className="fixed inset-0 z-40 bg-black/70" />
+                <motion.form
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  onSubmit={handleAddExpense}
+                  className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="font-display text-sm font-semibold text-ink">Add Expense</p>
+                    <button type="button" onClick={() => setShowExpenseModal(false)} className="text-ink/40 hover:text-ink">✕</button>
+                  </div>
+                  {expenseError && <p className="mt-3 text-sm text-red-400">{expenseError}</p>}
+                  <div className="mt-4 space-y-3.5">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Category</label>
+                      <select
+                        value={expenseForm.category}
+                        onChange={(e) => setExpenseForm((p) => ({ ...p, category: e.target.value }))}
+                        className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-4 py-2.5 text-sm text-ink outline-none"
+                      >
+                        {BUDGET_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <FormField id="description" label="Description" value={expenseForm.description} onChange={(e) => setExpenseForm((p) => ({ ...p, description: e.target.value }))} placeholder="e.g. Cement — 50 bags" />
+                    <FormField id="amount" label="Amount (₹)" type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} placeholder="e.g. 21000" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Payment Mode</label>
+                        <select value={expenseForm.paymentMode} onChange={(e) => setExpenseForm((p) => ({ ...p, paymentMode: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2.5 text-sm text-ink outline-none capitalize">
+                          {PAYMENT_MODES.map((m) => <option key={m} value={m} className="capitalize">{m.replace(/_/g, ' ')}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Status</label>
+                        <select value={expenseForm.status} onChange={(e) => setExpenseForm((p) => ({ ...p, status: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2.5 text-sm text-ink outline-none">
+                          <option value="paid">Paid</option>
+                          <option value="pending">Pending</option>
+                        </select>
+                      </div>
+                    </div>
+                    <FormField id="expenseDate" label="Date" type="date" value={expenseForm.expenseDate} onChange={(e) => setExpenseForm((p) => ({ ...p, expenseDate: e.target.value }))} />
+                  </div>
+                  <button type="submit" disabled={submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
+                    {submitting && <Spinner className="h-4 w-4" />}
+                    Add Expense
+                  </button>
+                </motion.form>
+              </>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {toast && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 340, damping: 26 }}
+                className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-gold-500/40 bg-navy-900 px-5 py-2.5 text-sm text-ink shadow-2xl"
+              >
+                {toast}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
+    </DashboardShell>
+  )
+}
+
+export default BudgetExpensesPage
