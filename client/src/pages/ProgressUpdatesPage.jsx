@@ -9,12 +9,67 @@ import ProgressRing from '../components/tasks/ProgressRing.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { apiFetch } from '../utils/api.js'
 
+const iconBase = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }
+const TimelineTabIcon = (p) => <svg {...iconBase} {...p}><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+const PhotosTabIcon = (p) => <svg {...iconBase} {...p}><rect x="3.5" y="5" width="17" height="14" rx="2" /><circle cx="9" cy="10.5" r="1.7" /><path d="m4 17 5-5 4 4 3-3 4 4" /></svg>
+const TasksTabIcon = (p) => <svg {...iconBase} {...p}><rect x="5" y="4" width="14" height="17" rx="1.5" /><path d="m8.5 12 2 2 4-4" /></svg>
+const ReportsTabIcon = (p) => <svg {...iconBase} {...p}><path d="M4 19h16" /><path d="M7 19v-5M12 19V8M17 19v-9" /></svg>
+const TeamTabIcon = (p) => <svg {...iconBase} {...p}><circle cx="9" cy="8" r="3" /><path d="M4 19v-1a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v1" /><path d="M15.5 5a2.5 2.5 0 0 1 0 5M17.5 19v-1a3.5 3.5 0 0 0-2-3.16" /></svg>
+const CalendarTileIcon = (p) => <svg {...iconBase} {...p}><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M8 3v4M16 3v4M3.5 10h17" /></svg>
+const FlagTileIcon = (p) => <svg {...iconBase} {...p}><path d="M5 3v18" /><path d="M5 4h11l-2.5 3.5L16 11H5" /></svg>
+const CheckTileIcon = (p) => <svg {...iconBase} {...p}><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.3 2.3L16 10" /></svg>
+const ClockTileIcon = (p) => <svg {...iconBase} {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></svg>
+const BellTileIcon = (p) => <svg {...iconBase} {...p}><path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8Z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+const CameraTileIcon = (p) => <svg {...iconBase} {...p}><path d="M4 8h3l1.5-2h7L17 8h3v11H4Z" /><circle cx="12" cy="13.5" r="3.2" /></svg>
+
+const MILESTONE_ICONS = {
+  foundation: (p) => <svg {...iconBase} {...p}><path d="M4 21V10l8-6 8 6v11" /><path d="M4 21h16M9 21v-6h6v6" /></svg>,
+  plinth: (p) => <svg {...iconBase} {...p}><rect x="4" y="9" width="16" height="4" rx="1" /><rect x="6" y="13" width="12" height="8" rx="1" /><path d="M4 9V6h16v3" /></svg>,
+  walls: (p) => <svg {...iconBase} {...p}><rect x="3.5" y="4" width="17" height="16" rx="1" /><path d="M3.5 10h9M12.5 10v10M3.5 15h5M12.5 15h8" /></svg>,
+  electrical: (p) => <svg {...iconBase} {...p}><path d="M13 2 5 14h6l-1 8 9-13h-6Z" /></svg>,
+  plumbing: (p) => <svg {...iconBase} {...p}><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" /></svg>,
+  finishing: (p) => <svg {...iconBase} {...p}><path d="m12 3 1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4Z" /><path d="M19 15v4M17 17h4" /></svg>,
+}
+
+const TASK_TYPE_ICONS = {
+  materials: (p) => <svg {...iconBase} {...p}><path d="M12 3 4 7v10l8 4 8-4V7l-8-4Z" /><path d="M4 7l8 4 8-4M12 11v10" /></svg>,
+  work: (p) => <svg {...iconBase} {...p}><rect x="5" y="4" width="14" height="17" rx="1.5" /><path d="M9 3v3h6V3" /></svg>,
+  site_visit: (p) => <svg {...iconBase} {...p}><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" /><circle cx="12" cy="9.5" r="2.5" /></svg>,
+}
+
+const PRIORITY_STYLES = {
+  high: 'bg-red-500/10 text-red-300',
+  medium: 'bg-amber-500/10 text-amber-300',
+  low: 'bg-emerald-500/10 text-emerald-300',
+}
+
+// Mirrors server/src/controllers/progressController.js's MILESTONES —
+// thresholds only, used client-side purely to tag which phase an update's
+// progress % falls into (see milestoneTagFor below).
+const MILESTONE_THRESHOLDS = [
+  { key: 'foundation', label: 'Foundation Work', threshold: 15 },
+  { key: 'plinth', label: 'Plinth & Columns', threshold: 30 },
+  { key: 'walls', label: 'Wall Construction', threshold: 55 },
+  { key: 'electrical', label: 'Electrical Work', threshold: 75 },
+  { key: 'plumbing', label: 'Plumbing Work', threshold: 90 },
+  { key: 'finishing', label: 'Finishing', threshold: 100 },
+]
+
+function initialsOf(name) {
+  return (name || '?')
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
 const TABS = [
-  { key: 'timeline', label: 'Timeline' },
-  { key: 'photos', label: 'Photos' },
-  { key: 'tasks', label: 'Tasks' },
-  { key: 'reports', label: 'Reports' },
-  { key: 'team', label: 'Team Updates' },
+  { key: 'timeline', label: 'Timeline', icon: TimelineTabIcon },
+  { key: 'photos', label: 'Photos', icon: PhotosTabIcon },
+  { key: 'tasks', label: 'Tasks', icon: TasksTabIcon },
+  { key: 'reports', label: 'Reports', icon: ReportsTabIcon },
+  { key: 'team', label: 'Team Updates', icon: TeamTabIcon },
 ]
 
 const STATUS_STYLES = {
@@ -131,6 +186,10 @@ function ProgressUpdatesPage() {
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState(null)
   const [taskActionId, setTaskActionId] = useState(null)
+  const [feedAuthor, setFeedAuthor] = useState('all')
+  const [feedPhotosOnly, setFeedPhotosOnly] = useState(false)
+  const [feedSort, setFeedSort] = useState('newest')
+  const [lightboxUrl, setLightboxUrl] = useState(null)
 
   useEffect(() => {
     ;(async () => {
@@ -213,6 +272,28 @@ function ProgressUpdatesPage() {
   }, [updates])
 
   const latestUpdate = updates[0]
+
+  const feedAuthors = useMemo(() => [...new Set(updates.map((u) => u.authorName))].sort(), [updates])
+  const filteredFeed = useMemo(() => {
+    let result = updates.filter((u) => {
+      if (feedAuthor !== 'all' && u.authorName !== feedAuthor) return false
+      if (feedPhotosOnly && (!u.photoUrls || u.photoUrls.length === 0)) return false
+      return true
+    })
+    result = [...result].sort((a, b) =>
+      feedSort === 'newest' ? new Date(b.createdAt) - new Date(a.createdAt) : new Date(a.createdAt) - new Date(b.createdAt)
+    )
+    return result
+  }, [updates, feedAuthor, feedPhotosOnly, feedSort])
+
+  // Which phase an update's progress % lands in — mirrors the thresholds in
+  // server/src/controllers/progressController.js's MILESTONES (kept in sync
+  // manually, same pattern as BUDGET_CATEGORIES) — used only for a small
+  // contextual tag on the feed, derived from the update's own real % value.
+  const milestoneTagFor = (progressPercent) => {
+    if (progressPercent == null) return null
+    return MILESTONE_THRESHOLDS.find((m) => progressPercent <= m.threshold) || MILESTONE_THRESHOLDS[MILESTONE_THRESHOLDS.length - 1]
+  }
 
   const openModal = () => {
     setUpdateForm(updateFormInitial)
@@ -335,14 +416,17 @@ function ProgressUpdatesPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                       {[
-                        { label: 'Start Date', value: formatDate(project.startDate) || 'Not set' },
-                        { label: 'Expected Completion', value: formatDate(project.expectedCompletion) || 'Not set' },
-                        { label: 'Completed Tasks', value: `${taskCounts.completed}/${totalTasks || 0}` },
-                        { label: 'On Time', value: schedule ? (schedule.onTrack ? 'On Track' : 'Behind Schedule') : 'Not enough data', accent: schedule ? (schedule.onTrack ? 'text-emerald-300' : 'text-red-400') : 'text-ink/50' },
-                        { label: 'Total Updates', value: updates.length >= 50 ? '50+' : updates.length },
+                        { label: 'Start Date', value: formatDate(project.startDate) || 'Not set', icon: CalendarTileIcon },
+                        { label: 'Expected Completion', value: formatDate(project.expectedCompletion) || 'Not set', icon: FlagTileIcon },
+                        { label: 'Completed Tasks', value: `${taskCounts.completed}/${totalTasks || 0}`, icon: CheckTileIcon },
+                        { label: 'On Time', value: schedule ? (schedule.onTrack ? 'On Track' : 'Behind Schedule') : 'Not enough data', accent: schedule ? (schedule.onTrack ? 'text-emerald-300' : 'text-red-400') : 'text-ink/50', icon: ClockTileIcon },
+                        { label: 'Total Updates', value: updates.length >= 50 ? '50+' : updates.length, icon: BellTileIcon },
                       ].map((tile) => (
                         <div key={tile.label} className="rounded-2xl border border-ink/10 bg-navy-900/50 p-3.5">
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-ink/40">{tile.label}</p>
+                          <div className="flex items-center gap-1.5 text-ink/35">
+                            <tile.icon className="h-3.5 w-3.5" />
+                            <p className="text-[10px] font-medium uppercase tracking-wider">{tile.label}</p>
+                          </div>
                           <p className={`mt-1.5 text-sm font-semibold ${tile.accent || 'text-ink'}`}>{tile.value}</p>
                         </div>
                       ))}
@@ -355,10 +439,11 @@ function ProgressUpdatesPage() {
                       <button
                         key={t.key}
                         onClick={() => setTab(t.key)}
-                        className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
+                        className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
                           tab === t.key ? 'bg-gold-500 text-charcoal' : 'text-ink/55 hover:text-ink'
                         }`}
                       >
+                        <t.icon className="h-3.5 w-3.5" />
                         {t.label}
                       </button>
                     ))}
@@ -369,13 +454,16 @@ function ProgressUpdatesPage() {
                       <div className="space-y-0">
                         {milestones.map((m, i) => {
                           const style = STATUS_STYLES[m.status]
+                          const MilestoneIcon = MILESTONE_ICONS[m.key] || CheckTileIcon
                           return (
                             <div key={m.key} className="flex gap-3">
                               <div className="flex flex-col items-center">
-                                <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${style.dot}`} />
+                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${style.bg} ${style.text}`}>
+                                  <MilestoneIcon className="h-4 w-4" />
+                                </span>
                                 {i < milestones.length - 1 && <span className="w-px flex-1 bg-ink/10" />}
                               </div>
-                              <div className="pb-6">
+                              <div className="pb-6 pt-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="text-sm font-medium text-ink">{m.label}</p>
                                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${style.bg} ${style.text}`}>{style.label}</span>
@@ -398,10 +486,14 @@ function ProgressUpdatesPage() {
                       ) : (
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                           {photos.map((p, i) => (
-                            <div key={i} className="overflow-hidden rounded-xl border border-ink/10 bg-navy-950/40">
+                            <button
+                              key={i}
+                              onClick={() => setLightboxUrl(p.url)}
+                              className="overflow-hidden rounded-xl border border-ink/10 bg-navy-950/40 text-left transition-transform duration-150 hover:scale-[1.02] hover:border-gold-500/30"
+                            >
                               <img src={p.url} alt={p.updateTitle} className="h-28 w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                               <p className="truncate px-2 py-1.5 text-[10px] text-ink/45">{p.updateTitle}</p>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       )
@@ -414,16 +506,25 @@ function ProgressUpdatesPage() {
                         <div className="space-y-2">
                           {tasks.map((task) => {
                             const style = STATUS_STYLES[task.status]
+                            const TypeIcon = TASK_TYPE_ICONS[task.type] || TasksTabIcon
                             return (
-                              <div key={task.id} className="flex items-center justify-between rounded-xl border border-ink/10 bg-navy-950/40 px-4 py-2.5">
-                                <div>
-                                  <p className="text-sm text-ink/90">{task.title}</p>
-                                  <p className="text-xs text-ink/40">{task.displayId} · {task.priority} priority</p>
+                              <div key={task.id} className="flex items-center justify-between gap-3 rounded-xl border border-ink/10 bg-navy-950/40 px-4 py-2.5">
+                                <div className="flex items-center gap-3">
+                                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50">
+                                    <TypeIcon className="h-4 w-4" />
+                                  </span>
+                                  <div>
+                                    <p className="text-sm text-ink/90">{task.title}</p>
+                                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-ink/40">
+                                      {task.displayId}
+                                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>{task.priority}</span>
+                                    </div>
+                                  </div>
                                 </div>
                                 <button
                                   onClick={() => cycleTaskStatus(task)}
                                   disabled={taskActionId === task.id}
-                                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${style.bg} ${style.text} disabled:opacity-50`}
+                                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${style.bg} ${style.text} disabled:opacity-50`}
                                 >
                                   {taskActionId === task.id && <Spinner className="h-3 w-3" />}
                                   {style.label}
@@ -460,7 +561,12 @@ function ProgressUpdatesPage() {
                         <div className="space-y-4">
                           {teamGroups.map((g) => (
                             <div key={g.author}>
-                              <p className="text-sm font-semibold text-ink">{g.author} <span className="font-normal text-ink/40">· {g.list.length} update{g.list.length === 1 ? '' : 's'}</span></p>
+                              <div className="flex items-center gap-2">
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-500/15 text-[10px] font-semibold text-gold-300">
+                                  {initialsOf(g.author)}
+                                </span>
+                                <p className="text-sm font-semibold text-ink">{g.author} <span className="font-normal text-ink/40">· {g.list.length} update{g.list.length === 1 ? '' : 's'}</span></p>
+                              </div>
                               <div className="mt-2 space-y-1.5 border-l-2 border-ink/10 pl-3">
                                 {g.list.slice(0, 5).map((u) => (
                                   <p key={u.id} className="text-xs text-ink/60">
@@ -477,28 +583,57 @@ function ProgressUpdatesPage() {
 
                   {/* Latest Update */}
                   {latestUpdate && (
-                    <div className="mt-4 rounded-2xl border border-ink/10 bg-navy-900/50 p-5">
-                      <p className="text-xs font-medium uppercase tracking-wider text-ink/40">Latest Update</p>
+                    <div className="mt-4 rounded-2xl border border-gold-500/20 bg-navy-900/50 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-medium uppercase tracking-wider text-gold-300/70">Latest Update</p>
+                        {latestUpdate.progressPercent != null ? (
+                          <span className="rounded-full bg-gold-500/10 px-2.5 py-1 text-[10px] font-semibold text-gold-300">
+                            {latestUpdate.progressPercent}% · {milestoneTagFor(latestUpdate.progressPercent)?.label}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-ink/5 px-2.5 py-1 text-[10px] font-medium text-ink/45">Note</span>
+                        )}
+                      </div>
                       <p className="mt-1.5 font-display text-sm font-semibold text-ink">{latestUpdate.title}</p>
                       {latestUpdate.description && <p className="mt-1 text-sm text-ink/60">{latestUpdate.description}</p>}
                       {latestUpdate.photoUrls?.length > 0 && (
                         <div className="mt-3 flex gap-2 overflow-x-auto">
                           {latestUpdate.photoUrls.slice(0, 3).map((url, i) => (
-                            <img key={i} src={url} alt="" className="h-20 w-28 shrink-0 rounded-lg object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                            <button key={i} onClick={() => setLightboxUrl(url)} className="shrink-0">
+                              <img src={url} alt="" className="h-20 w-28 rounded-lg object-cover hover:opacity-90" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                            </button>
                           ))}
+                          {latestUpdate.photoUrls.length > 3 && (
+                            <button onClick={() => setTab('photos')} className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg border border-ink/10 bg-navy-950/40 text-xs text-gold-300 hover:border-gold-500/30">
+                              +{latestUpdate.photoUrls.length - 3} more
+                            </button>
+                          )}
                         </div>
                       )}
-                      <p className="mt-3 text-xs text-ink/40">Updated by {latestUpdate.authorName} · {timeAgo(latestUpdate.createdAt)}</p>
+                      <div className="mt-3 flex items-center gap-2 text-xs text-ink/40">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-500/15 text-[9px] font-semibold text-gold-300">
+                          {initialsOf(latestUpdate.authorName)}
+                        </span>
+                        Updated by {latestUpdate.authorName} · {timeAgo(latestUpdate.createdAt)}
+                      </div>
                     </div>
                   )}
 
                   {/* Quick Update actions */}
                   <div className="mt-4 flex flex-wrap gap-2.5">
                     <button onClick={openModal} className="flex items-center gap-1.5 rounded-full border border-gold-500/40 px-4 py-2 text-xs font-semibold text-gold-300 hover:bg-gold-500/10">+ Post Update</button>
-                    <button onClick={openModal} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">Upload Photos</button>
-                    <button onClick={openModal} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">Add Note</button>
-                    <button onClick={() => setTab('tasks')} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">Mark Task</button>
-                    <button onClick={handleNotifyTeam} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">Notify Team</button>
+                    <button onClick={openModal} className="flex items-center gap-1.5 rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">
+                      <CameraTileIcon className="h-3.5 w-3.5" /> Upload Photos
+                    </button>
+                    <button onClick={openModal} className="flex items-center gap-1.5 rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">
+                      <TimelineTabIcon className="h-3.5 w-3.5" /> Add Note
+                    </button>
+                    <button onClick={() => setTab('tasks')} className="flex items-center gap-1.5 rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">
+                      <TasksTabIcon className="h-3.5 w-3.5" /> Mark Task
+                    </button>
+                    <button onClick={handleNotifyTeam} className="flex items-center gap-1.5 rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30">
+                      <BellTileIcon className="h-3.5 w-3.5" /> Notify Team
+                    </button>
                   </div>
 
                   {/* Progress chart */}
@@ -513,21 +648,76 @@ function ProgressUpdatesPage() {
 
                   {/* Recent updates feed */}
                   <div className="mt-4 rounded-2xl border border-ink/10 bg-navy-900/50 p-5">
-                    <p className="text-sm font-semibold text-ink">Recent Updates</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-ink">Recent Updates</p>
+                      {updates.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={feedAuthor}
+                            onChange={(e) => setFeedAuthor(e.target.value)}
+                            className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-[11px] text-ink/70 outline-none"
+                          >
+                            <option value="all">All Authors</option>
+                            {feedAuthors.map((a) => (
+                              <option key={a} value={a}>{a}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={feedSort}
+                            onChange={(e) => setFeedSort(e.target.value)}
+                            className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-[11px] text-ink/70 outline-none"
+                          >
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                          </select>
+                          <button
+                            onClick={() => setFeedPhotosOnly((v) => !v)}
+                            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors duration-150 ${
+                              feedPhotosOnly ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
+                            }`}
+                          >
+                            <CameraTileIcon className="h-3.5 w-3.5" /> With Photos
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     {updates.length === 0 ? (
                       <p className="mt-3 text-sm text-ink/40">No updates posted yet.</p>
+                    ) : filteredFeed.length === 0 ? (
+                      <p className="mt-3 text-sm text-ink/40">No updates match these filters.</p>
                     ) : (
                       <div className="mt-3 space-y-3">
-                        {updates.slice(0, 10).map((u) => (
-                          <div key={u.id} className="border-t border-ink/10 pt-3 first:border-t-0 first:pt-0">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-sm text-ink/90">{u.title}</p>
-                              {u.progressPercent != null && <span className="rounded-full bg-gold-500/10 px-2 py-0.5 text-[10px] font-medium text-gold-300">{u.progressPercent}%</span>}
+                        {filteredFeed.slice(0, 10).map((u) => {
+                          const tag = milestoneTagFor(u.progressPercent)
+                          return (
+                            <div key={u.id} className="flex gap-3 border-t border-ink/10 pt-3 first:border-t-0 first:pt-0">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-[10px] font-semibold text-gold-300">
+                                {initialsOf(u.authorName)}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-sm text-ink/90">{u.title}</p>
+                                  {u.progressPercent != null ? (
+                                    <span className="shrink-0 rounded-full bg-gold-500/10 px-2 py-0.5 text-[10px] font-medium text-gold-300">{u.progressPercent}% · {tag?.label}</span>
+                                  ) : (
+                                    <span className="shrink-0 rounded-full bg-ink/5 px-2 py-0.5 text-[10px] font-medium text-ink/40">Note</span>
+                                  )}
+                                </div>
+                                {u.description && <p className="mt-0.5 text-xs text-ink/50">{u.description}</p>}
+                                {u.photoUrls?.length > 0 && (
+                                  <div className="mt-2 flex gap-1.5">
+                                    {u.photoUrls.slice(0, 4).map((url, i) => (
+                                      <button key={i} onClick={() => setLightboxUrl(url)}>
+                                        <img src={url} alt="" className="h-12 w-16 rounded-md object-cover hover:opacity-90" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                <p className="mt-1 text-[11px] text-ink/35">{u.authorName} · {timeAgo(u.createdAt)}</p>
+                              </div>
                             </div>
-                            {u.description && <p className="mt-0.5 text-xs text-ink/50">{u.description}</p>}
-                            <p className="mt-1 text-[11px] text-ink/35">{u.authorName} · {timeAgo(u.createdAt)}</p>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -576,6 +766,23 @@ function ProgressUpdatesPage() {
                     Post Update
                   </button>
                 </motion.form>
+              </>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {lightboxUrl && (
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setLightboxUrl(null)} className="fixed inset-0 z-40 bg-black/85" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-2xl -translate-x-1/2 -translate-y-1/2"
+                >
+                  <button onClick={() => setLightboxUrl(null)} className="absolute -top-9 right-0 text-sm text-ink/70 hover:text-ink">✕ Close</button>
+                  <img src={lightboxUrl} alt="" className="max-h-[80vh] w-full rounded-2xl object-contain" />
+                </motion.div>
               </>
             )}
           </AnimatePresence>
