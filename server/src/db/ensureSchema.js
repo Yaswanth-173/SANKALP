@@ -236,6 +236,10 @@ export async function ensureSchema() {
   await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date DATE')
   await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS expected_completion DATE')
   await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS total_budget NUMERIC(14,2)')
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_type VARCHAR(40)')
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS description TEXT')
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS address VARCHAR(240)')
+  await query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS image_url TEXT')
 
   // A progress log entry the customer/supervisor posts against a project.
   // photo_urls is a JSON array of pasted image URLs — there's no file

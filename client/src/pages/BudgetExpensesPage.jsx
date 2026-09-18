@@ -9,8 +9,9 @@ import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { usePreferences } from '../context/PreferencesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { apiFetch } from '../utils/api.js'
-import { uploadDocument } from '../utils/upload.js'
+import { uploadDocument, resolveFileUrl } from '../utils/upload.js'
 import { supervisorNavItems } from '../utils/supervisorNav.js'
+import { getSelectedProjectId, setSelectedProjectId as persistSelectedProjectId } from '../utils/selectedProject.js'
 
 // The default 6 names created by ensureSchema.js — used only as a render
 // placeholder before /api/budget-categories resolves, and as the fallback
@@ -271,7 +272,13 @@ function BudgetExpensesPage() {
         const res = await apiFetch('/api/projects')
         const list = res.projects || []
         setProjects(list)
-        if (list.length) setSelectedProjectId(list[0].id)
+        const remembered = getSelectedProjectId()
+        const stillValid = list.find((p) => p.id === remembered)
+        const next = stillValid ? stillValid.id : list[0]?.id
+        if (next) {
+          setSelectedProjectId(next)
+          persistSelectedProjectId(next)
+        }
       } catch (err) {
         setError(err.message)
       } finally {
@@ -515,7 +522,7 @@ function BudgetExpensesPage() {
                   {projects.map((p) => (
                     <button
                       key={p.id}
-                      onClick={() => setSelectedProjectId(p.id)}
+                      onClick={() => { setSelectedProjectId(p.id); persistSelectedProjectId(p.id) }}
                       className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
                         selectedProjectId === p.id ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
                       }`}
@@ -694,7 +701,7 @@ function BudgetExpensesPage() {
                                     <td className="px-2 py-2.5">
                                       <div className="flex items-center gap-2.5">
                                         {e.receiptUrl && (
-                                          <a href={`${(import.meta.env.VITE_API_URL || 'http://localhost:5055')}${e.receiptUrl}`} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300">Receipt</a>
+                                          <a href={resolveFileUrl(e.receiptUrl)} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300">Receipt</a>
                                         )}
                                         <button onClick={() => openEditExpense(e)} className="text-xs text-ink/60 hover:text-ink">Edit</button>
                                         {isCustomer && (
@@ -897,7 +904,7 @@ function BudgetExpensesPage() {
                     <div>
                       <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Receipt / Invoice (optional)</label>
                       {existingReceiptUrl && !receiptFile && (
-                        <p className="mb-1.5 text-[11px] text-ink/40">Current: <a href={`${(import.meta.env.VITE_API_URL || 'http://localhost:5055')}${existingReceiptUrl}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">view file</a> (uploading a new one replaces it)</p>
+                        <p className="mb-1.5 text-[11px] text-ink/40">Current: <a href={resolveFileUrl(existingReceiptUrl)} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">view file</a> (uploading a new one replaces it)</p>
                       )}
                       <input
                         type="file"

@@ -22,3 +22,6 @@ Thumbs.db
 # source; local disk storage only (see server/src/middleware/upload.js).
 server/uploads/*
 !server/uploads/.gitkeep
+
+.vercel
+.env*

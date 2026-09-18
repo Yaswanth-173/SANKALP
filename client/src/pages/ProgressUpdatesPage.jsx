@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { supervisorNavItems, contractorNavItems } from '../utils/supervisorNav.js'
 import { apiFetch } from '../utils/api.js'
 import { uploadImages, resolveFileUrl } from '../utils/upload.js'
+import { getSelectedProjectId, setSelectedProjectId as persistSelectedProjectId } from '../utils/selectedProject.js'
 
 const iconBase = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }
 const TimelineTabIcon = (p) => <svg {...iconBase} {...p}><path d="M4 6h16M4 12h16M4 18h10" /></svg>
@@ -317,7 +318,13 @@ function ProgressUpdatesPage() {
       try {
         const list = await loadProjects()
         setProjects(list)
-        if (list.length) setSelectedProjectId(list[0].id)
+        const remembered = getSelectedProjectId()
+        const stillValid = list.find((p) => p.id === remembered)
+        const next = stillValid ? stillValid.id : list[0]?.id
+        if (next) {
+          setSelectedProjectId(next)
+          persistSelectedProjectId(next)
+        }
       } catch (err) {
         setError(err.message)
       } finally {
@@ -725,7 +732,7 @@ function ProgressUpdatesPage() {
                     return (
                       <button
                         key={p.id}
-                        onClick={() => setSelectedProjectId(p.id)}
+                        onClick={() => { setSelectedProjectId(p.id); persistSelectedProjectId(p.id) }}
                         className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-colors duration-150 ${
                           selected ? 'border-gold-500/50 bg-gold-500/10' : 'border-ink/10 bg-navy-900/50 hover:border-ink/20'
                         }`}

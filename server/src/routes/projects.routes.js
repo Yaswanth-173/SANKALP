@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createProject, listMyProjects, getProject, inviteSupervisor } from '../controllers/projectsController.js'
+import { createProject, listMyProjects, getProject, updateProject, inviteSupervisor } from '../controllers/projectsController.js'
 import { getProjectProgress, addProgressUpdate, editProgressUpdate, deleteProgressUpdate } from '../controllers/progressController.js'
 import { getBudgetOverview, setBudgetCategories, listExpenses, createExpense, updateExpense, deleteExpense } from '../controllers/budgetController.js'
 import { listProjectTasks, assignTask, updateProjectTaskProgress, deleteProjectTask } from '../controllers/tasksController.js'
@@ -21,6 +21,7 @@ const withDocument = (req, res, next) => uploadDocument.single('file')(req, res,
 router.post('/', requireRole('customer'), createProject)
 router.get('/', requireRole('customer', 'supervisor', 'contractor'), listMyProjects)
 router.get('/:id', requireRole('customer', 'supervisor', 'contractor'), getProject)
+router.put('/:id', requireRole('customer'), updateProject)
 router.post('/:id/invite-supervisor', requireRole('customer'), inviteSupervisor)
 
 router.get('/:id/contractors', requireRole('customer', 'supervisor', 'contractor'), listProjectContractors)

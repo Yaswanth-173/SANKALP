@@ -17,11 +17,15 @@ export const publicProject = (p) => ({
   startDate: p.start_date,
   expectedCompletion: p.expected_completion,
   totalBudget: p.total_budget != null ? Number(p.total_budget) : null,
+  projectType: p.project_type,
+  description: p.description,
+  address: p.address,
+  imageUrl: p.image_url,
   createdAt: p.created_at,
 })
 
 export async function createProject(req, res) {
-  const { name, location, startDate, expectedCompletion, totalBudget } = req.body ?? {}
+  const { name, location, startDate, expectedCompletion, totalBudget, projectType, description, address } = req.body ?? {}
 
   if (!name || name.trim().length < 2) {
     return res.status(400).json({ message: 'Give the project a name' })
@@ -29,8 +33,8 @@ export async function createProject(req, res) {
 
   try {
     const { rows } = await query(
-      `INSERT INTO projects (customer_id, name, location, start_date, expected_completion, total_budget)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO projects (customer_id, name, location, start_date, expected_completion, total_budget, project_type, description, address)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         req.user.id,
         name.trim(),
@@ -38,11 +42,56 @@ export async function createProject(req, res) {
         startDate || null,
         expectedCompletion || null,
         totalBudget != null && totalBudget !== '' ? Number(totalBudget) : null,
+        projectType?.trim() || null,
+        description?.trim() || null,
+        address?.trim() || null,
       ]
     )
     res.status(201).json({ project: publicProject(rows[0]) })
   } catch (err) {
     console.error('Create project error', err)
+    res.status(500).json({ message: 'Something went wrong. Please try again.' })
+  }
+}
+
+// Partial update, owner-only. Exists mainly so a cover image (which needs a
+// real project id to upload against — see filesController.js) can be
+// attached right after creation, but also covers ordinary edits to the
+// same fields createProject accepts.
+export async function updateProject(req, res) {
+  const { id } = req.params
+  const { name, location, startDate, expectedCompletion, totalBudget, projectType, description, address, imageUrl } = req.body ?? {}
+
+  try {
+    const { rows: existingRows } = await query('SELECT * FROM projects WHERE id = $1 AND customer_id = $2', [id, req.user.id])
+    if (!existingRows.length) return res.status(404).json({ message: 'Project not found' })
+    const existing = existingRows[0]
+
+    if (name != null && name.trim().length < 2) {
+      return res.status(400).json({ message: 'Give the project a name' })
+    }
+
+    const { rows } = await query(
+      `UPDATE projects SET
+         name = $1, location = $2, start_date = $3, expected_completion = $4, total_budget = $5,
+         project_type = $6, description = $7, address = $8, image_url = $9, updated_at = now()
+       WHERE id = $10 RETURNING *`,
+      [
+        name != null ? name.trim() : existing.name,
+        location != null ? location.trim() || null : existing.location,
+        startDate !== undefined ? (startDate || null) : existing.start_date,
+        expectedCompletion !== undefined ? (expectedCompletion || null) : existing.expected_completion,
+        totalBudget !== undefined ? (totalBudget !== '' && totalBudget != null ? Number(totalBudget) : null) : existing.total_budget,
+        projectType !== undefined ? (projectType?.trim() || null) : existing.project_type,
+        description !== undefined ? (description?.trim() || null) : existing.description,
+        address !== undefined ? (address?.trim() || null) : existing.address,
+        imageUrl !== undefined ? (imageUrl || null) : existing.image_url,
+        id,
+      ]
+    )
+    res.json({ project: publicProject(rows[0]) })
+  } catch (err) {
+    console.error('Update project error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }
