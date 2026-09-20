@@ -305,6 +305,22 @@ export async function ensureSchema() {
   `)
   await query('CREATE INDEX IF NOT EXISTS inventory_supplier_material_idx ON inventory (supplier_material_id)')
 
+  // Non-destructive, idempotent: clamps any pre-existing negative quantity up
+  // to 0 (never deletes a row) before adding the constraint, so VALIDATE
+  // never fails against real data. Postgres has no ADD CONSTRAINT IF NOT
+  // EXISTS for CHECK constraints, hence the manual pg_constraint check.
+  const { rows: existingQuantityConstraint } = await query(
+    `SELECT 1 FROM pg_constraint WHERE conname = 'inventory_quantity_non_negative' AND conrelid = 'inventory'::regclass`
+  )
+  if (!existingQuantityConstraint.length) {
+    await query('UPDATE inventory SET quantity = 0 WHERE quantity < 0')
+    await query(`
+      ALTER TABLE inventory ADD CONSTRAINT inventory_quantity_non_negative
+        CHECK (quantity IS NULL OR quantity >= 0) NOT VALID
+    `)
+    await query('ALTER TABLE inventory VALIDATE CONSTRAINT inventory_quantity_non_negative')
+  }
+
   // Append-only price history: an update closes the current row
   // (valid_until = now()) and inserts a new one, rather than overwriting in
   // place, so "price last updated X ago" is always answerable from real data.

@@ -373,8 +373,17 @@ export async function listMySupplierMaterialsHandler(req, res) {
 export async function addSupplierMaterialHandler(req, res) {
   const { materialId, brand, productName, specification, grade, unit, minimumOrderQuantity, price, quantity, stockStatus } = req.body ?? {}
   if (!materialId) return res.status(400).json({ message: 'Choose a material' })
+  // Required, not defaulted to the catalog material's name: a supplier's own
+  // product name can legitimately differ from the generic catalog entry, and
+  // silently substituting one would risk showing a customer the wrong thing
+  // on their order. material_order_items.product_name is NOT NULL, so a
+  // listing without a real name here would otherwise crash order placement.
+  if (!productName || !productName.trim()) return res.status(400).json({ message: 'Enter a product name' })
   if (!unit || !unit.trim()) return res.status(400).json({ message: 'Enter a unit' })
   if (!Number.isFinite(Number(price)) || Number(price) < 0) return res.status(400).json({ message: 'Enter a valid price' })
+  if (quantity != null && (!Number.isFinite(Number(quantity)) || Number(quantity) < 0)) {
+    return res.status(400).json({ message: 'Quantity cannot be negative' })
+  }
 
   try {
     const supplier = await getOwnSupplier(req.user.id)
@@ -421,6 +430,9 @@ async function assertOwnsSupplierMaterial(userId, supplierMaterialId) {
 
 export async function updateSupplierMaterialHandler(req, res) {
   const { brand, productName, specification, grade, unit, minimumOrderQuantity, available } = req.body ?? {}
+  // Same invariant as creation: product_name must never become empty/null
+  // through this endpoint, since order placement depends on it being real.
+  if (!productName || !productName.trim()) return res.status(400).json({ message: 'Enter a product name' })
   try {
     const owned = await assertOwnsSupplierMaterial(req.user.id, req.params.id)
     if (!owned) return res.status(404).json({ message: 'Listing not found' })
@@ -455,6 +467,9 @@ export async function deleteSupplierMaterialHandler(req, res) {
 export async function updateInventoryHandler(req, res) {
   const { quantity, stockStatus } = req.body ?? {}
   if (!STOCK_STATUSES.includes(stockStatus)) return res.status(400).json({ message: 'Invalid stock status' })
+  if (quantity != null && (!Number.isFinite(Number(quantity)) || Number(quantity) < 0)) {
+    return res.status(400).json({ message: 'Quantity cannot be negative' })
+  }
   try {
     const { rows } = await query(
       `SELECT inv.id FROM inventory inv

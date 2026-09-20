@@ -28,7 +28,7 @@ function SupervisorProjectDetailPage({ basePath = '/supervisor', navItems = supe
   }, [id])
 
   return (
-    <DashboardShell sidebarProps={{ navItems, showLocationPicker: false }}>
+    <DashboardShell sidebarProps={{ navItems }}>
       {({ onMenuClick }) => (
         <>
           <DashboardHeader

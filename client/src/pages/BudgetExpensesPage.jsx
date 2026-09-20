@@ -203,7 +203,7 @@ function BudgetExpensesPage() {
   const { theme } = usePreferences()
   const { user } = useAuth()
   const isCustomer = user?.role === 'customer'
-  const roleSidebarProps = user?.role === 'supervisor' ? { navItems: supervisorNavItems, showLocationPicker: false } : undefined
+  const roleSidebarProps = user?.role === 'supervisor' ? { navItems: supervisorNavItems } : undefined
   const barColors = theme === 'light' ? BAR_COLORS.light : BAR_COLORS.dark
 
   const [projects, setProjects] = useState([])

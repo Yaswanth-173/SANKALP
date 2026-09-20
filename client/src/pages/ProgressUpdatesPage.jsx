@@ -248,8 +248,8 @@ function ProgressUpdatesPage() {
   const { user } = useAuth()
   const canManageProject = user?.role === 'customer' || user?.role === 'supervisor'
   const roleSidebarProps =
-    user?.role === 'supervisor' ? { navItems: supervisorNavItems, showLocationPicker: false }
-    : user?.role === 'contractor' ? { navItems: contractorNavItems, showLocationPicker: false }
+    user?.role === 'supervisor' ? { navItems: supervisorNavItems }
+    : user?.role === 'contractor' ? { navItems: contractorNavItems }
     : undefined
   const chartColor = theme === 'light' ? CHART_COLOR.light : CHART_COLOR.dark
 

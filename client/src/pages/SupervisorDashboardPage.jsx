@@ -31,7 +31,7 @@ function SupervisorDashboardPage({ basePath = '/supervisor', navItems = supervis
   }, [])
 
   return (
-    <DashboardShell sidebarProps={{ navItems, showLocationPicker: false }}>
+    <DashboardShell sidebarProps={{ navItems }}>
       {({ onMenuClick }) => (
         <>
           <DashboardHeader

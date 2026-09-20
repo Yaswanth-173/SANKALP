@@ -197,12 +197,20 @@ export async function createOrderHandler(req, res) {
       const resolvedItems = []
       for (const item of requestedItems) {
         const sm = smMap.get(item.supplierMaterialId)
-        if (!sm || !sm.available || sm.price == null) continue
+        // Creation/update now require a real product_name (see suppliersController.js),
+        // but this guards any listing that predates that validation — excluded like
+        // an unavailable item rather than crashing the INSERT below on a NOT NULL
+        // violation. No fallback name is fabricated; the item is simply skipped.
+        if (!sm || !sm.available || sm.price == null || !sm.product_name) continue
         if (sm.stock_status === 'OUT_OF_STOCK') throw new Error('INSUFFICIENT_STOCK')
-        if (sm.inv_quantity != null && Number(sm.inv_quantity) < item.quantity) throw new Error('INSUFFICIENT_STOCK')
         const unitPrice = Number(sm.price)
         total += unitPrice * item.quantity
-        resolvedItems.push({ supplierMaterialId: sm.id, name: sm.product_name, unit: sm.unit, unitPrice, quantity: item.quantity })
+        resolvedItems.push({
+          supplierMaterialId: sm.id, name: sm.product_name, unit: sm.unit, unitPrice, quantity: item.quantity,
+          // NULL quantity means "not stock-tracked" (e.g. ON_REQUEST/UNKNOWN) — never
+          // decremented, never fabricated into a fake 0, per the earlier snapshot read.
+          isQuantityTracked: sm.inv_quantity != null,
+        })
       }
       if (!resolvedItems.length) throw new Error('NO_VALID_ITEMS')
 
@@ -218,14 +226,23 @@ export async function createOrderHandler(req, res) {
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [newOrder.id, item.supplierMaterialId, item.name, item.unit, item.unitPrice, item.quantity]
         )
-        await client.query(
-          `UPDATE inventory SET quantity = GREATEST(COALESCE(quantity, 0) - $1, 0), stock_status = CASE
-             WHEN COALESCE(quantity, 0) - $1 <= 0 THEN 'OUT_OF_STOCK'
-             WHEN COALESCE(quantity, 0) - $1 <= 3 THEN 'LIMITED'
+
+        if (!item.isQuantityTracked) continue
+
+        // Atomic guarded decrement: the WHERE clause is evaluated against the
+        // row's current value at UPDATE time, not an earlier snapshot, so this
+        // is race-proof against concurrent orders AND concurrent manual
+        // inventory edits alike — no separate read-then-check step needed.
+        // Affecting 0 rows here is unambiguous proof of insufficient stock.
+        const { rowCount } = await client.query(
+          `UPDATE inventory SET quantity = quantity - $1, stock_status = CASE
+             WHEN quantity - $1 <= 0 THEN 'OUT_OF_STOCK'
+             WHEN quantity - $1 <= 3 THEN 'LIMITED'
              ELSE stock_status END, last_updated_at = now()
-           WHERE supplier_material_id = $2`,
+           WHERE supplier_material_id = $2 AND quantity >= $1`,
           [item.quantity, item.supplierMaterialId]
         )
+        if (rowCount === 0) throw new Error('INSUFFICIENT_STOCK')
       }
 
       await client.query(

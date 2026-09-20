@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import { NavLink, useNavigate } from 'react-router-dom'
 import LogoTilt from '../LogoTilt.jsx'
-import LocationPicker from './LocationPicker.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useTranslation } from '../../i18n/index.js'
 import { CartIcon } from '../contractors/contractorIcons.jsx'
@@ -17,9 +16,8 @@ import {
 } from './icons.jsx'
 
 // Reused by every role's portal — pass `navItems` to show a different menu
-// (see SupervisorLayout) instead of the customer's. `showLocationPicker` is
-// customer-only since it drives the materials-shopping location filter.
-function Sidebar({ onClose, navItems: navItemsProp, showLocationPicker = true }) {
+// (see SupervisorLayout) instead of the customer's.
+function Sidebar({ onClose, navItems: navItemsProp }) {
   const { logout } = useAuth()
   const navigate = useNavigate()
   const { t } = useTranslation()
@@ -68,9 +66,7 @@ function Sidebar({ onClose, navItems: navItemsProp, showLocationPicker = true })
         <LogoTilt className="h-20 w-auto" entrance={false} />
       </div>
 
-      {showLocationPicker && <LocationPicker />}
-
-      <nav className="flex flex-1 flex-col gap-1.5">
+      <nav className="mt-2 flex flex-1 flex-col gap-1.5">
         {navItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
