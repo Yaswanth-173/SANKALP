@@ -9,6 +9,10 @@ import messagesRoutes from './routes/messages.routes.js'
 import contractorsRoutes from './routes/contractors.routes.js'
 import tasksRoutes from './routes/tasks.routes.js'
 import materialsRoutes from './routes/materials.routes.js'
+import suppliersRoutes from './routes/suppliers.routes.js'
+import supplierMaterialsRoutes from './routes/supplierMaterials.routes.js'
+import inventoryRoutes from './routes/inventory.routes.js'
+import pricesRoutes from './routes/prices.routes.js'
 import projectsRoutes from './routes/projects.routes.js'
 import filesRoutes from './routes/files.routes.js'
 import budgetCategoriesRoutes from './routes/budgetCategories.routes.js'
@@ -41,6 +45,10 @@ app.use('/api/messages', messagesRoutes)
 app.use('/api/contractors', contractorsRoutes)
 app.use('/api/tasks', tasksRoutes)
 app.use('/api/materials', materialsRoutes)
+app.use('/api/suppliers', suppliersRoutes)
+app.use('/api/supplier-materials', supplierMaterialsRoutes)
+app.use('/api/inventory', inventoryRoutes)
+app.use('/api/prices', pricesRoutes)
 app.use('/api/projects', projectsRoutes)
 app.use('/api/files', filesRoutes)
 app.use('/api/budget-categories', budgetCategoriesRoutes)

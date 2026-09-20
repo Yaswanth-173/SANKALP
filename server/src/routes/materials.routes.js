@@ -1,12 +1,20 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth.js'
-import { listShops, listOrders, createOrder } from '../controllers/materialsController.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
+import {
+  listCategoriesHandler, listMaterialsHandler, getMaterialHandler, materialSuppliersHandler,
+  searchMaterialsHandler, listOrdersHandler, createOrderHandler,
+} from '../controllers/materialsController.js'
 
 const router = Router()
 
 router.use(requireAuth)
-router.get('/shops', listShops)
-router.get('/orders', listOrders)
-router.post('/orders', createOrder)
+
+router.get('/categories', listCategoriesHandler)
+router.get('/search', searchMaterialsHandler)
+router.get('/orders', requireRole('customer'), listOrdersHandler)
+router.post('/orders', requireRole('customer'), createOrderHandler)
+router.get('/:id/suppliers', materialSuppliersHandler)
+router.get('/:id', getMaterialHandler)
+router.get('/', listMaterialsHandler)
 
 export default router

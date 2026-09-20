@@ -13,6 +13,8 @@ import ContractorDetailPage from './pages/ContractorDetailPage.jsx'
 import CartPage from './pages/CartPage.jsx'
 import TaskTrackerPage from './pages/TaskTrackerPage.jsx'
 import MaterialsPage from './pages/MaterialsPage.jsx'
+import SupplierDetailPage from './pages/SupplierDetailPage.jsx'
+import BecomeSupplierPage from './pages/BecomeSupplierPage.jsx'
 import CostComparisonPage from './pages/CostComparisonPage.jsx'
 import ProjectsPage from './pages/ProjectsPage.jsx'
 import ProjectDetailPage from './pages/ProjectDetailPage.jsx'
@@ -136,6 +138,26 @@ function App() {
         element={
           <ProtectedRoute allowRoles={['customer']}>
             <MaterialsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/materials/suppliers/:id"
+        element={
+          <ProtectedRoute allowRoles={['customer']}>
+            <SupplierDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/materials/become-a-supplier"
+        element={
+          // Any authenticated role can register a supplier business — it's
+          // independent of the customer/contractor/supervisor project roles.
+          <ProtectedRoute>
+            <BecomeSupplierPage />
           </ProtectedRoute>
         }
       />

@@ -1,294 +1,236 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import DashboardShell from '../components/dashboard/DashboardShell.jsx'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
 import Spinner from '../components/Spinner.jsx'
 import CartDrawer from '../components/materials/CartDrawer.jsx'
-import ProductImage from '../components/materials/ProductImage.jsx'
+import MapView from '../components/materials/MapView.jsx'
 import { ShopIcon, CartIcon, SearchIcon, CheckCircleIcon, LocationIcon, StarIcon, TruckIcon } from '../components/materials/materialIcons.jsx'
-import { useAuth } from '../context/AuthContext.jsx'
-import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../utils/api.js'
-import { ALL_LOCATIONS } from '../data/indianCities.js'
+import { STATE_CITIES } from '../data/indianCities.js'
+import { forwardGeocode, timeAgo, whatsappLink, directionsLink } from '../utils/geoSearch.js'
+
+const RADIUS_OPTIONS = [
+  { value: '5', label: '5 km' },
+  { value: '10', label: '10 km' },
+  { value: '25', label: '25 km' },
+  { value: '50', label: '50 km' },
+  { value: '100', label: '100 km' },
+  { value: 'all', label: 'All India' },
+]
+const SORT_OPTIONS = [
+  { value: 'distance', label: 'Nearest' },
+  { value: 'price', label: 'Price' },
+  { value: 'rating', label: 'Rating' },
+  { value: 'stock', label: 'Stock availability' },
+  { value: 'delivery', label: 'Delivery availability' },
+]
+const STOCK_LABEL = {
+  IN_STOCK: { text: 'In Stock', dot: '🟢' },
+  LIMITED: { text: 'Limited Stock', dot: '🟡' },
+  OUT_OF_STOCK: { text: 'Out of Stock', dot: '🔴' },
+  ON_REQUEST: { text: 'Available on Request', dot: '🟠' },
+  UNKNOWN: { text: 'Stock not reported', dot: '⚪' },
+}
 
 function formatPrice(n) {
-  return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
-}
-
-// Brand isn't a separate field in the catalog — several product names
-// already embed a real manufacturer (e.g. "UltraTech OPC 53 Grade Cement").
-// Same derivation as the Cost Comparison page, so "UltraTech" means the
-// same thing on both pages.
-const KNOWN_BRANDS = ['UltraTech', 'ACC', 'Ambuja', 'Asian Paints', 'Havells', 'Kajaria', 'Cera', 'Dalmia', 'JK Cement']
-function deriveBrand(name) {
-  for (const brand of KNOWN_BRANDS) {
-    if (name.includes(brand)) return brand
-  }
-  return 'Generic'
-}
-
-// Nominatim sometimes returns a different name than what our shop directory
-// uses for the same city — map the common ones onto our list.
-const CITY_ALIASES = {
-  bangalore: 'Bengaluru',
-  bombay: 'Mumbai',
-  'new delhi': 'Delhi',
-  calcutta: 'Kolkata',
-  mysore: 'Mysuru',
-  benares: 'Varanasi',
-  gurgaon: 'Gurugram',
-}
-
-function matchCityFromAddress(address) {
-  if (!address) return null
-  const candidates = [address.city, address.town, address.village, address.county, address.state_district, address.state]
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    const normalized = candidate.trim().toLowerCase()
-    if (CITY_ALIASES[normalized]) return CITY_ALIASES[normalized]
-    const exact = ALL_LOCATIONS.find((c) => c.toLowerCase() === normalized)
-    if (exact) return exact
-  }
-  return null
+  return `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 }
 
 function MaterialsPage() {
-  const { user } = useAuth()
   const navigate = useNavigate()
-  const [shops, setShops] = useState([])
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+
+  // --- Location ---
+  const [coords, setCoords] = useState(null)
+  const [locationLabel, setLocationLabel] = useState('')
+  const [locationStatus, setLocationStatus] = useState('idle') // idle | detecting | granted | denied | unavailable
+  const [showLocationPanel, setShowLocationPanel] = useState(false)
+  const [manualState, setManualState] = useState('')
+  const [manualCity, setManualCity] = useState('')
+  const [manualPincode, setManualPincode] = useState('')
+  const [manualApplied, setManualApplied] = useState(false)
+  const [searchLocationText, setSearchLocationText] = useState('')
+  const [searchingLocation, setSearchingLocation] = useState(false)
+  const [radiusKm, setRadiusKm] = useState('10')
+
+  // --- Search / filters ---
   const [query, setQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [locationFilter, setLocationFilter] = useState(() => user?.location || 'all')
-  const [cart, setCart] = useState({}) // { [productId]: quantity }
-  const [cartOpen, setCartOpen] = useState(false)
-  const [placingShopId, setPlacingShopId] = useState(null)
-  const [toast, setToast] = useState(null)
-  const [showOrders, setShowOrders] = useState(false)
-  const [appliedDefaultLocation, setAppliedDefaultLocation] = useState(false)
-  const [locationSource, setLocationSource] = useState(null) // 'geo' | 'profile' | 'manual'
-  const [detectingLocation, setDetectingLocation] = useState(
-    () => typeof navigator !== 'undefined' && !!navigator.geolocation
-  )
-  const [geoUnavailable, setGeoUnavailable] = useState(false)
-  const [showAllShops, setShowAllShops] = useState(false)
-  const [coords, setCoords] = useState(null) // { lat, lng } — the customer's own device coordinates, for Haversine distance
-  const [distanceFilter, setDistanceFilter] = useState('all') // 'all' | '5' | '10' | '25' | '50'
-  const [minRating, setMinRating] = useState(0)
-  const [deliveryOnly, setDeliveryOnly] = useState(false)
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [categories, setCategories] = useState([])
+  const [categoryId, setCategoryId] = useState('')
+  const [sort, setSort] = useState('distance')
   const [inStockOnly, setInStockOnly] = useState(false)
-  const [priceMin, setPriceMin] = useState('')
-  const [priceMax, setPriceMax] = useState(null)
-  const [brandFilter, setBrandFilter] = useState('all')
-  const [supplierFilter, setSupplierFilter] = useState('all')
-  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
-  const [wishlist, setWishlist] = useState(new Set())
+  const [deliveryOnly, setDeliveryOnly] = useState(false)
+  const [minRating, setMinRating] = useState(0)
+  const [viewMode, setViewMode] = useState('list') // list | map
+
+  // --- Results ---
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [selectedSupplierId, setSelectedSupplierId] = useState(null)
+
+  // --- Cart / compare / orders ---
+  const [cart, setCart] = useState({})
+  const [cartOpen, setCartOpen] = useState(false)
+  const [placingSupplierId, setPlacingSupplierId] = useState(null)
+  const [toast, setToast] = useState(null)
+  const [compareIds, setCompareIds] = useState(new Set())
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [showOrders, setShowOrders] = useState(false)
+  const [orders, setOrders] = useState([])
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 400)
+    return () => clearTimeout(t)
+  }, [query])
 
   const detectCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setGeoUnavailable(true)
+      setLocationStatus('unavailable')
       return
     }
-    setDetectingLocation(true)
-    setGeoUnavailable(false)
+    setLocationStatus('detecting')
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords
-          setCoords({ lat: latitude, lng: longitude })
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`
-          )
-          const data = await res.json()
-          const matched = matchCityFromAddress(data?.address)
-          if (matched) {
-            setLocationFilter(matched)
-            setLocationSource('geo')
-            setAppliedDefaultLocation(true)
-          } else {
-            setGeoUnavailable(true)
-          }
-        } catch {
-          setGeoUnavailable(true)
-        } finally {
-          setDetectingLocation(false)
-        }
+      (position) => {
+        setCoords({ lat: position.coords.latitude, lng: position.coords.longitude })
+        setManualApplied(false)
+        setLocationStatus('granted')
+        setLocationLabel('Your current location')
+        setShowLocationPanel(false)
       },
-      () => {
-        setGeoUnavailable(true)
-        setDetectingLocation(false)
-      },
+      () => setLocationStatus('denied'),
       { timeout: 8000, maximumAge: 10 * 60 * 1000 }
     )
   }
 
-  // Try live geolocation first on load — it reflects where the customer
-  // actually is right now, which takes priority over their saved profile city.
   useEffect(() => {
     detectCurrentLocation()
+    apiFetch('/api/materials/categories').then((d) => setCategories(d.categories)).catch(() => {})
+    apiFetch('/api/materials/orders').then((d) => setOrders(d.orders)).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // The user's profile may still be loading when this page mounts (e.g. on
-  // a hard refresh) — once it arrives, apply their saved city as a fallback
-  // default, but only if live geolocation didn't already resolve one.
-  useEffect(() => {
-    if (appliedDefaultLocation) return
-    if (locationSource === 'geo' || detectingLocation) return
-    if (user?.location) {
-      setLocationFilter(user.location)
-      setLocationSource('profile')
-      setAppliedDefaultLocation(true)
-    }
-  }, [user?.location, appliedDefaultLocation, locationSource, detectingLocation])
+  const applyManualLocation = () => {
+    if (!manualCity && !manualState && !manualPincode) return
+    setCoords(null)
+    setManualApplied(true)
+    setLocationStatus('granted')
+    setLocationLabel([manualCity, manualState].filter(Boolean).join(', ') || manualPincode)
+    setShowLocationPanel(false)
+  }
 
-  // The customer can also change their city from the sidebar's location
-  // picker while this page is already open — reflect that change right away.
-  const prevUserLocationRef = useRef(user?.location)
-  useEffect(() => {
-    const changed = prevUserLocationRef.current !== user?.location
-    prevUserLocationRef.current = user?.location
-    if (changed && appliedDefaultLocation && user?.location) {
-      setLocationFilter(user.location)
-      setLocationSource('profile')
+  const handleSearchLocation = async () => {
+    if (!searchLocationText.trim()) return
+    setSearchingLocation(true)
+    const found = await forwardGeocode(searchLocationText)
+    setSearchingLocation(false)
+    if (!found) {
+      setToast('Could not find that location. Try a nearby city or pincode instead.')
+      setTimeout(() => setToast(null), 3200)
+      return
     }
-  }, [user?.location, appliedDefaultLocation])
+    setCoords({ lat: found.lat, lng: found.lng })
+    setManualApplied(false)
+    setLocationStatus('granted')
+    setLocationLabel(found.label.split(',').slice(0, 2).join(', '))
+    setShowLocationPanel(false)
+  }
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        const shopsQuery = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : ''
-        const [shopsData, ordersData] = await Promise.all([
-          apiFetch(`/api/materials/shops${shopsQuery}`),
-          apiFetch('/api/materials/orders'),
-        ])
-        setShops(shopsData.shops)
-        setOrders(ordersData.orders)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+    if (locationStatus === 'idle' || locationStatus === 'detecting') return
+    setLoading(true)
+    setLoadError('')
+    const params = new URLSearchParams()
+    if (debouncedQuery.trim()) params.set('q', debouncedQuery.trim())
+    if (categoryId) params.set('categoryId', categoryId)
+    if (coords) {
+      params.set('lat', coords.lat)
+      params.set('lng', coords.lng)
+    } else if (manualApplied) {
+      if (manualCity) params.set('city', manualCity)
+      if (manualState) params.set('state', manualState)
+      if (manualPincode) params.set('pincode', manualPincode)
+    }
+    params.set('radiusKm', radiusKm)
+    params.set('sort', sort)
+    if (inStockOnly) params.set('inStockOnly', 'true')
+    if (deliveryOnly) params.set('deliveryOnly', 'true')
+    if (minRating) params.set('minRating', String(minRating))
+    params.set('pageSize', '40')
+
+    apiFetch(`/api/materials/search?${params.toString()}`)
+      .then((d) => setResults(d.results))
+      .catch((err) => setLoadError(err.message))
+      .finally(() => setLoading(false))
+  }, [debouncedQuery, categoryId, coords, manualApplied, manualCity, manualState, manualPincode, radiusKm, sort, inStockOnly, deliveryOnly, minRating, locationStatus])
+
+  const itemsById = useMemo(() => new Map(results.map((r) => [r.supplierMaterialId, r])), [results])
+
+  const cartGroups = useMemo(() => {
+    const groups = new Map()
+    for (const [id, quantity] of Object.entries(cart)) {
+      if (quantity <= 0) continue
+      const item = itemsById.get(id)
+      if (!item || !item.price) continue
+      if (!groups.has(item.supplier.id)) {
+        groups.set(item.supplier.id, { shopId: item.supplier.id, shopName: item.supplier.businessName, items: [], subtotal: 0 })
       }
-    })()
-    // Re-fetch once live coordinates arrive so shops come back with a real
-    // Haversine distanceKm and sorted nearest-first.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coords])
+      const group = groups.get(item.supplier.id)
+      group.items.push({ id, name: item.productName || item.material.name, unit: item.price.unit, price: item.price.price, imageUrl: item.material.imageUrl, quantity })
+      group.subtotal += item.price.price * quantity
+    }
+    return [...groups.values()]
+  }, [cart, itemsById])
+  const cartCount = Object.values(cart).reduce((sum, q) => sum + q, 0)
+  const cartTotal = cartGroups.reduce((sum, g) => sum + g.subtotal, 0)
 
-  const allProducts = useMemo(
-    () => shops.flatMap((s) => s.products.map((p) => ({ ...p, shopId: s.id, shopName: s.name, brand: deriveBrand(p.name) }))),
-    [shops]
-  )
-  const productById = useMemo(() => new Map(allProducts.map((p) => [p.id, p])), [allProducts])
-  const categories = useMemo(() => [...new Set(shops.map((s) => s.category))], [shops])
-  const locations = useMemo(() => [...new Set(shops.map((s) => s.location))].sort(), [shops])
-  const suppliers = useMemo(() => [...new Set(shops.map((s) => s.name))].sort(), [shops])
-  const brands = useMemo(() => [...new Set(allProducts.map((p) => p.brand))].sort(), [allProducts])
-  const priceCeil = useMemo(() => Math.max(100, ...allProducts.map((p) => p.price)), [allProducts])
-  const effectivePriceMax = priceMax ?? priceCeil
+  const increment = (id) => setCart((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
+  const decrement = (id) =>
+    setCart((prev) => {
+      const next = { ...prev }
+      const qty = (next[id] || 0) - 1
+      if (qty <= 0) delete next[id]
+      else next[id] = qty
+      return next
+    })
 
-  const min = priceMin.trim() === '' ? null : Number(priceMin)
-
-  const visibleShops = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return shops
-      .filter((s) => categoryFilter === 'all' || s.category === categoryFilter)
-      .filter((s) => locationFilter === 'all' || s.location === locationFilter)
-      .filter((s) => distanceFilter === 'all' || s.distanceKm === null || s.distanceKm <= Number(distanceFilter))
-      .filter((s) => minRating === 0 || (s.rating ?? 0) >= minRating)
-      .filter((s) => !deliveryOnly || s.deliveryAvailable)
-      .filter((s) => supplierFilter === 'all' || s.name === supplierFilter)
-      .map((s) => ({
-        ...s,
-        products: s.products
-          .map((p) => ({ ...p, brand: deriveBrand(p.name) }))
-          .filter((p) => {
-            if (q && !p.name.toLowerCase().includes(q)) return false
-            if (inStockOnly && p.stockStatus === 'out_of_stock') return false
-            if (brandFilter !== 'all' && p.brand !== brandFilter) return false
-            if (min !== null && p.price < min) return false
-            if (p.price > effectivePriceMax) return false
-            return true
-          }),
-      }))
-      .filter((s) => s.products.length > 0)
-  }, [shops, categoryFilter, locationFilter, distanceFilter, minRating, deliveryOnly, inStockOnly, supplierFilter, brandFilter, min, effectivePriceMax, query])
-
-  const toggleWishlist = (productId) => {
-    setWishlist((prev) => {
+  const toggleCompare = (id) => {
+    setCompareIds((prev) => {
       const next = new Set(prev)
-      if (next.has(productId)) next.delete(productId)
-      else next.add(productId)
+      if (next.has(id)) next.delete(id)
+      else if (next.size < 4) next.add(id)
       return next
     })
   }
 
-  // With shops now covering ~450 towns/cities across India, rendering every
-  // matching shop at once (e.g. under "All India") would be sluggish — cap
-  // it until the customer narrows down by location/category/search or asks
-  // to see everything.
-  const SHOP_DISPLAY_CAP = 30
-  const isCapped = !showAllShops && visibleShops.length > SHOP_DISPLAY_CAP
-  const shownShops = isCapped ? visibleShops.slice(0, SHOP_DISPLAY_CAP) : visibleShops
-
-  const cartGroups = useMemo(() => {
-    const groups = new Map()
-    for (const [productId, quantity] of Object.entries(cart)) {
-      if (quantity <= 0) continue
-      const product = productById.get(productId)
-      if (!product) continue
-      if (!groups.has(product.shopId)) groups.set(product.shopId, { shopId: product.shopId, shopName: product.shopName, items: [], subtotal: 0 })
-      const group = groups.get(product.shopId)
-      group.items.push({ ...product, quantity })
-      group.subtotal += product.price * quantity
-    }
-    return [...groups.values()]
-  }, [cart, productById])
-
-  const cartCount = Object.values(cart).reduce((sum, q) => sum + q, 0)
-  const cartTotal = cartGroups.reduce((sum, g) => sum + g.subtotal, 0)
-
-  const increment = (productId) => setCart((prev) => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }))
-  const decrement = (productId) =>
-    setCart((prev) => {
-      const next = { ...prev }
-      const qty = (next[productId] || 0) - 1
-      if (qty <= 0) delete next[productId]
-      else next[productId] = qty
-      return next
-    })
-
-  const handleBuyNow = async (shopId, product) => {
-    setPlacingShopId(shopId)
+  const handleBuyNow = async (item) => {
+    setPlacingSupplierId(item.supplier.id)
     try {
       const data = await apiFetch('/api/materials/orders', {
         method: 'POST',
-        body: JSON.stringify({ shopId, items: [{ productId: product.id, quantity: 1 }] }),
+        body: JSON.stringify({ supplierId: item.supplier.id, items: [{ supplierMaterialId: item.supplierMaterialId, quantity: 1 }] }),
       })
       setOrders((prev) => [data.order, ...prev])
-      setToast(`Order placed for ${product.name} — check Calendar for delivery`)
+      setToast(`Order placed for ${item.productName || item.material.name} — check Calendar for delivery`)
       setTimeout(() => setToast(null), 3200)
     } catch (err) {
       setToast(err.message)
       setTimeout(() => setToast(null), 3200)
     } finally {
-      setPlacingShopId(null)
+      setPlacingSupplierId(null)
     }
   }
 
-  const handlePlaceOrder = async (shopId) => {
-    const group = cartGroups.find((g) => g.shopId === shopId)
+  const handlePlaceOrder = async (supplierId) => {
+    const group = cartGroups.find((g) => g.shopId === supplierId)
     if (!group) return
-    setPlacingShopId(shopId)
+    setPlacingSupplierId(supplierId)
     try {
       const data = await apiFetch('/api/materials/orders', {
         method: 'POST',
-        body: JSON.stringify({
-          shopId,
-          items: group.items.map((i) => ({ productId: i.id, quantity: i.quantity })),
-        }),
+        body: JSON.stringify({ supplierId, items: group.items.map((i) => ({ supplierMaterialId: i.id, quantity: i.quantity })) }),
       })
       setOrders((prev) => [data.order, ...prev])
       setCart((prev) => {
@@ -302,7 +244,26 @@ function MaterialsPage() {
       setToast(err.message)
       setTimeout(() => setToast(null), 3200)
     } finally {
-      setPlacingShopId(null)
+      setPlacingSupplierId(null)
+    }
+  }
+
+  const compareItems = results.filter((r) => compareIds.has(r.supplierMaterialId))
+  const cityOptions = manualState ? STATE_CITIES[manualState] || [] : []
+
+  let emptyState = null
+  if (loadError) {
+    emptyState = { title: 'Something went wrong', body: loadError, showRetry: true }
+  } else if (locationStatus === 'denied' && !manualApplied) {
+    emptyState = { title: "Location access denied", body: 'Select your location manually to see nearby suppliers.', showLocation: true }
+  } else if (locationStatus === 'unavailable' && !manualApplied) {
+    emptyState = { title: 'Location unavailable', body: 'Your browser could not provide a location. Select one manually.', showLocation: true }
+  } else if (!loading && results.length === 0) {
+    emptyState = {
+      title: 'No material suppliers found',
+      body: `No material suppliers found within ${radiusKm === 'all' ? 'India' : `${radiusKm} km`}${debouncedQuery ? ` for "${debouncedQuery}"` : ''}.`,
+      showRadius: true,
+      showLocation: true,
     }
   }
 
@@ -312,54 +273,39 @@ function MaterialsPage() {
         <>
           <DashboardHeader
             onMenuClick={onMenuClick}
-            title="Material Details"
-            subtitle="Browse materials from local shops, add to cart and order deliveries."
+            title="Materials Marketplace"
+            subtitle="Search construction materials from suppliers near you, compare prices and order."
           />
 
-          {!showOrders && (
-            <div className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-gold-500/20 bg-gradient-to-br from-gold-500/10 via-navy-900/50 to-navy-900/50 p-5 sm:grid-cols-4">
-              {[
-                { label: 'Quality Materials', icon: '✓' },
-                { label: 'Verified Suppliers', icon: '🛡' },
-                { label: 'Fast Delivery', icon: '🚚' },
-                { label: 'Better Prices', icon: '₹' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-sm text-gold-300">{item.icon}</span>
-                  <span className="text-xs font-medium text-ink/75 sm:text-sm">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative max-w-md flex-1">
-              <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search materials…"
-                className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-4 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-gold-500/50"
-              />
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-ink/50">Deliver / Search near:</span>
+              <button
+                onClick={detectCurrentLocation}
+                className="flex items-center gap-1.5 rounded-full border border-gold-500/30 bg-gold-500/10 px-3.5 py-1.5 text-xs font-medium text-gold-300 hover:bg-gold-500/15"
+              >
+                {locationStatus === 'detecting' ? <Spinner className="h-3.5 w-3.5" /> : <LocationIcon className="h-3.5 w-3.5" />}
+                Use My Current Location
+              </button>
+              <button
+                onClick={() => setShowLocationPanel((v) => !v)}
+                className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-medium text-ink/70 hover:border-gold-500/40 hover:text-ink"
+              >
+                Select Location
+              </button>
+              {locationLabel && (
+                <span className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/60">
+                  📍 {locationLabel}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <LocationIcon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink/35" />
-                <select
-                  value={locationFilter}
-                  onChange={(e) => {
-                    setLocationFilter(e.target.value)
-                    setLocationSource('manual')
-                    setAppliedDefaultLocation(true)
-                  }}
-                  className="rounded-full border border-ink/15 bg-navy-900/60 py-2 pl-8 pr-3 text-xs font-medium text-ink outline-none focus:border-gold-500/50"
-                >
-                  <option value="all">All India</option>
-                  {locations.map((loc) => (
-                    <option key={loc} value={loc}>{loc}</option>
-                  ))}
-                </select>
-              </div>
+              <button
+                onClick={() => navigate('/dashboard/materials/become-a-supplier')}
+                className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-gold-500/40 hover:text-ink"
+              >
+                Become a Supplier
+              </button>
               <button
                 onClick={() => setShowOrders((v) => !v)}
                 className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-gold-500/40 hover:text-ink"
@@ -380,65 +326,158 @@ function MaterialsPage() {
             </div>
           </div>
 
-          {detectingLocation ? (
-            <div className="mt-3 flex items-center gap-2 text-xs text-ink/40">
-              <Spinner className="h-3.5 w-3.5" />
-              Detecting your current location…
-            </div>
-          ) : locationSource === 'geo' && locationFilter !== 'all' ? (
-            <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink/40">
-              <LocationIcon className="h-3.5 w-3.5 text-gold-300" />
-              Showing shops near <span className="text-ink/70">{locationFilter}</span> — detected from your current location.
-              <button onClick={detectCurrentLocation} className="text-gold-300 hover:text-gold-200">Refresh</button>
-            </p>
-          ) : locationSource === 'profile' && locationFilter !== 'all' ? (
-            <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink/40">
-              Showing shops in <span className="text-ink/70">{locationFilter}</span> — your saved location.
-              <button onClick={detectCurrentLocation} className="text-gold-300 hover:text-gold-200">Use current location instead</button>
-            </p>
-          ) : (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gold-500/20 bg-gold-500/5 px-4 py-2.5 text-sm text-ink/60">
-              <span>
-                {geoUnavailable
-                  ? "Couldn't detect your current location — set your city instead."
-                  : 'Set your city to automatically see shops near you.'}
-              </span>
-              <span className="flex items-center gap-3">
-                <button onClick={detectCurrentLocation} className="font-medium text-gold-300 hover:text-gold-200">
-                  📍 Use current location
+          <AnimatePresence>
+            {showLocationPanel && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3 overflow-hidden rounded-xl border border-ink/10 bg-navy-900/50 p-4"
+              >
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-ink/50">State</label>
+                    <select
+                      value={manualState}
+                      onChange={(e) => { setManualState(e.target.value); setManualCity('') }}
+                      className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-xs text-ink outline-none focus:border-gold-500/50"
+                    >
+                      <option value="">Select state</option>
+                      {Object.keys(STATE_CITIES).sort().map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-ink/50">City</label>
+                    <select
+                      value={manualCity}
+                      onChange={(e) => setManualCity(e.target.value)}
+                      disabled={!manualState}
+                      className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-xs text-ink outline-none focus:border-gold-500/50 disabled:opacity-40"
+                    >
+                      <option value="">Select city</option>
+                      {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-ink/50">Pincode</label>
+                    <input
+                      value={manualPincode}
+                      onChange={(e) => setManualPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="560001"
+                      className="w-24 rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/50"
+                    />
+                  </div>
+                  <button onClick={applyManualLocation} className="rounded-lg bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                    Apply
+                  </button>
+                  <span className="text-ink/30">or</span>
+                  <div className="flex items-end gap-2">
+                    <div>
+                      <label className="mb-1 block text-[11px] font-medium text-ink/50">Search Location</label>
+                      <input
+                        value={searchLocationText}
+                        onChange={(e) => setSearchLocationText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearchLocation()}
+                        placeholder="e.g. Andheri West, Mumbai"
+                        className="w-56 rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/50"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSearchLocation}
+                      disabled={searchingLocation}
+                      className="rounded-lg border border-gold-500/40 px-4 py-2 text-xs font-semibold text-gold-300 hover:bg-gold-500/10 disabled:opacity-50"
+                    >
+                      {searchingLocation ? <Spinner className="h-3.5 w-3.5" /> : 'Search'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!showOrders && (
+            <>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <div className="relative max-w-xs flex-1">
+                  <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search materials… e.g. UltraTech OPC 53 Cement"
+                    className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-4 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-gold-500/50"
+                  />
+                </div>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-2 text-xs text-ink/70 outline-none"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select
+                  value={radiusKm}
+                  onChange={(e) => setRadiusKm(e.target.value)}
+                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-2 text-xs text-ink/70 outline-none"
+                >
+                  {RADIUS_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-2 text-xs text-ink/70 outline-none"
+                >
+                  {SORT_OPTIONS.map((s) => <option key={s.value} value={s.value}>Sort: {s.label}</option>)}
+                </select>
+                <button
+                  onClick={() => setInStockOnly((v) => !v)}
+                  className={`rounded-full border px-3 py-2 text-xs font-medium ${inStockOnly ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                >
+                  In stock only
                 </button>
                 <button
-                  onClick={() => navigate('/dashboard/settings')}
-                  className="font-medium text-gold-300 hover:text-gold-200"
+                  onClick={() => setDeliveryOnly((v) => !v)}
+                  className={`rounded-full border px-3 py-2 text-xs font-medium ${deliveryOnly ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
                 >
-                  Set City →
+                  Delivery available
                 </button>
-              </span>
-            </div>
+                <select
+                  value={minRating}
+                  onChange={(e) => setMinRating(Number(e.target.value))}
+                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-2 text-xs text-ink/70 outline-none"
+                >
+                  <option value={0}>Any rating</option>
+                  <option value={4.5}>4.5★ &amp; up</option>
+                  <option value={4}>4★ &amp; up</option>
+                  <option value={3.5}>3.5★ &amp; up</option>
+                </select>
+                <div className="ml-auto flex items-center gap-1 rounded-full border border-ink/10 p-1">
+                  <button onClick={() => setViewMode('list')} className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'list' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}>List</button>
+                  <button onClick={() => setViewMode('map')} className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'map' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}>Map</button>
+                </div>
+              </div>
+
+              {compareIds.size > 0 && (
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-gold-500/20 bg-gold-500/5 px-4 py-2 text-xs text-ink/60">
+                  {compareIds.size} item{compareIds.size > 1 ? 's' : ''} selected to compare
+                  <button onClick={() => setCompareOpen(true)} className="font-medium text-gold-300 hover:text-gold-200">Compare now</button>
+                  <button onClick={() => setCompareIds(new Set())} className="ml-auto text-ink/40 hover:text-ink/70">Clear</button>
+                </div>
+              )}
+            </>
           )}
 
-          {error && <p className="mt-5 text-sm text-red-400">{error}</p>}
-
-          {loading ? (
-            <div className="mt-16 flex justify-center">
-              <Spinner className="h-6 w-6 text-ink/40" />
-            </div>
-          ) : showOrders ? (
+          {showOrders ? (
             <div className="mt-6 space-y-3">
               {orders.length === 0 ? (
                 <p className="mt-10 text-center text-sm text-ink/40">No orders yet.</p>
               ) : (
                 orders.map((order) => (
-                  <motion.div
-                    key={order.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-xl border border-ink/10 bg-navy-900/50 p-4"
-                  >
+                  <motion.div key={order.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-ink/10 bg-navy-900/50 p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-mono text-xs text-ink/35">#{order.displayId}</p>
-                        <p className="text-sm font-semibold text-ink">{order.shopName}</p>
+                        <p className="text-sm font-semibold text-ink">{order.supplierName}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-gold-300">{formatPrice(order.totalAmount)}</p>
@@ -447,319 +486,202 @@ function MaterialsPage() {
                     </div>
                     <div className="mt-2.5 space-y-1 border-t border-ink/5 pt-2.5">
                       {order.items.map((item, i) => (
-                        <p key={i} className="text-xs text-ink/55">
-                          {item.quantity} × {item.productName} ({item.unit})
-                        </p>
+                        <p key={i} className="text-xs text-ink/55">{item.quantity} × {item.productName} ({item.unit})</p>
                       ))}
                     </div>
                   </motion.div>
                 ))
               )}
             </div>
-          ) : (
-            <>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setCategoryFilter('all')}
-                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                    categoryFilter === 'all' ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
-                  }`}
-                >
-                  All Materials
-                </button>
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategoryFilter(cat)}
-                    className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                      categoryFilter === cat ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
-                    }`}
-                  >
-                    {cat}
+          ) : loading ? (
+            <div className="mt-16 flex justify-center"><Spinner className="h-6 w-6 text-ink/40" /></div>
+          ) : emptyState ? (
+            <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-ink/10 bg-navy-900/40 p-8 text-center">
+              <p className="text-sm font-semibold text-ink">{emptyState.title}</p>
+              <p className="max-w-md text-xs text-ink/50">{emptyState.body}</p>
+              <div className="mt-1 flex flex-wrap justify-center gap-2">
+                {emptyState.showLocation && (
+                  <button onClick={() => setShowLocationPanel(true)} className="rounded-full border border-gold-500/40 px-4 py-1.5 text-xs font-medium text-gold-300 hover:bg-gold-500/10">
+                    Change Location
                   </button>
-                ))}
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <select
-                  value={distanceFilter}
-                  onChange={(e) => setDistanceFilter(e.target.value)}
-                  disabled={!coords}
-                  title={coords ? undefined : 'Enable current-location detection to filter by distance'}
-                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/70 outline-none disabled:opacity-40"
-                >
-                  <option value="all">Any distance</option>
-                  <option value="5">Within 5 km</option>
-                  <option value="10">Within 10 km</option>
-                  <option value="25">Within 25 km</option>
-                  <option value="50">Within 50 km</option>
-                </select>
-                <select
-                  value={minRating}
-                  onChange={(e) => setMinRating(Number(e.target.value))}
-                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/70 outline-none"
-                >
-                  <option value={0}>Any rating</option>
-                  <option value={4.5}>4.5★ &amp; up</option>
-                  <option value={4}>4★ &amp; up</option>
-                  <option value={3.5}>3.5★ &amp; up</option>
-                </select>
-                <select
-                  value={brandFilter}
-                  onChange={(e) => setBrandFilter(e.target.value)}
-                  className="rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/70 outline-none"
-                >
-                  <option value="all">All Brands</option>
-                  {brands.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-                <select
-                  value={supplierFilter}
-                  onChange={(e) => setSupplierFilter(e.target.value)}
-                  className="max-w-[160px] rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/70 outline-none"
-                >
-                  <option value="all">All Suppliers</option>
-                  {suppliers.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  min="0"
-                  value={priceMin}
-                  onChange={(e) => setPriceMin(e.target.value)}
-                  placeholder="Min ₹"
-                  className="w-20 rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
-                />
-                <span className="flex items-center gap-2 rounded-full border border-ink/10 bg-navy-950/40 px-3 py-1.5 text-xs text-ink/60">
-                  Up to {formatPrice(effectivePriceMax)}
-                  <input
-                    type="range"
-                    min="0"
-                    max={priceCeil}
-                    step={Math.max(1, Math.round(priceCeil / 100))}
-                    value={effectivePriceMax}
-                    onChange={(e) => setPriceMax(Number(e.target.value))}
-                    className="w-24 accent-gold-500"
-                  />
-                </span>
-                <button
-                  onClick={() => setInStockOnly((v) => !v)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                    inStockOnly ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
-                  }`}
-                >
-                  In stock only
-                </button>
-                <button
-                  onClick={() => setDeliveryOnly((v) => !v)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                    deliveryOnly ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
-                  }`}
-                >
-                  Delivery available
-                </button>
-                <div className="ml-auto flex items-center gap-1 rounded-full border border-ink/10 p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'grid' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
-                  >
-                    Grid
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'list' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
-                  >
-                    List
-                  </button>
-                </div>
-              </div>
-
-              {isCapped && (
-                <p className="mt-4 flex flex-wrap items-center gap-2 text-xs text-ink/40">
-                  Showing {SHOP_DISPLAY_CAP} of {visibleShops.length} shops — set your location or pick a category to narrow this down.
-                  <button onClick={() => setShowAllShops(true)} className="font-medium text-gold-300 hover:text-gold-200">
-                    Show all {visibleShops.length}
-                  </button>
-                </p>
-              )}
-
-              <div className="mt-6 space-y-6">
-                {visibleShops.length === 0 && (
-                  <p className="mt-10 text-center text-sm text-ink/40">No materials match your search.</p>
                 )}
-                {shownShops.map((shop, shopIndex) => (
+                {emptyState.showRadius && radiusKm !== 'all' && (
+                  <button
+                    onClick={() => setRadiusKm(RADIUS_OPTIONS[Math.min(RADIUS_OPTIONS.findIndex((r) => r.value === radiusKm) + 1, RADIUS_OPTIONS.length - 1)].value)}
+                    className="rounded-full border border-ink/15 px-4 py-1.5 text-xs font-medium text-ink/70 hover:border-gold-500/40 hover:text-ink"
+                  >
+                    Increase Search Radius
+                  </button>
+                )}
+                {emptyState.showRetry && (
+                  <button onClick={() => setDebouncedQuery((q) => q)} className="rounded-full border border-ink/15 px-4 py-1.5 text-xs font-medium text-ink/70">
+                    Retry
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : viewMode === 'map' ? (
+            <MapView
+              userCoords={coords}
+              suppliers={results}
+              selectedSupplierId={selectedSupplierId}
+              onSelectSupplier={setSelectedSupplierId}
+              onViewShop={(id) => navigate(`/dashboard/materials/suppliers/${id}`)}
+            />
+          ) : (
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {results.map((item, index) => {
+                const stock = STOCK_LABEL[item.inventory.stockStatus] || STOCK_LABEL.UNKNOWN
+                const quantity = cart[item.supplierMaterialId] || 0
+                const disabled = item.inventory.stockStatus === 'OUT_OF_STOCK' || !item.price
+                return (
                   <motion.div
-                    key={shop.id}
+                    key={item.supplierMaterialId}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: Math.min(shopIndex * 0.05, 0.4), ease: [0.16, 1, 0.3, 1] }}
-                    className="rounded-2xl border border-ink/10 bg-navy-900/50 p-5"
+                    transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-navy-900/50 p-4"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-500/10 text-gold-300">
-                          <ShopIcon className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <p className="font-display text-sm font-semibold text-ink">{shop.name}</p>
-                          <p className="text-xs text-ink/45">{shop.category} · {shop.location}</p>
-                          {shop.address && (
-                            <p className="mt-0.5 flex items-center gap-1 text-xs text-ink/35">
-                              <LocationIcon className="h-3 w-3 shrink-0" />
-                              {shop.address}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
-                        {shop.rating != null && (
-                          <span className="flex items-center gap-1 rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-ink/70">
-                            <StarIcon className="h-3.5 w-3.5 text-gold-300" />
-                            {shop.rating.toFixed(1)}
-                          </span>
-                        )}
-                        {shop.distanceKm != null && (
-                          <span className="flex items-center gap-1 rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-ink/70">
-                            <LocationIcon className="h-3.5 w-3.5 text-ink/40" />
-                            {shop.distanceKm} km away
-                          </span>
-                        )}
-                        <span
-                          className={`flex items-center gap-1 rounded-full border px-2.5 py-1 ${
-                            shop.deliveryAvailable ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-ink/10 bg-navy-950/40 text-ink/40'
-                          }`}
-                        >
-                          <TruckIcon className="h-3.5 w-3.5" />
-                          {shop.deliveryAvailable ? `Delivery in ~${shop.deliveryEtaHours}h` : 'Pickup only'}
-                        </span>
+                    <div className="flex gap-3">
+                      {item.material.imageUrl ? (
+                        <img src={item.material.imageUrl} alt={item.material.name} className="h-16 w-16 shrink-0 rounded-lg border border-ink/10 object-cover" />
+                      ) : (
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-navy-950/60"><ShopIcon className="h-7 w-7 text-ink/30" /></div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">{item.productName || item.material.name}</p>
+                        <p className="text-xs text-ink/45">{item.brand ? `${item.brand} · ` : ''}{item.grade || item.material.grade || ''}</p>
                       </div>
                     </div>
 
-                    <div className={viewMode === 'grid' ? 'mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'mt-4 flex flex-col gap-2.5'}>
-                      {shop.products.map((product) => {
-                        const quantity = cart[product.id] || 0
-                        const outOfStock = product.stockStatus === 'out_of_stock'
-                        const isWishlisted = wishlist.has(product.id)
-                        return (
-                          <div key={product.id} className={`flex gap-2.5 rounded-xl border border-ink/10 bg-navy-950/40 p-3 ${viewMode === 'grid' ? 'flex-col' : 'items-center'}`}>
-                            <div className="flex flex-1 items-center gap-3">
-                              <ProductImage product={product} className="h-14 w-14" />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="truncate text-sm text-ink/90">{product.name}</p>
-                                  <button
-                                    onClick={() => toggleWishlist(product.id)}
-                                    aria-label="Save to wishlist"
-                                    className={`shrink-0 ${isWishlisted ? 'text-red-400' : 'text-ink/25 hover:text-ink/50'}`}
-                                  >
-                                    <svg viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20s-7-4.35-9.5-8.5C.7 8.2 2.4 5 5.6 5c1.7 0 3.2.9 4.1 2.3.9 1.5.3-2.3 4.1-2.3 3.2 0 4.9 3.2 3.1 6.5C19 15.65 12 20 12 20Z" />
-                                    </svg>
-                                  </button>
-                                </div>
-                                {product.brand !== 'Generic' && (
-                                  <p className="text-[10px] font-medium uppercase tracking-wide text-gold-300/70">{product.brand}</p>
-                                )}
-                                <p className="text-xs text-ink/40">{formatPrice(product.price)} / {product.unit}</p>
-                                <p className="text-[10px] text-ink/35">Min. Order: {product.minOrderQty} × {product.unit}</p>
-                                <span
-                                  className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                    product.stockStatus === 'out_of_stock'
-                                      ? 'bg-red-500/10 text-red-300'
-                                      : product.stockStatus === 'low_stock'
-                                        ? 'bg-amber-500/10 text-amber-300'
-                                        : 'bg-emerald-500/10 text-emerald-300'
-                                  }`}
-                                >
-                                  {product.stockStatus === 'out_of_stock' ? 'Out of stock' : product.stockStatus === 'low_stock' ? 'Low stock' : 'In stock'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className={viewMode === 'grid' ? 'flex items-center gap-2' : 'flex shrink-0 items-center gap-2'}>
-                              {quantity === 0 ? (
-                                <button
-                                  onClick={() => increment(product.id)}
-                                  disabled={outOfStock}
-                                  className="flex-1 rounded-lg border border-gold-500/40 px-3 py-1.5 text-xs font-semibold text-gold-300 hover:bg-gold-500/10 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  Add to Cart
-                                </button>
-                              ) : (
-                                <div className="flex flex-1 items-center justify-center gap-2">
-                                  <button
-                                    onClick={() => decrement(product.id)}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-500 text-charcoal hover:bg-gold-400"
-                                  >
-                                    −
-                                  </button>
-                                  <span className="w-4 text-center text-sm text-ink">{quantity}</span>
-                                  <button
-                                    onClick={() => increment(product.id)}
-                                    disabled={outOfStock}
-                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-500 text-charcoal hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              )}
-                              <button
-                                onClick={() => handleBuyNow(shop.id, product)}
-                                disabled={outOfStock || placingShopId === shop.id}
-                                className="flex-1 rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                Buy Now
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
+                    <div className="flex items-center gap-1.5 text-xs text-ink/70">
+                      <button onClick={() => navigate(`/dashboard/materials/suppliers/${item.supplier.id}`)} className="truncate font-medium text-ink hover:text-gold-300">
+                        {item.supplier.businessName}
+                      </button>
+                      {item.supplier.verificationStatus === 'verified' && (
+                        <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">✓ Verified</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-ink/50">
+                      {item.distanceKm != null && (
+                        <span className="flex items-center gap-1"><LocationIcon className="h-3 w-3" /> {item.distanceKm} km away</span>
+                      )}
+                      {item.supplier.rating != null && (
+                        <span className="flex items-center gap-1"><StarIcon className="h-3 w-3 text-gold-300" /> {Number(item.supplier.rating).toFixed(1)}</span>
+                      )}
+                      {item.supplier.deliveryAvailable && <span className="flex items-center gap-1 text-emerald-300"><TruckIcon className="h-3 w-3" /> Delivery available</span>}
+                    </div>
+
+                    <div className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
+                      {item.price ? (
+                        <>
+                          <p className="text-lg font-semibold text-gold-300">{formatPrice(item.price.price)} <span className="text-xs font-normal text-ink/40">/ {item.price.unit}</span></p>
+                          <p className="text-[10px] text-ink/35">Price updated {timeAgo(item.price.updatedAt)}{!item.price.verified ? ' · unverified' : ''}</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-ink/40">Price not available — contact supplier</p>
+                      )}
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs">{stock.dot} {stock.text}{item.inventory.quantity != null ? ` · ${item.inventory.quantity} ${item.price?.unit || item.material.unit}` : ''}</span>
+                      </div>
+                      {item.inventory.lastUpdatedAt && (
+                        <p className="mt-0.5 text-[10px] text-ink/30">Stock updated {timeAgo(item.inventory.lastUpdatedAt)}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {quantity === 0 ? (
+                        <button onClick={() => increment(item.supplierMaterialId)} disabled={disabled} className="flex-1 rounded-lg border border-gold-500/40 px-3 py-1.5 text-xs font-semibold text-gold-300 hover:bg-gold-500/10 disabled:cursor-not-allowed disabled:opacity-40">
+                          Add to Cart
+                        </button>
+                      ) : (
+                        <div className="flex flex-1 items-center justify-center gap-2">
+                          <button onClick={() => decrement(item.supplierMaterialId)} className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-500 text-charcoal hover:bg-gold-400">−</button>
+                          <span className="w-4 text-center text-sm text-ink">{quantity}</span>
+                          <button onClick={() => increment(item.supplierMaterialId)} disabled={disabled} className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-500 text-charcoal hover:bg-gold-400 disabled:opacity-40">+</button>
+                        </div>
+                      )}
+                      <button onClick={() => handleBuyNow(item)} disabled={disabled || placingSupplierId === item.supplier.id} className="flex-1 rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-40">
+                        Buy Now
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <button onClick={() => toggleCompare(item.supplierMaterialId)} className={`rounded-full border px-2.5 py-1 font-medium ${compareIds.has(item.supplierMaterialId) ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}>
+                        Compare
+                      </button>
+                      <button onClick={() => navigate(`/dashboard/materials/suppliers/${item.supplier.id}`)} className="rounded-full border border-ink/10 px-2.5 py-1 font-medium text-ink/60 hover:border-ink/20">
+                        View Shop
+                      </button>
+                      {item.location.latitude != null && (
+                        <a href={directionsLink(item.location.latitude, item.location.longitude)} target="_blank" rel="noreferrer" className="rounded-full border border-ink/10 px-2.5 py-1 font-medium text-ink/60 hover:border-ink/20">
+                          Directions
+                        </a>
+                      )}
+                      {item.supplier.phone && (
+                        <a href={`tel:${item.supplier.phone}`} className="rounded-full border border-ink/10 px-2.5 py-1 font-medium text-ink/60 hover:border-ink/20">Call</a>
+                      )}
+                      {item.supplier.whatsapp && (
+                        <a href={whatsappLink(item.supplier.whatsapp, `Hi, I'm interested in ${item.productName || item.material.name}`)} target="_blank" rel="noreferrer" className="rounded-full border border-emerald-500/30 px-2.5 py-1 font-medium text-emerald-300 hover:bg-emerald-500/10">WhatsApp</a>
+                      )}
                     </div>
                   </motion.div>
-                ))}
-              </div>
-            </>
+                )
+              })}
+            </div>
           )}
 
           <AnimatePresence>
             {cartCount > 0 && !cartOpen && !showOrders && (
               <motion.button
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
                 onClick={() => setCartOpen(true)}
                 className="fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full bg-gold-500 px-5 py-3 text-sm font-semibold text-charcoal shadow-2xl hover:bg-gold-400"
               >
-                <CartIcon className="h-4 w-4" />
-                {cartCount} item{cartCount > 1 ? 's' : ''} · {formatPrice(cartTotal)}
+                <CartIcon className="h-4 w-4" /> {cartCount} item{cartCount > 1 ? 's' : ''} · {formatPrice(cartTotal)}
                 <span className="text-charcoal/70">View Cart</span>
               </motion.button>
             )}
           </AnimatePresence>
 
-          <CartDrawer
-            open={cartOpen}
-            onClose={() => setCartOpen(false)}
-            groups={cartGroups}
-            onIncrement={increment}
-            onDecrement={decrement}
-            onPlaceOrder={handlePlaceOrder}
-            placingShopId={placingShopId}
-          />
+          <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} groups={cartGroups} onIncrement={increment} onDecrement={decrement} onPlaceOrder={handlePlaceOrder} placingShopId={placingSupplierId} />
+
+          <AnimatePresence>
+            {compareOpen && (
+              <>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCompareOpen(false)} className="fixed inset-0 z-40 bg-black/60" />
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-x-4 top-16 z-50 mx-auto max-w-4xl overflow-x-auto rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-display text-lg font-semibold text-ink">Compare Suppliers</h3>
+                    <button onClick={() => setCompareOpen(false)} className="text-ink/40 hover:text-ink">✕</button>
+                  </div>
+                  <table className="w-full min-w-[560px] border-collapse text-sm">
+                    <tbody>
+                      {[
+                        ['Supplier', (i) => i.supplier.businessName],
+                        ['Product', (i) => i.productName || i.material.name],
+                        ['Price', (i) => (i.price ? `${formatPrice(i.price.price)} / ${i.price.unit}` : '—')],
+                        ['Stock', (i) => (STOCK_LABEL[i.inventory.stockStatus] || STOCK_LABEL.UNKNOWN).text],
+                        ['Distance', (i) => (i.distanceKm != null ? `${i.distanceKm} km` : '—')],
+                        ['Rating', (i) => (i.supplier.rating != null ? Number(i.supplier.rating).toFixed(1) : '—')],
+                        ['Delivery', (i) => (i.supplier.deliveryAvailable ? 'Available' : 'Pickup only')],
+                      ].map(([label, get]) => (
+                        <tr key={label} className="border-b border-ink/5">
+                          <td className="py-2 pr-4 text-xs font-medium text-ink/40">{label}</td>
+                          {compareItems.map((i) => <td key={i.supplierMaterialId} className="py-2 pr-4 text-ink/85">{get(i)}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence>
             {toast && (
-              <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 340, damping: 26 }}
-                className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border border-gold-500/40 bg-navy-900 px-5 py-2.5 text-sm text-ink shadow-2xl"
-              >
-                <span className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-4 w-4 text-emerald-400" /> {toast}
-                </span>
+              <motion.div initial={{ opacity: 0, y: 20, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.9 }} transition={{ type: 'spring', stiffness: 340, damping: 26 }} className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border border-gold-500/40 bg-navy-900 px-5 py-2.5 text-sm text-ink shadow-2xl">
+                <span className="flex items-center gap-2"><CheckCircleIcon className="h-4 w-4 text-emerald-400" /> {toast}</span>
               </motion.div>
             )}
           </AnimatePresence>

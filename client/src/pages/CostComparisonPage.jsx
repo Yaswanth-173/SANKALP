@@ -37,17 +37,41 @@ function deliveryDaysFor(hours) {
   return '3-4 days'
 }
 
-// Brand isn't a separate field in our catalog, but several product names
-// already embed a real manufacturer (e.g. "UltraTech OPC 53 Grade Cement") —
-// this derives a Brand facet from that text instead of fabricating new data.
-// Longer/more specific names are checked first so "Asian Paints" wins over
-// any shorter accidental substring.
-const KNOWN_BRANDS = ['UltraTech', 'ACC', 'Ambuja', 'Asian Paints', 'Havells', 'Kajaria', 'Cera', 'Dalmia', 'JK Cement']
-function deriveBrand(name) {
-  for (const brand of KNOWN_BRANDS) {
-    if (name.includes(brand)) return brand
+// The supplier record stores a delivery radius (km), not a delivery-time
+// estimate — this derives a rough day estimate from that radius purely for
+// this page's existing "Delivery: 1-2 days" display, rather than storing a
+// second, easily-inconsistent ETA field on the backend.
+function etaHoursFromRadius(radiusKm) {
+  if (radiusKm == null) return null
+  if (radiusKm <= 10) return 24
+  if (radiusKm <= 25) return 48
+  if (radiusKm <= 50) return 72
+  return 96
+}
+
+// Maps a /api/materials/search result card (material + supplier + location +
+// inventory + price) onto this page's existing flat "listing" shape, so the
+// rest of this file's filtering/sorting/rendering logic didn't need a rewrite.
+function mapResultToListing(r) {
+  const stockStatus = r.inventory.stockStatus === 'OUT_OF_STOCK' ? 'out_of_stock' : r.inventory.stockStatus === 'LIMITED' ? 'low_stock' : 'in_stock'
+  return {
+    id: r.supplierMaterialId,
+    name: r.productName || r.material.name,
+    unit: r.price?.unit || r.material.unit,
+    price: r.price?.price ?? 0,
+    imageUrl: r.material.imageUrl,
+    stockStatus,
+    brand: r.brand || 'Generic',
+    shopId: r.supplier.id,
+    shopName: r.supplier.businessName,
+    shopAddress: r.location.address,
+    shopCategory: r.supplier.supplierType || 'Materials',
+    shopLocation: r.location.city,
+    shopRating: r.supplier.rating,
+    shopDistanceKm: r.distanceKm,
+    shopDeliveryAvailable: r.supplier.deliveryAvailable,
+    shopDeliveryEtaHours: etaHoursFromRadius(r.supplier.deliveryRadiusKm),
   }
-  return 'Generic'
 }
 
 // Synthetic but deterministic (seeded from the listing id) so the same
@@ -154,7 +178,7 @@ const SORT_OPTIONS = [
 const MAX_COMPARE = 4
 
 function CostComparisonPage() {
-  const [shops, setShops] = useState([])
+  const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [queryInput, setQueryInput] = useState('')
@@ -184,8 +208,8 @@ function CostComparisonPage() {
   useEffect(() => {
     ;(async () => {
       try {
-        const data = await apiFetch('/api/materials/shops')
-        setShops(data.shops)
+        const data = await apiFetch('/api/materials/search?radiusKm=all&pageSize=200')
+        setListings(data.results.map(mapResultToListing))
       } catch (err) {
         setError(err.message)
       } finally {
@@ -194,29 +218,10 @@ function CostComparisonPage() {
     })()
   }, [])
 
-  const listings = useMemo(
-    () =>
-      shops.flatMap((shop) =>
-        shop.products.map((p) => ({
-          ...p,
-          brand: deriveBrand(p.name),
-          shopId: shop.id,
-          shopName: shop.name,
-          shopAddress: shop.address,
-          shopCategory: shop.category,
-          shopLocation: shop.location,
-          shopRating: shop.rating,
-          shopDistanceKm: shop.distanceKm,
-          shopDeliveryAvailable: shop.deliveryAvailable,
-          shopDeliveryEtaHours: shop.deliveryEtaHours,
-        }))
-      ),
-    [shops]
-  )
   const listingById = useMemo(() => new Map(listings.map((l) => [l.id, l])), [listings])
 
-  const categories = useMemo(() => [...new Set(shops.map((s) => s.category))].sort(), [shops])
-  const locations = useMemo(() => [...new Set(shops.map((s) => s.location))].sort(), [shops])
+  const categories = useMemo(() => [...new Set(listings.map((l) => l.shopCategory))].sort(), [listings])
+  const locations = useMemo(() => [...new Set(listings.map((l) => l.shopLocation))].sort(), [listings])
   const priceCeil = useMemo(() => Math.max(100, ...listings.map((l) => l.price)), [listings])
   const effectiveMaxPrice = maxPrice ?? priceCeil
 
@@ -355,7 +360,7 @@ function CostComparisonPage() {
     try {
       await apiFetch('/api/materials/orders', {
         method: 'POST',
-        body: JSON.stringify({ shopId, items: group.items.map((i) => ({ productId: i.id, quantity: i.quantity })) }),
+        body: JSON.stringify({ supplierId: shopId, items: group.items.map((i) => ({ supplierMaterialId: i.id, quantity: i.quantity })) }),
       })
       setCart((prev) => {
         const next = { ...prev }
@@ -375,7 +380,7 @@ function CostComparisonPage() {
     try {
       await apiFetch('/api/materials/orders', {
         method: 'POST',
-        body: JSON.stringify({ shopId: listing.shopId, items: [{ productId: listing.id, quantity: 1 }] }),
+        body: JSON.stringify({ supplierId: listing.shopId, items: [{ supplierMaterialId: listing.id, quantity: 1 }] }),
       })
       showToast(`Order placed for ${listing.name} — check Calendar for delivery`)
     } catch (err) {

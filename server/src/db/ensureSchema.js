@@ -129,66 +129,279 @@ export async function ensureSchema() {
   await query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description VARCHAR(240)')
   await query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(10) NOT NULL DEFAULT 'medium'")
 
-  await query(`
-    CREATE TABLE IF NOT EXISTS material_shops (
-      id VARCHAR(10) PRIMARY KEY,
-      name VARCHAR(160) NOT NULL,
-      category VARCHAR(40) NOT NULL,
-      location VARCHAR(120) NOT NULL,
-      address VARCHAR(240),
-      latitude NUMERIC(9,6),
-      longitude NUMERIC(9,6),
-      rating NUMERIC(2,1),
-      delivery_available BOOLEAN NOT NULL DEFAULT true,
-      delivery_eta_hours INT NOT NULL DEFAULT 48
-    )
-  `)
-  await query('ALTER TABLE material_shops ADD COLUMN IF NOT EXISTS address VARCHAR(240)')
-  await query('ALTER TABLE material_shops ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6)')
-  await query('ALTER TABLE material_shops ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6)')
-  await query('ALTER TABLE material_shops ADD COLUMN IF NOT EXISTS rating NUMERIC(2,1)')
-  await query('ALTER TABLE material_shops ADD COLUMN IF NOT EXISTS delivery_available BOOLEAN NOT NULL DEFAULT true')
-  await query('ALTER TABLE material_shops ADD COLUMN IF NOT EXISTS delivery_eta_hours INT NOT NULL DEFAULT 48')
+  // Materials marketplace v2 (supplier/inventory/price model). This replaces
+  // the old flat material_shops/material_products tables entirely — those
+  // baked "shop" and "product" into single rows with no ownership, no price
+  // history, and no honest verified/unverified distinction. Dropped, not
+  // migrated: no real production orders exist against the old tables yet
+  // (this app's backend has never been live in production), so there is no
+  // real customer data to preserve here.
+  await query('DROP TABLE IF EXISTS material_order_items')
+  await query('DROP TABLE IF EXISTS material_orders')
+  await query('DROP TABLE IF EXISTS material_products')
+  await query('DROP TABLE IF EXISTS material_shops')
 
   await query(`
-    CREATE TABLE IF NOT EXISTS material_products (
-      id VARCHAR(10) PRIMARY KEY,
-      shop_id VARCHAR(10) NOT NULL REFERENCES material_shops(id) ON DELETE CASCADE,
-      name VARCHAR(160) NOT NULL,
-      unit VARCHAR(40) NOT NULL,
-      price NUMERIC(10,2) NOT NULL,
-      icon VARCHAR(20) NOT NULL DEFAULT 'box',
-      image_url TEXT,
-      image_source TEXT,
-      stock_status VARCHAR(20) NOT NULL DEFAULT 'in_stock'
-      ,stock INT NOT NULL DEFAULT 0 CHECK (stock >= 0)
+    CREATE TABLE IF NOT EXISTS material_categories (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(120) NOT NULL,
+      parent_category_id UUID REFERENCES material_categories(id) ON DELETE SET NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
-  await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS image_url TEXT')
-  await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS image_source TEXT')
-  await query("ALTER TABLE material_products ADD COLUMN IF NOT EXISTS stock_status VARCHAR(20) NOT NULL DEFAULT 'in_stock'")
-  await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS stock INT NOT NULL DEFAULT 0')
-  await query('ALTER TABLE material_products ADD COLUMN IF NOT EXISTS min_order_qty INT NOT NULL DEFAULT 1')
-  await query('CREATE INDEX IF NOT EXISTS material_products_shop_idx ON material_products (shop_id)')
+  // Postgres unique constraints treat NULL parent_category_id values as
+  // always-distinct, so a plain UNIQUE(name, parent_category_id) would never
+  // catch duplicate top-level categories — a partial index is needed for
+  // that case specifically; non-top-level names are deduped normally.
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS material_categories_top_level_name_idx
+      ON material_categories (name) WHERE parent_category_id IS NULL
+  `)
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS material_categories_child_name_idx
+      ON material_categories (name, parent_category_id) WHERE parent_category_id IS NOT NULL
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS brands (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(120) NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS materials (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(200) NOT NULL UNIQUE,
+      category_id UUID REFERENCES material_categories(id) ON DELETE SET NULL,
+      subcategory_id UUID REFERENCES material_categories(id) ON DELETE SET NULL,
+      brand_id UUID REFERENCES brands(id) ON DELETE SET NULL,
+      description TEXT,
+      specification TEXT,
+      grade VARCHAR(80),
+      unit VARCHAR(40) NOT NULL,
+      image_url TEXT,
+      image_source TEXT,
+      search_keywords TEXT,
+      active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS materials_category_idx ON materials (category_id)')
+  await query('CREATE INDEX IF NOT EXISTS materials_brand_idx ON materials (brand_id)')
+  await query(`
+    CREATE INDEX IF NOT EXISTS materials_search_idx ON materials
+      USING gin (to_tsvector('english', name || ' ' || coalesce(search_keywords, '')))
+  `)
+
+  // A supplier is a business, not a login — user_id is only set once someone
+  // actually registers/claims it (POST /api/suppliers/register), so admin
+  // import or future data-partner ingestion can create supplier rows nobody
+  // has claimed yet. verification_status starts 'pending' and is never
+  // 'verified' except via an explicit admin action recorded in
+  // supplier_verifications below.
+  await query(`
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      business_name VARCHAR(200) NOT NULL,
+      owner_name VARCHAR(160),
+      phone VARCHAR(20),
+      whatsapp VARCHAR(20),
+      email VARCHAR(160),
+      gst_number VARCHAR(20),
+      description TEXT,
+      supplier_type VARCHAR(60),
+      verification_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      rating NUMERIC(2,1),
+      review_count INT NOT NULL DEFAULT 0,
+      delivery_available BOOLEAN NOT NULL DEFAULT false,
+      delivery_radius_km INT,
+      minimum_order_value NUMERIC(12,2),
+      source VARCHAR(40) NOT NULL DEFAULT 'registration',
+      source_url TEXT,
+      imported_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CHECK (verification_status IN ('pending', 'verified', 'rejected', 'disabled'))
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS suppliers_user_idx ON suppliers (user_id)')
+  await query('CREATE INDEX IF NOT EXISTS suppliers_verification_idx ON suppliers (verification_status)')
+  // Lets the demo/seed dataset upsert idempotently by name without needing
+  // to fabricate stable UUIDs for it — real registrations (source != 'seed_dataset')
+  // are never constrained by this and can freely share a business name.
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS suppliers_seed_business_name_idx
+      ON suppliers (business_name) WHERE source = 'seed_dataset'
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supplier_locations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      address VARCHAR(240),
+      state VARCHAR(80),
+      district VARCHAR(80),
+      city VARCHAR(80),
+      pincode VARCHAR(10),
+      latitude NUMERIC(9,6) NOT NULL,
+      longitude NUMERIC(9,6) NOT NULL,
+      place_id VARCHAR(120),
+      is_primary BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS supplier_locations_supplier_idx ON supplier_locations (supplier_id)')
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS supplier_locations_primary_idx
+      ON supplier_locations (supplier_id) WHERE is_primary = true
+  `)
+  await query('CREATE INDEX IF NOT EXISTS supplier_locations_geo_idx ON supplier_locations (latitude, longitude)')
+  await query('CREATE INDEX IF NOT EXISTS supplier_locations_city_idx ON supplier_locations (lower(city))')
+  await query('CREATE INDEX IF NOT EXISTS supplier_locations_state_idx ON supplier_locations (lower(state))')
+  await query('CREATE INDEX IF NOT EXISTS supplier_locations_pincode_idx ON supplier_locations (pincode)')
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supplier_materials (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      material_id UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+      brand VARCHAR(120),
+      product_name VARCHAR(200),
+      specification TEXT,
+      grade VARCHAR(80),
+      unit VARCHAR(40) NOT NULL,
+      minimum_order_quantity INT NOT NULL DEFAULT 1,
+      available BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (supplier_id, material_id)
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS supplier_materials_supplier_idx ON supplier_materials (supplier_id)')
+  await query('CREATE INDEX IF NOT EXISTS supplier_materials_material_idx ON supplier_materials (material_id)')
+
+  // 1:1 with supplier_materials — current stock snapshot only. Never
+  // defaults to IN_STOCK: an un-set inventory row means UNKNOWN, not "in
+  // stock", so the UI can never imply availability nobody actually reported.
+  await query(`
+    CREATE TABLE IF NOT EXISTS inventory (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_material_id UUID NOT NULL UNIQUE REFERENCES supplier_materials(id) ON DELETE CASCADE,
+      quantity NUMERIC(12,2),
+      stock_status VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN',
+      last_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      source VARCHAR(40) NOT NULL DEFAULT 'seed_dataset',
+      verified BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CHECK (stock_status IN ('IN_STOCK', 'LIMITED', 'OUT_OF_STOCK', 'ON_REQUEST', 'UNKNOWN'))
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS inventory_supplier_material_idx ON inventory (supplier_material_id)')
+
+  // Append-only price history: an update closes the current row
+  // (valid_until = now()) and inserts a new one, rather than overwriting in
+  // place, so "price last updated X ago" is always answerable from real data.
+  await query(`
+    CREATE TABLE IF NOT EXISTS material_prices (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_material_id UUID NOT NULL REFERENCES supplier_materials(id) ON DELETE CASCADE,
+      price NUMERIC(10,2) NOT NULL,
+      currency VARCHAR(8) NOT NULL DEFAULT 'INR',
+      unit VARCHAR(40) NOT NULL,
+      minimum_quantity INT NOT NULL DEFAULT 1,
+      bulk_price NUMERIC(10,2),
+      gst_included BOOLEAN NOT NULL DEFAULT true,
+      valid_from TIMESTAMPTZ NOT NULL DEFAULT now(),
+      valid_until TIMESTAMPTZ,
+      source VARCHAR(40) NOT NULL DEFAULT 'seed_dataset',
+      verified BOOLEAN NOT NULL DEFAULT false,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS material_prices_sm_idx ON material_prices (supplier_material_id, valid_from DESC)')
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS material_prices_current_idx
+      ON material_prices (supplier_material_id) WHERE valid_until IS NULL
+  `)
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supplier_hours (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+      opens_at TIME,
+      closes_at TIME,
+      closed BOOLEAN NOT NULL DEFAULT false,
+      UNIQUE (supplier_id, day_of_week)
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS supplier_hours_supplier_idx ON supplier_hours (supplier_id)')
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supplier_delivery_zones (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      pincode VARCHAR(10),
+      city VARCHAR(80),
+      radius_km INT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS supplier_delivery_zones_supplier_idx ON supplier_delivery_zones (supplier_id)')
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supplier_reviews (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      comment TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (supplier_id, user_id)
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS supplier_reviews_supplier_idx ON supplier_reviews (supplier_id, created_at DESC)')
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS supplier_verifications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+      reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      status VARCHAR(20) NOT NULL,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CHECK (status IN ('approved', 'rejected'))
+    )
+  `)
+  await query('CREATE INDEX IF NOT EXISTS supplier_verifications_supplier_idx ON supplier_verifications (supplier_id, created_at DESC)')
 
   await query(`
     CREATE TABLE IF NOT EXISTS material_orders (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       seq SERIAL,
-      shop_id VARCHAR(10) NOT NULL REFERENCES material_shops(id),
+      supplier_id UUID NOT NULL REFERENCES suppliers(id),
       total_amount NUMERIC(12,2) NOT NULL,
       status VARCHAR(20) NOT NULL DEFAULT 'placed',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
   await query('CREATE INDEX IF NOT EXISTS material_orders_user_idx ON material_orders (user_id, created_at DESC)')
+  await query('CREATE INDEX IF NOT EXISTS material_orders_supplier_idx ON material_orders (supplier_id)')
 
   await query(`
     CREATE TABLE IF NOT EXISTS material_order_items (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       order_id UUID NOT NULL REFERENCES material_orders(id) ON DELETE CASCADE,
-      product_name VARCHAR(160) NOT NULL,
+      supplier_material_id UUID REFERENCES supplier_materials(id) ON DELETE SET NULL,
+      product_name VARCHAR(200) NOT NULL,
       unit VARCHAR(40) NOT NULL,
       unit_price NUMERIC(10,2) NOT NULL,
       quantity INT NOT NULL
