@@ -1,9 +1,9 @@
 import 'dotenv/config'
-import app from '../server/src/app.js'
-import { connectMongo, ensureCollectionValidators } from '../server/src/config/mongo.js'
-import { seedContractorsMongo } from '../server/src/db/seedContractorsMongo.js'
-import { seedMaterialsMongo } from '../server/src/db/seedMaterialsMongo.js'
-import { seedBudgetCategoriesMongo } from '../server/src/db/seedBudgetCategoriesMongo.js'
+import app from '../backend/src/app.js'
+import { connectMongo, ensureCollectionValidators } from '../backend/src/config/mongo.js'
+import { seedContractorsMongo } from '../backend/src/db/seedContractorsMongo.js'
+import { seedMaterialsMongo } from '../backend/src/db/seedMaterialsMongo.js'
+import { seedBudgetCategoriesMongo } from '../backend/src/db/seedBudgetCategoriesMongo.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 

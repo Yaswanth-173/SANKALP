@@ -53,7 +53,7 @@ const PRIORITY_STYLES = {
   low: 'bg-success/10 text-success',
 }
 
-// Mirrors server/src/controllers/progressController.js's MILESTONES —
+// Mirrors backend/src/controllers/progressController.js's MILESTONES —
 // thresholds only, used client-side purely to tag which phase an update's
 // progress % falls into (see milestoneTagFor below).
 const MILESTONE_THRESHOLDS = [
@@ -289,7 +289,7 @@ function ProgressUpdatesPage() {
   // Contractors already attached to this project (assignable to tasks) vs.
   // the full directory (used to pick who to attach next). Two different
   // lists on purpose — a task can only be assigned to someone already on
-  // the project, per server/src/controllers/tasksController.js's assignTask.
+  // the project, per backend/src/controllers/tasksController.js's assignTask.
   const [projectContractors, setProjectContractors] = useState([])
   const [directory, setDirectory] = useState([])
   const [showAssignContractor, setShowAssignContractor] = useState(false)
@@ -457,7 +457,7 @@ function ProgressUpdatesPage() {
   }, [updates, feedAuthor, feedPhotosOnly, feedSort])
 
   // Which phase an update's progress % lands in — mirrors the thresholds in
-  // server/src/controllers/progressController.js's MILESTONES (kept in sync
+  // backend/src/controllers/progressController.js's MILESTONES (kept in sync
   // manually, same pattern as BUDGET_CATEGORIES) — used only for a small
   // contextual tag on the feed, derived from the update's own real % value.
   const milestoneTagFor = (progressPercent) => {

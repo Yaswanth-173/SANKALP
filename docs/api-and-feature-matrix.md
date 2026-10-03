@@ -9,7 +9,7 @@ The deployed frontend currently calls the existing Express API. The live backend
 | Login/session | `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout` | `httpOnly` cookie; owner resolved from session | Rate limited, verified email required, no token in JSON |
 | Password reset | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | Hashed reset OTP on user | Generic response, expiry, server-side password validation |
 | Profile/preferences | `PATCH /api/auth/profile`, `PATCH /api/auth/preferences` | Authenticated owner only | No user id accepted from client |
-| Materials/suppliers | `GET /api/materials/search`, `GET /api/materials/:id/suppliers`, `GET /api/suppliers/nearby`, `GET /api/suppliers/:id` | Catalog read; authenticated | Supplier/material/inventory/price model (see `server/src/db/ensureSchema.js`); distance is server-side Haversine with a lat/lng bounding-box pre-filter for index use |
+| Materials/suppliers | `GET /api/materials/search`, `GET /api/materials/:id/suppliers`, `GET /api/suppliers/nearby`, `GET /api/suppliers/:id` | Catalog read; authenticated | Supplier/material/inventory/price model (see `backend/src/db/ensureSchema.js`); distance is server-side Haversine with a lat/lng bounding-box pre-filter for index use |
 | Supplier registration/verification | `POST /api/suppliers/register`, `GET/PATCH /api/suppliers/mine(/materials)`, `POST /api/supplier-materials`, admin-only `GET /api/suppliers/admin/pending`, `PATCH /api/suppliers/:id/verify(/disable)` | Ownership checked per supplier/user; admin-only verification | New suppliers are `verification_status: 'pending'` until an admin approves them — never shown "Verified" otherwise |
 | Orders | `GET /api/materials/orders`, `POST /api/materials/orders` | Orders filtered by authenticated user | Prices/inventory read from `material_prices`/`inventory`, rows locked, stock checked/decremented in transaction |
 | Contractors | `GET /api/contractors` | Authenticated catalog read | Separate contractor data, not material products |
@@ -20,7 +20,7 @@ The deployed frontend currently calls the existing Express API. The live backend
 
 ## Database and backend deployment
 
-For the current application, provision any reachable PostgreSQL database and set `DATABASE_URL` in the backend deployment. On startup, `server/src/db/ensureSchema.js` creates the live tables and the seeders populate contractor and material data. The current API does not use Supabase Auth, Supabase PostgREST, Supabase Storage, or Supabase Row Level Security.
+For the current application, provision any reachable PostgreSQL database and set `DATABASE_URL` in the backend deployment. On startup, `backend/src/db/ensureSchema.js` creates the live tables and the seeders populate contractor and material data. The current API does not use Supabase Auth, Supabase PostgREST, Supabase Storage, or Supabase Row Level Security.
 
 The repository intentionally has no `supabase/` integration. Supabase can still be used as the PostgreSQL host by supplying its connection string as `DATABASE_URL`, but it is then PostgreSQL only: the server continues to use `pg` and its existing schema. Do not add Supabase Auth, PostgREST, or RLS claims unless the runtime is deliberately migrated and tested.
 

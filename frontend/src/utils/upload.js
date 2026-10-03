@@ -25,7 +25,7 @@ async function parseErrorResponse(res) {
 
 // Uploads are project-scoped (POST /api/projects/:id/files/...) so the
 // server can check project membership before a file ever gets a
-// project_files row — see server/src/controllers/filesController.js. The
+// project_files row — see backend/src/controllers/filesController.js. The
 // returned url is later read back through GET /api/files/:fileId, which
 // re-checks that same membership on every read, not served from a public
 // static path.

@@ -2,7 +2,7 @@ services:
   - type: web
     name: sankalp-api
     runtime: node
-    rootDir: server
+    rootDir: backend
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /api/health
@@ -12,7 +12,7 @@ services:
       - key: MONGODB_URI
         sync: false
       # Legacy — the app no longer connects to Postgres. Left declared only
-      # until DATABASE_URL is fully retired; see server/.env.example.
+      # until DATABASE_URL is fully retired; see backend/.env.example.
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET

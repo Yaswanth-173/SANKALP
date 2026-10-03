@@ -11,7 +11,7 @@ build/
 Thumbs.db
 
 # Unused scratch artifacts left at the project root from earlier work
-# (not referenced by any code — the real data lives under server/src/data/)
+# (not referenced by any code — the real data lives under backend/src/data/)
 /sankalp_51_contractor_icons_preview.png
 /sankalp_51_contractors_357_members.csv
 
@@ -20,9 +20,9 @@ Thumbs.db
 atlas-credentials.env
 
 # User-uploaded files (receipts, site photos) — real user content, not
-# source; local disk storage only (see server/src/middleware/upload.js).
-server/uploads/*
-!server/uploads/.gitkeep
+# source; local disk storage only (see backend/src/middleware/upload.js).
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 .vercel
 .env*

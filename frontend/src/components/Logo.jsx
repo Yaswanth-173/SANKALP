@@ -1,6 +1,6 @@
 /**
  * Official Sankalp logo (icon + wordmark + tagline baked into the
- * artwork itself). Sourced from client/public/sankalp-logo.png —
+ * artwork itself). Sourced from frontend/public/sankalp-logo.png —
  * never redraw, recolor, or substitute this asset.
  *
  * The artwork's wordmark is white, so in the light theme it sits on a

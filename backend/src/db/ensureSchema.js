@@ -577,7 +577,7 @@ export async function ensureSchema() {
   }
 
   // File metadata for authorization-gated access. The bytes still live on
-  // disk (see server/src/middleware/upload.js) but nothing is served by a
+  // disk (see backend/src/middleware/upload.js) but nothing is served by a
   // guessable static URL any more — every read checks this row's project_id
   // against the requester's project membership first.
   await query(`

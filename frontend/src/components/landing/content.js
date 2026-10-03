@@ -64,8 +64,8 @@ export const PLATFORM = {
   features: ['contractors', 'tasks', 'materials', 'costComparison', 'progress', 'budget'],
 }
 
-// Product photos self-hosted in client/public/materials (names match the
-// seeded catalog in server/src/db/seedMaterials*.js).
+// Product photos self-hosted in frontend/public/materials (names match the
+// seeded catalog in backend/src/db/seedMaterials*.js).
 export const MATERIALS = [
   { slug: 'cement-opc', name: 'OPC 53 Cement' },
   { slug: 'steel-tmt-12mm', name: 'TMT Bar 12mm' },
@@ -96,7 +96,7 @@ export const MATERIALS = [
 ]
 
 // Number of products in the seeded materials catalog
-// (server/src/db/seedMaterials*.js — 44 products across 15 categories).
+// (backend/src/db/seedMaterials*.js — 44 products across 15 categories).
 const CATALOG_MATERIALS = 44
 
 export const CONTRACTOR_CATEGORIES = [FULL_HOUSE, ...ALL_CATEGORIES]

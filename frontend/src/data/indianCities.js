@@ -2,7 +2,7 @@
 // across the app (Settings, Sidebar picker, Materials location matching).
 // Not exhaustive of every municipality/village — a practical, curated list
 // of major cities and important towns. Kept in sync manually with the
-// equivalent copy in server/src/db/seedMaterials.js (also used there to
+// equivalent copy in backend/src/db/seedMaterials.js (also used there to
 // generate a starter shop per location).
 export const STATE_CITIES = {
   'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Tirupati', 'Nellore', 'Kurnool', 'Rajahmundry', 'Kadapa', 'Anantapur', 'Eluru', 'Ongole', 'Srikakulam', 'Vizianagaram', 'Machilipatnam', 'Tenali', 'Chittoor', 'Hindupur', 'Bhimavaram', 'Proddatur', 'Narasaraopet', 'Markapur', 'Gudivada', 'Tadipatri'],

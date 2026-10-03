@@ -2,10 +2,10 @@
 
 ## Architecture
 
-- Frontend: Vercel, built from `client/`.
+- Frontend: Vercel, built from `frontend/`.
 - Backend: Render web service defined in `render.yaml`.
 - Database: any reachable PostgreSQL provider. The active backend uses `pg` and `DATABASE_URL`.
-- Email: Gmail SMTP using an app password, or replace `server/src/utils/mailer.js` with another transactional provider.
+- Email: Gmail SMTP using an app password, or replace `backend/src/utils/mailer.js` with another transactional provider.
 
 ## Render
 
@@ -17,7 +17,7 @@
 
 ## Database options
 
-Any Postgres works — `server/src/config/db.js` picks SSL on or off automatically based on the host in `DATABASE_URL` (off for `localhost`/`127.0.0.1`, on with `rejectUnauthorized: false` for everything else, which is what every managed provider below needs). No code changes required to switch providers.
+Any Postgres works — `backend/src/config/db.js` picks SSL on or off automatically based on the host in `DATABASE_URL` (off for `localhost`/`127.0.0.1`, on with `rejectUnauthorized: false` for everything else, which is what every managed provider below needs). No code changes required to switch providers.
 
 - **Supabase** (free tier): Project Settings → Database → Connection string → URI. Either the direct connection (port 5432) or the pooled one (port 6543, recommended for a small always-on web service) works — paste it straight into `DATABASE_URL`.
 - **Render Postgres** (free tier, same account as the web service): use the "Internal Database URL" it gives you.
@@ -43,9 +43,9 @@ Without `GMAIL_USER` and `GMAIL_APP_PASSWORD`, verification and password-reset m
 
 ```powershell
 npm install
-npm install --prefix client
-npm install --prefix server
-npm test --prefix server
-npm run lint --prefix client
+npm install --prefix frontend
+npm install --prefix backend
+npm test --prefix backend
+npm run lint --prefix frontend
 npm run build
 ```

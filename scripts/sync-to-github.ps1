@@ -5,7 +5,7 @@
 
   .PARAMETER Message
     Optional commit message. If omitted, one is generated from the changed
-    top-level paths (e.g. "Update client/src/pages, server/src/db").
+    top-level paths (e.g. "Update frontend/src/pages, backend/src/db").
 #>
 param(
   [string]$Message
@@ -39,9 +39,9 @@ Write-Host "[sync] branch -> $branch" -ForegroundColor Cyan
 
 git fetch origin *> $null 2>&1
 
-# 4. Build the client first - do NOT stage/commit/push if this fails
-Write-Host "`n[sync] Running client build (npm run build)..." -ForegroundColor Cyan
-Push-Location (Join-Path $repoRoot 'client')
+# 4. Build the frontend first - do NOT stage/commit/push if this fails
+Write-Host "`n[sync] Running frontend build (npm run build)..." -ForegroundColor Cyan
+Push-Location (Join-Path $repoRoot 'frontend')
 npm run build
 $buildExitCode = $LASTEXITCODE
 Pop-Location

@@ -19,7 +19,7 @@ async function main() {
   const uri = process.env.MONGODB_URI
 
   if (!uri) {
-    console.log('Result: FAILED — MONGODB_URI is not set in server/.env')
+    console.log('Result: FAILED — MONGODB_URI is not set in backend/.env')
     process.exitCode = 1
     return
   }

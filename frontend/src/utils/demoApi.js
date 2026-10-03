@@ -12,8 +12,8 @@ const DEMO_USER = {
 const STORAGE_KEY = 'sankalp_demo_data'
 const id = () => `demo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
-// Mirrors server/src/db/ensureSchema.js's seeded defaults and
-// server/src/controllers/progressController.js's MILESTONES thresholds —
+// Mirrors backend/src/db/ensureSchema.js's seeded defaults and
+// backend/src/controllers/progressController.js's MILESTONES thresholds —
 // the demo layer has no server to ask, so these are the same fixed values
 // the real backend would otherwise supply.
 const DEMO_BUDGET_CATEGORIES = ['Foundation', 'Structure', 'Electrical', 'Plumbing', 'Finishing', 'Others']

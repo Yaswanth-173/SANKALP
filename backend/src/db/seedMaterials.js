@@ -83,7 +83,7 @@ const SAFETY_PRODUCTS = [
   { name: 'Safety Vest', unit: 'piece', price: 280, brand: null, grade: null },
 ]
 
-// Verified real product photographs, self-hosted under client/public/materials/
+// Verified real product photographs, self-hosted under frontend/public/materials/
 // (hotlinking Wikimedia Commons triggered Chrome's Opaque Response Blocking
 // for a large fraction of files). `source` keeps the original page for
 // attribution; never claim these are official manufacturer photos.
