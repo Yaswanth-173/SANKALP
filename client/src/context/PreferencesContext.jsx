@@ -33,7 +33,7 @@ function spawnThemeRipple(x, y, radius) {
   ripple.style.setProperty('--rx', `${x}px`)
   ripple.style.setProperty('--ry', `${y}px`)
   ripple.style.setProperty('--rr', `${radius}px`)
-  ripple.style.setProperty('--ripple-color', 'rgba(234, 180, 36, 0.85)')
+  ripple.style.setProperty('--ripple-color', 'rgba(245, 165, 36, 0.85)')
   document.body.appendChild(ripple)
   requestAnimationFrame(() => ripple.classList.add('is-active'))
   ripple.addEventListener('animationend', () => ripple.remove(), { once: true })

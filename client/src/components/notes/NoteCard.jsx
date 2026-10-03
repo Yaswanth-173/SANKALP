@@ -111,7 +111,7 @@ function NoteCard({ note, onSave, onDelete, index = 0 }) {
               onClick={handleDelete}
               disabled={deleting}
               aria-label="Delete note"
-              className="ml-1 rounded-md p-1 text-ink/30 hover:bg-red-400/10 hover:text-red-400"
+              className="ml-1 rounded-md p-1 text-fg-subtle hover:bg-danger/10 hover:text-danger"
             >
               {deleting ? (
                 <Spinner className="h-3.5 w-3.5" />
@@ -143,14 +143,14 @@ function NoteCard({ note, onSave, onDelete, index = 0 }) {
                 }
               }}
               rows={5}
-              className="w-full resize-none bg-transparent text-sm text-ink outline-none placeholder:text-ink/30"
+              className="w-full resize-none bg-transparent text-sm text-ink outline-none placeholder:text-fg-subtle"
             />
           ) : (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/85">{note.content}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-fg">{note.content}</p>
           )}
         </div>
 
-        <div style={{ transform: 'translateZ(10px)' }} className="mt-3 flex items-center justify-between text-[11px] text-ink/30">
+        <div style={{ transform: 'translateZ(10px)' }} className="mt-3 flex items-center justify-between text-xs text-fg-subtle">
           <span>{formatTimestamp(note.updatedAt, language)}</span>
           {saving && <Spinner className="h-3 w-3" />}
         </div>

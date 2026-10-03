@@ -137,7 +137,7 @@ function SignUpPage() {
       footer={
         <>
           {t('auth.signup.alreadyHaveAccount')}{' '}
-          <Link to="/login" className="font-medium text-gold-400 hover:text-gold-300">
+          <Link to="/login" className="font-medium text-accent hover:text-accent-hover">
             {t('auth.signup.signIn')}
           </Link>
         </>
@@ -155,14 +155,14 @@ function SignUpPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-gold-500/15 text-gold-400"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gold-500/15 text-accent"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-7 w-7">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </motion.div>
             <p className="font-display text-lg font-semibold text-ink">{t('auth.signup.successTitle')}</p>
-            <p className="text-sm text-ink/60">{t('auth.signup.successSubtitle')}</p>
+            <p className="text-sm text-fg-muted">{t('auth.signup.successSubtitle')}</p>
           </motion.div>
         ) : status === 'verify' ? (
           <motion.form
@@ -172,8 +172,8 @@ function SignUpPage() {
             onSubmit={handleVerify}
             className="flex flex-col gap-4"
           >
-            {formError && <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-300" role="alert">{formError}</p>}
-            <p className="text-sm text-ink/60">Enter the 6-digit code sent to {form.email}.</p>
+            {formError && <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">{formError}</p>}
+            <p className="text-sm text-fg-muted">Enter the 6-digit code sent to {form.email}.</p>
             <FormField
               id="otp"
               label="Email verification code"
@@ -183,11 +183,11 @@ function SignUpPage() {
               placeholder="123456"
               autoComplete="one-time-code"
             />
-            <button type="submit" disabled={status === 'submitting'} className="group relative mt-2 flex items-center justify-center gap-2 overflow-hidden rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal transition-all duration-300 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-70">
+            <button type="submit" disabled={status === 'submitting'} className="btn btn-primary mt-2">
               {status === 'submitting' && <Spinner className="h-4 w-4" />}
               Verify email
             </button>
-            <button type="button" onClick={handleResend} className="text-sm text-gold-400 hover:text-gold-300">Resend code</button>
+            <button type="button" onClick={handleResend} className="text-sm text-accent hover:text-accent-hover">Resend code</button>
           </motion.form>
         ) : (
           <motion.form
@@ -203,7 +203,7 @@ function SignUpPage() {
               <motion.p
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-300"
+                className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
                 role="alert"
               >
                 {formError}
@@ -285,7 +285,7 @@ function SignUpPage() {
             <button
               type="submit"
               disabled={status === 'submitting'}
-              className="group relative mt-2 flex items-center justify-center gap-2 overflow-hidden rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal transition-all duration-300 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className="btn btn-primary mt-2"
             >
               {status === 'submitting' && <Spinner className="h-4 w-4" />}
               {status === 'submitting' ? t('auth.signup.submitting') : t('auth.signup.submit')}

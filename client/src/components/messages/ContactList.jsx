@@ -29,7 +29,7 @@ function ContactList({ contacts, activeId, onSelect, onDelete, onAddClick }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-1 pb-3">
-        <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-ink/50">
+        <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-fg-subtle">
           {t('messages.yourDeals')}
         </h3>
         <button
@@ -43,7 +43,7 @@ function ContactList({ contacts, activeId, onSelect, onDelete, onAddClick }) {
 
       <div className="flex-1 space-y-1.5 overflow-y-auto">
         {contacts.length === 0 && (
-          <p className="px-1 py-4 text-sm text-ink/40">{t('messages.noDeals')}</p>
+          <p className="px-1 py-4 text-sm text-fg-subtle">{t('messages.noDeals')}</p>
         )}
         <AnimatePresence initial={false}>
           {contacts.map((c, i) => {
@@ -72,14 +72,14 @@ function ContactList({ contacts, activeId, onSelect, onDelete, onAddClick }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-medium text-ink">{c.name}</span>
-                    <span className="shrink-0 text-[11px] text-ink/30">{formatWhen(c.lastMessageAt, language)}</span>
+                    <span className="shrink-0 text-xs text-fg-subtle">{formatWhen(c.lastMessageAt, language)}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-                    <span className="text-[11px] text-ink/40">{t(cfg.labelKey)}</span>
+                    <span className="text-xs text-fg-subtle">{t(cfg.labelKey)}</span>
                   </div>
                   {c.lastMessagePreview && (
-                    <p className="mt-0.5 truncate text-xs text-ink/40">{c.lastMessagePreview}</p>
+                    <p className="mt-0.5 truncate text-xs text-fg-subtle">{c.lastMessagePreview}</p>
                   )}
                 </div>
                 <button
@@ -88,7 +88,7 @@ function ContactList({ contacts, activeId, onSelect, onDelete, onAddClick }) {
                     onDelete(c.id)
                   }}
                   aria-label={`Remove ${c.name}`}
-                  className="shrink-0 rounded-md p-1 text-ink/0 group-hover:text-ink/30 hover:!text-red-400 hover:bg-red-400/10"
+                  className="shrink-0 rounded-md p-1 text-ink/0 group-hover:text-fg-subtle hover:!text-red-400 hover:bg-danger/10"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-3.5 w-3.5">
                     <path strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />

@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { NavLink, useNavigate } from 'react-router-dom'
 import LogoTilt from '../LogoTilt.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -37,17 +36,12 @@ function Sidebar({ onClose, navItems: navItemsProp }) {
   }
 
   return (
-    <motion.aside
-      initial={{ opacity: 0, x: -24 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="flex h-full w-64 shrink-0 flex-col border-r border-ink/10 bg-navy-900/80 px-4 py-5"
-    >
-      <div className="flex items-center justify-between">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-line bg-surface/90 px-3 py-4 backdrop-blur-xl lg:sticky lg:top-0 lg:h-svh">
+      <div className="flex items-center justify-between px-1">
         <button
           onClick={() => navigate('/')}
           aria-label="Back to home"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-ink/50 transition-colors duration-200 hover:bg-ink/5 hover:text-ink"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-fg-subtle transition-colors duration-200 hover:bg-ink/5 hover:text-fg"
         >
           <BackArrowIcon className="h-4.5 w-4.5" />
         </button>
@@ -55,18 +49,19 @@ function Sidebar({ onClose, navItems: navItemsProp }) {
           <button
             onClick={onClose}
             aria-label="Close menu"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-ink/50 hover:bg-ink/5 hover:text-ink lg:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-fg-subtle hover:bg-ink/5 hover:text-fg lg:hidden"
           >
             <CloseIcon className="h-4.5 w-4.5" />
           </button>
         )}
       </div>
 
-      <div className="mt-4 flex justify-center py-2">
-        <LogoTilt className="h-20 w-auto" entrance={false} />
+      <div className="mt-3 flex justify-center pb-4">
+        <LogoTilt className="h-14 w-auto" entrance={false} />
       </div>
 
-      <nav className="mt-2 flex flex-1 flex-col gap-1.5">
+      <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.18em] text-fg-subtle">Menu</p>
+      <nav aria-label="Dashboard" className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {navItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -74,27 +69,30 @@ function Sidebar({ onClose, navItems: navItemsProp }) {
             end={end}
             onClick={onClose}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'border-gold-500/40 bg-gold-500/10 text-gold-300'
-                  : 'border-transparent text-ink/60 hover:border-ink/10 hover:bg-ink/5 hover:text-ink'
+              `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
+                isActive ? 'bg-gold-500/10 text-accent' : 'text-fg-muted hover:bg-ink/5 hover:text-fg'
               }`
             }
           >
-            <Icon className="h-5 w-5 shrink-0" />
-            {label}
+            {({ isActive }) => (
+              <>
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-y-2 left-0 w-0.5 rounded-full bg-gold-500 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                />
+                <Icon className="h-5 w-5 shrink-0" />
+                {label}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      <button
-        onClick={handleLogout}
-        className="flex items-center gap-3 rounded-xl border border-red-400/20 px-3.5 py-2.5 text-sm font-medium text-red-400 transition-colors duration-200 hover:bg-red-400/10"
-      >
+      <button onClick={handleLogout} className="btn btn-danger mt-3 justify-start">
         <LogoutIcon className="h-5 w-5" />
         {t('nav.logout')}
       </button>
-    </motion.aside>
+    </aside>
   )
 }
 

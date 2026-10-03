@@ -40,7 +40,7 @@ function ContractorCard({ category, index = 0, featured = false, inCart = false,
       }`}
     >
       {featured && (
-        <span className="absolute right-4 top-4 rounded-full bg-gold-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-gold-300">
+        <span className="absolute right-4 top-4 rounded-full bg-gold-500/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-accent">
           Complete Solution
         </span>
       )}
@@ -55,7 +55,7 @@ function ContractorCard({ category, index = 0, featured = false, inCart = false,
       <h3 className={`mt-4 font-display font-semibold text-ink ${featured ? 'text-lg' : 'text-base'}`}>
         {category.name}
       </h3>
-      <p className="mt-1.5 flex-1 text-sm leading-relaxed text-ink/55">{category.description}</p>
+      <p className="mt-1.5 flex-1 text-sm leading-relaxed text-fg-muted">{category.description}</p>
 
       <div className="mt-4 flex items-center gap-2">
         <button
@@ -63,7 +63,7 @@ function ContractorCard({ category, index = 0, featured = false, inCart = false,
             e.stopPropagation()
             navigate(`/dashboard/contractors/${category.slug}`)
           }}
-          className="flex-1 rounded-lg border border-ink/15 px-3 py-2 text-xs font-medium text-ink/70 transition-colors duration-200 hover:border-gold-500/40 hover:text-ink"
+          className="flex-1 rounded-lg border border-ink/15 px-3 py-2 text-xs font-medium text-fg-muted transition-colors duration-200 hover:border-gold-500/40 hover:text-ink"
         >
           Details
         </button>
@@ -72,7 +72,7 @@ function ContractorCard({ category, index = 0, featured = false, inCart = false,
           disabled={busy}
           className={`group/cart flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors duration-200 ${
             inCart
-              ? 'bg-emerald-500/15 text-emerald-400 hover:bg-red-400/15 hover:text-red-400'
+              ? 'bg-success/15 text-success hover:bg-danger/15 hover:text-danger'
               : 'bg-gold-500 text-charcoal hover:bg-gold-400'
           } disabled:cursor-wait disabled:opacity-80`}
         >

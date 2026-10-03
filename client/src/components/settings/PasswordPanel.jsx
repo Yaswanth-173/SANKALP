@@ -58,7 +58,7 @@ function PasswordPanel({ onBack }) {
     <SettingsPanelShell title={t('settings.password.title')} onBack={onBack}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {message && (
-          <p className={`text-sm ${status === 'success' ? 'text-gold-300' : 'text-red-400'}`}>{message}</p>
+          <p className={`text-sm ${status === 'success' ? 'text-accent' : 'text-danger'}`}>{message}</p>
         )}
         <FormField
           id="currentPassword"
@@ -103,7 +103,7 @@ function PasswordPanel({ onBack }) {
         <button
           type="submit"
           disabled={status === 'submitting'}
-          className="flex items-center justify-center gap-2 self-start rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-charcoal transition-colors duration-200 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn btn-primary self-start"
         >
           {status === 'submitting' && <Spinner className="h-4 w-4" />}
           {t('settings.passwordPanel.submit')}

@@ -22,7 +22,7 @@ function CalendarGrid({ year, month, eventsByDate, selectedDate, onSelectDate, t
 
   return (
     <div>
-      <div className="grid grid-cols-7 gap-1.5 pb-2 text-center text-xs font-medium uppercase tracking-wide text-ink/40">
+      <div className="grid grid-cols-7 gap-1.5 pb-2 text-center text-xs font-medium uppercase tracking-wide text-fg-subtle">
         {weekdayLabels.map((d, i) => (
           <span key={i}>{d}</span>
         ))}
@@ -51,7 +51,7 @@ function CalendarGrid({ year, month, eventsByDate, selectedDate, onSelectDate, t
                 scale: 1.08,
                 rotateX: 12,
                 zIndex: 1,
-                boxShadow: '0px 16px 30px -10px rgba(234,180,36,0.4)',
+                boxShadow: '0px 16px 30px -10px rgba(245,165,36,0.4)',
               }}
               whileTap={{ scale: 0.94 }}
               transition={{ type: 'spring', stiffness: 350, damping: 18 }}
@@ -64,7 +64,7 @@ function CalendarGrid({ year, month, eventsByDate, selectedDate, onSelectDate, t
                     : 'border-ink/5 bg-navy-900/40'
               } ${inMonth ? 'text-ink' : 'text-ink/25'}`}
             >
-              <span className={isToday ? 'font-semibold text-gold-400' : ''}>{date.getDate()}</span>
+              <span className={isToday ? 'font-semibold text-accent' : ''}>{date.getDate()}</span>
               {dayEvents.length > 0 && (
                 <span className="flex flex-wrap items-center justify-center gap-0.5">
                   {dayEvents.slice(0, 3).map((ev) => (

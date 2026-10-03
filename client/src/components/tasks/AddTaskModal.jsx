@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import Modal from '../ui/Modal.jsx'
 import Spinner from '../Spinner.jsx'
 import { TYPE_CONFIG, PRIORITY_CONFIG } from './taskIcons.jsx'
 
@@ -50,28 +50,12 @@ function AddTaskModal({ open, onClose, onCreate }) {
   }
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/60"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-            className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
-          >
+    <Modal open={Boolean(open)} onClose={onClose} label="New Report" className="w-full max-w-sm rounded-2xl border border-line bg-surface p-5 shadow-pop">
             <h3 className="font-display text-lg font-semibold text-ink">New Report</h3>
-            <p className="mt-1 text-xs text-ink/50">Log a task, materials request, or site visit for your project.</p>
+            <p className="mt-1 text-xs text-fg-subtle">Log a task, materials request, or site visit for your project.</p>
 
             <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
-              {error && <p className="text-xs text-red-400">{error}</p>}
+              {error && <p className="text-xs text-danger">{error}</p>}
 
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(TYPE_CONFIG).map(([value, cfg]) => (
@@ -80,7 +64,7 @@ function AddTaskModal({ open, onClose, onCreate }) {
                     type="button"
                     onClick={() => setType(value)}
                     className={`rounded-full border px-2.5 py-1 text-xs transition-colors duration-150 ${
-                      type === value ? `border-gold-500/40 ${cfg.color} bg-ink/5` : 'border-ink/10 text-ink/40 hover:text-ink/70'
+                      type === value ? `border-gold-500/40 ${cfg.color} bg-ink/5` : 'border-ink/10 text-fg-subtle hover:text-fg'
                     }`}
                   >
                     {cfg.label}
@@ -95,7 +79,7 @@ function AddTaskModal({ open, onClose, onCreate }) {
                     type="button"
                     onClick={() => setPriority(value)}
                     className={`rounded-full border px-2.5 py-1 text-xs transition-colors duration-150 ${
-                      priority === value ? `${cfg.border} ${cfg.color} bg-ink/5` : 'border-ink/10 text-ink/40 hover:text-ink/70'
+                      priority === value ? `${cfg.border} ${cfg.color} bg-ink/5` : 'border-ink/10 text-fg-subtle hover:text-fg'
                     }`}
                   >
                     {cfg.label} Priority
@@ -107,51 +91,48 @@ function AddTaskModal({ open, onClose, onCreate }) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Request title (e.g. Material Approval)"
-                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/60"
+                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/60"
               />
               <input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (e.g. Approval for bathroom tiles)"
-                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/60"
+                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/60"
               />
               <input
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="Project name"
-                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/60"
+                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/60"
               />
               <input
                 value={projectLocation}
                 onChange={(e) => setProjectLocation(e.target.value)}
                 placeholder="Location (optional)"
-                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/60"
+                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/60"
               />
               <input
                 value={personName}
                 onChange={(e) => setPersonName(e.target.value)}
                 placeholder="Reported by (optional)"
-                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/60"
+                className="rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/60"
               />
 
               <div className="mt-1 flex items-center justify-end gap-2">
-                <button type="button" onClick={onClose} className="text-xs text-ink/40 hover:text-ink/70">
+                <button type="button" onClick={onClose} className="text-xs text-fg-subtle hover:text-fg">
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!title.trim() || status === 'submitting'}
-                  className="flex items-center gap-1.5 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn btn-primary"
                 >
                   {status === 'submitting' && <Spinner className="h-3.5 w-3.5" />}
                   Add Report
                 </button>
               </div>
             </form>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    </Modal>
   )
 }
 

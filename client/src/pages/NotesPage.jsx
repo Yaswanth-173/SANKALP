@@ -57,7 +57,7 @@ function NotesPage() {
             subtitle={t('notes.subtitle')}
           />
 
-          {error && <p className="mt-5 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-5 text-sm text-danger">{error}</p>}
 
           <motion.div
             initial={{ opacity: 0 }}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import Modal from '../ui/Modal.jsx'
 import Spinner from '../Spinner.jsx'
 import { TYPE_CONFIG, PRIORITY_CONFIG } from './taskIcons.jsx'
 
@@ -30,36 +30,20 @@ function TaskDetailModal({ task, onClose, onAdvance, onDelete }) {
   }
 
   return (
-    <AnimatePresence>
-      {task && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/60"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-            className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
-          >
+    <Modal open={Boolean(task)} onClose={onClose} label="Task details" className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 shadow-pop">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-mono text-xs text-ink/35">#{task.displayId}</p>
+                <p className="font-mono text-xs text-fg-subtle">#{task.displayId}</p>
                 <h3 className="mt-1 font-display text-lg font-semibold text-ink">{task.title}</h3>
               </div>
-              <button onClick={onClose} className="rounded-md p-1 text-ink/40 hover:bg-ink/5 hover:text-ink">
+              <button onClick={onClose} className="rounded-md p-1 text-fg-subtle hover:bg-ink/5 hover:text-ink">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
                   <path strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
                 </svg>
               </button>
             </div>
 
-            {task.description && <p className="mt-2 text-sm text-ink/60">{task.description}</p>}
+            {task.description && <p className="mt-2 text-sm text-fg-muted">{task.description}</p>}
 
             <div className="mt-4 flex flex-wrap gap-2">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${typeCfg.bg} ${typeCfg.color}`}>
@@ -72,31 +56,31 @@ function TaskDetailModal({ task, onClose, onAdvance, onDelete }) {
 
             <div className="mt-4 space-y-2.5 rounded-xl border border-ink/10 bg-navy-950/40 p-3.5 text-sm">
               <div className="flex justify-between gap-3">
-                <span className="text-ink/40">Project</span>
-                <span className="text-right text-ink/80">
+                <span className="text-fg-subtle">Project</span>
+                <span className="text-right text-fg">
                   {task.projectName || '—'}
-                  {task.projectLocation && <span className="block text-xs text-ink/40">{task.projectLocation}</span>}
+                  {task.projectLocation && <span className="block text-xs text-fg-subtle">{task.projectLocation}</span>}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-ink/40">Reported On</span>
-                <span className="text-ink/80">{formatDate(task.createdAt)}</span>
+                <span className="text-fg-subtle">Reported On</span>
+                <span className="text-fg">{formatDate(task.createdAt)}</span>
               </div>
               {task.startedAt && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-ink/40">Started On</span>
-                  <span className="text-ink/80">{formatDate(task.startedAt)}</span>
+                  <span className="text-fg-subtle">Started On</span>
+                  <span className="text-fg">{formatDate(task.startedAt)}</span>
                 </div>
               )}
               {task.completedAt && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-ink/40">Completed On</span>
-                  <span className="text-ink/80">{formatDate(task.completedAt)}</span>
+                  <span className="text-fg-subtle">Completed On</span>
+                  <span className="text-fg">{formatDate(task.completedAt)}</span>
                 </div>
               )}
               <div className="flex justify-between gap-3">
-                <span className="text-ink/40">Person</span>
-                <span className="text-ink/80">{task.personName || '—'}</span>
+                <span className="text-fg-subtle">Person</span>
+                <span className="text-fg">{task.personName || '—'}</span>
               </div>
             </div>
 
@@ -104,7 +88,7 @@ function TaskDetailModal({ task, onClose, onAdvance, onDelete }) {
               <button
                 onClick={() => run(() => onDelete(task.id))}
                 disabled={busy}
-                className="rounded-lg px-3 py-2 text-xs font-medium text-red-400 transition-colors hover:bg-red-400/10 disabled:opacity-50"
+                className="rounded-lg px-3 py-2 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
               >
                 Delete Report
               </button>
@@ -112,16 +96,13 @@ function TaskDetailModal({ task, onClose, onAdvance, onDelete }) {
                 <button
                   onClick={() => run(() => onAdvance(task, nextStatus))}
                   disabled={busy}
-                  className="flex items-center gap-1.5 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-50"
+                  className="btn btn-primary"
                 >
                   {busy && <Spinner className="h-3.5 w-3.5" />} {NEXT_LABEL[task.status]}
                 </button>
               )}
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    </Modal>
   )
 }
 

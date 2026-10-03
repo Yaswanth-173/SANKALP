@@ -22,7 +22,7 @@ function ChatThread({ contact, messages, loading, onSend }) {
 
   if (!contact) {
     return (
-      <div className="flex h-full flex-col items-center justify-center text-center text-ink/40">
+      <div className="flex h-full flex-col items-center justify-center text-center text-fg-subtle">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-ink/10 bg-navy-950/60">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5">
             <path d="M4 5h16v11H8l-4 4V5Z" />
@@ -55,17 +55,17 @@ function ChatThread({ contact, messages, loading, onSend }) {
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-ink">{contact.name}</p>
-          <p className="text-xs text-ink/40">{t(cfg.labelKey)}{contact.dealNote ? ` · ${contact.dealNote}` : ''}</p>
+          <p className="text-xs text-fg-subtle">{t(cfg.labelKey)}{contact.dealNote ? ` · ${contact.dealNote}` : ''}</p>
         </div>
       </div>
 
       <div className="flex-1 space-y-2.5 overflow-y-auto px-4 py-4">
         {loading ? (
           <div className="flex h-full items-center justify-center">
-            <Spinner className="h-5 w-5 text-ink/40" />
+            <Spinner className="h-5 w-5 text-fg-subtle" />
           </div>
         ) : messages.length === 0 ? (
-          <p className="text-center text-sm text-ink/30">{t('messages.noMessages')}</p>
+          <p className="text-center text-sm text-fg-subtle">{t('messages.noMessages')}</p>
         ) : (
           <AnimatePresence initial={false}>
             {messages.map((m) => (
@@ -78,7 +78,7 @@ function ChatThread({ contact, messages, loading, onSend }) {
               >
                 <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-gold-500 px-3.5 py-2 text-sm text-charcoal">
                   <p className="whitespace-pre-wrap">{m.content}</p>
-                  <p className="mt-1 text-right text-[10px] text-charcoal/60">{formatTime(m.createdAt, language)}</p>
+                  <p className="mt-1 text-right text-xs text-charcoal/60">{formatTime(m.createdAt, language)}</p>
                 </div>
               </motion.div>
             ))}
@@ -88,7 +88,7 @@ function ChatThread({ contact, messages, loading, onSend }) {
       </div>
 
       <div className="border-t border-ink/10 px-4 py-3">
-        <p className="mb-2 text-[11px] text-ink/30">
+        <p className="mb-2 text-xs text-fg-subtle">
           {t('messages.willReply', { name: contact.name })}
         </p>
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
@@ -96,7 +96,7 @@ function ChatThread({ contact, messages, loading, onSend }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={t('messages.messagePlaceholder', { name: contact.name })}
-            className="flex-1 rounded-full border border-ink/15 bg-navy-950/60 px-4 py-2 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/60"
+            className="flex-1 rounded-full border border-ink/15 bg-navy-950/60 px-4 py-2 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/60"
           />
           <button
             type="submit"

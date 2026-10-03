@@ -1,9 +1,9 @@
-import { DashboardIcon, SettingsIcon } from '../components/dashboard/icons.jsx'
+import { BudgetIcon, ProgressIcon, ProjectsIcon, SettingsIcon } from '../components/dashboard/icons.jsx'
 
 export const supervisorNavItems = [
-  { to: '/supervisor', label: 'Projects', icon: DashboardIcon, end: true },
-  { to: '/dashboard/progress', label: 'Progress Updates', icon: DashboardIcon },
-  { to: '/dashboard/budget', label: 'Budget & Expenses', icon: DashboardIcon },
+  { to: '/supervisor', label: 'Projects', icon: ProjectsIcon, end: true },
+  { to: '/dashboard/progress', label: 'Progress Updates', icon: ProgressIcon },
+  { to: '/dashboard/budget', label: 'Budget & Expenses', icon: BudgetIcon },
   { to: '/dashboard/settings', label: 'Settings', icon: SettingsIcon },
 ]
 
@@ -11,7 +11,7 @@ export const supervisorNavItems = [
 // grants that role budget/expense routes (a contractor's job is the work,
 // not the customer's finances), so there's nothing behind it for them.
 export const contractorNavItems = [
-  { to: '/contractor', label: 'Projects', icon: DashboardIcon, end: true },
-  { to: '/dashboard/progress', label: 'Progress Updates', icon: DashboardIcon },
+  { to: '/contractor', label: 'Projects', icon: ProjectsIcon, end: true },
+  { to: '/dashboard/progress', label: 'Progress Updates', icon: ProgressIcon },
   { to: '/dashboard/settings', label: 'Settings', icon: SettingsIcon },
 ]

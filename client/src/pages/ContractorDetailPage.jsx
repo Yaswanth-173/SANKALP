@@ -88,7 +88,7 @@ function ContractorDetailPage() {
             <DashboardHeader onMenuClick={onMenuClick} title="Not found" subtitle="This contractor category doesn't exist." />
             <button
               onClick={() => navigate('/dashboard/contractors')}
-              className="mt-6 flex items-center gap-2 text-sm text-ink/60 hover:text-ink"
+              className="mt-6 flex items-center gap-2 text-sm text-fg-muted hover:text-ink"
             >
               <BackArrowIcon className="h-4 w-4" /> Back to Contractors
             </button>
@@ -153,14 +153,14 @@ function ContractorDetailPage() {
           {view === 'profile' && company ? (
             <button
               onClick={() => setView('list')}
-              className="mt-5 flex items-center gap-2 text-sm text-ink/50 transition-colors hover:text-ink"
+              className="mt-5 flex items-center gap-2 text-sm text-fg-subtle transition-colors hover:text-ink"
             >
               <BackArrowIcon className="h-4 w-4" /> Back to Team List
             </button>
           ) : (
             <button
               onClick={() => navigate('/dashboard/contractors')}
-              className="mt-5 flex items-center gap-2 text-sm text-ink/50 transition-colors hover:text-ink"
+              className="mt-5 flex items-center gap-2 text-sm text-fg-subtle transition-colors hover:text-ink"
             >
               <BackArrowIcon className="h-4 w-4" /> Back to Contractors
             </button>
@@ -180,25 +180,25 @@ function ContractorDetailPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-display text-xl font-semibold text-ink">{category.name}</h2>
-                      <span className="rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-gold-300">
+                      <span className="rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-accent">
                         {isFullHouse ? 'Full House Construction' : category.groupLabel}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-ink/60">{category.description}</p>
+                    <p className="mt-1 text-sm text-fg-muted">{category.description}</p>
                   </div>
                 </div>
 
                 {isFullHouse ? (
                   <div className="mt-6 rounded-2xl border border-ink/10 bg-navy-900/50 p-6">
-                    <h3 className="font-display text-lg font-semibold text-gold-400">{FULL_HOUSE.packageTitle}</h3>
-                    <p className="mt-1 text-sm text-ink/50">Everything your build needs, coordinated end to end.</p>
+                    <h3 className="font-display text-lg font-semibold text-accent">{FULL_HOUSE.packageTitle}</h3>
+                    <p className="mt-1 text-sm text-fg-subtle">Everything your build needs, coordinated end to end.</p>
                     <div className="mt-5 space-y-1">
                       {FULL_HOUSE.checklist.map((step, i) => (
                         <div key={step} className="flex items-center gap-3 border-b border-ink/5 py-2.5 last:border-b-0">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-gold-400">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-accent">
                             <CheckCircleIcon className="h-4 w-4" />
                           </span>
-                          <span className="text-sm text-ink/80">{step}</span>
+                          <span className="text-sm text-fg">{step}</span>
                           <span className="ml-auto text-xs text-ink/25">Step {i + 1}</span>
                         </div>
                       ))}
@@ -206,12 +206,12 @@ function ContractorDetailPage() {
                   </div>
                 ) : (
                   <div className="mt-6 rounded-2xl border border-ink/10 bg-navy-900/50 p-6">
-                    <h3 className="font-display text-lg font-semibold text-gold-400">Services Offered</h3>
+                    <h3 className="font-display text-lg font-semibold text-accent">Services Offered</h3>
                     <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       {services?.map((service) => (
                         <div key={service} className="flex items-center gap-2.5 rounded-lg border border-ink/10 bg-navy-950/40 px-3 py-2">
-                          <CheckCircleIcon className="h-4 w-4 shrink-0 text-gold-400" />
-                          <span className="text-sm text-ink/80">{service}</span>
+                          <CheckCircleIcon className="h-4 w-4 shrink-0 text-accent" />
+                          <span className="text-sm text-fg">{service}</span>
                         </div>
                       ))}
                     </div>
@@ -220,8 +220,8 @@ function ContractorDetailPage() {
 
                 {category.bestFor && (
                   <div className="mt-6 rounded-2xl border border-ink/10 bg-navy-900/40 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">Best For</p>
-                    <p className="mt-1.5 text-sm text-ink/75">{category.bestFor}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">Best For</p>
+                    <p className="mt-1.5 text-sm text-fg-muted">{category.bestFor}</p>
                   </div>
                 )}
 
@@ -229,7 +229,7 @@ function ContractorDetailPage() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-display text-base font-semibold text-ink">Contractor Profile</h3>
                     {!loadingCompany && (
-                      <span className={`text-xs ${company ? 'text-emerald-400' : 'text-ink/35'}`}>
+                      <span className={`text-xs ${company ? 'text-success' : 'text-fg-subtle'}`}>
                         {company ? 'Verified team on file' : 'Not yet available'}
                       </span>
                     )}
@@ -237,39 +237,39 @@ function ContractorDetailPage() {
 
                   {loadingCompany ? (
                     <div className="mt-6 flex justify-center">
-                      <Spinner className="h-5 w-5 text-ink/40" />
+                      <Spinner className="h-5 w-5 text-fg-subtle" />
                     </div>
                   ) : company ? (
                     <>
-                      <p className="mt-1 text-sm text-ink/50">
+                      <p className="mt-1 text-sm text-fg-subtle">
                         {company.teamSize} verified professionals on this team, ready to take on your project.
                       </p>
                       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                         <div className="rounded-lg border border-ink/10 bg-navy-950/40 px-3 py-2.5 text-center">
-                          <p className="text-xs text-ink/40">Experience</p>
+                          <p className="text-xs text-fg-subtle">Experience</p>
                           <p className="mt-1 text-sm font-semibold text-ink">{company.minExperience}–{company.maxExperience} yrs</p>
                         </div>
                         <div className="rounded-lg border border-ink/10 bg-navy-950/40 px-3 py-2.5 text-center">
-                          <p className="text-xs text-ink/40">Rating</p>
-                          <p className="mt-1 text-sm font-semibold text-gold-300">★ {company.avgRating}/5</p>
+                          <p className="text-xs text-fg-subtle">Rating</p>
+                          <p className="mt-1 text-sm font-semibold text-accent">★ {company.avgRating}/5</p>
                         </div>
                         <div className="rounded-lg border border-ink/10 bg-navy-950/40 px-3 py-2.5 text-center">
-                          <p className="text-xs text-ink/40">Availability</p>
+                          <p className="text-xs text-fg-subtle">Availability</p>
                           <p className="mt-1 text-sm font-semibold text-ink">{company.availableCount}/{company.teamSize} available</p>
                         </div>
                         <div className="rounded-lg border border-ink/10 bg-navy-950/40 px-3 py-2.5 text-center">
-                          <p className="text-xs text-ink/40">Team Size</p>
+                          <p className="text-xs text-fg-subtle">Team Size</p>
                           <p className="mt-1 text-sm font-semibold text-ink">{company.teamSize} people</p>
                         </div>
                         {UNAVAILABLE_STATS.map((label) => (
                           <div key={label} className="rounded-lg border border-dashed border-ink/10 px-3 py-2.5 text-center">
-                            <p className="text-xs text-ink/35">{label}</p>
-                            <p className="mt-1 text-sm font-medium text-ink/30">—</p>
+                            <p className="text-xs text-fg-subtle">{label}</p>
+                            <p className="mt-1 text-sm font-medium text-fg-subtle">—</p>
                           </div>
                         ))}
                       </div>
 
-                      <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-ink/40">
+                      <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
                         Choose a Professional
                       </p>
                       <div className="space-y-1.5">
@@ -284,26 +284,26 @@ function ContractorDetailPage() {
                             whileHover={{ x: 2 }}
                             className="flex w-full items-center gap-3 rounded-lg border border-ink/10 bg-navy-950/30 px-3 py-2.5 text-left transition-colors duration-150 hover:border-gold-500/40 hover:bg-gold-500/5"
                           >
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-xs font-semibold text-gold-300">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-xs font-semibold text-accent">
                               {initials(member.name)}
                             </span>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium text-ink">{member.name}</p>
-                              <p className="text-xs text-ink/45">{member.role} · {member.experienceYears} yrs exp</p>
+                              <p className="text-xs text-fg-subtle">{member.role} · {member.experienceYears} yrs exp</p>
                             </div>
                             <span
                               className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                                member.availability === 'Available' ? 'bg-emerald-400' : 'bg-ink/25'
+                                member.availability === 'Available' ? 'bg-success' : 'bg-ink/25'
                               }`}
                             />
-                            <span className="shrink-0 text-xs font-medium text-gold-300">★ {member.rating}</span>
-                            <ChevronRightIcon className="h-4 w-4 shrink-0 text-ink/30" />
+                            <span className="shrink-0 text-xs font-medium text-accent">★ {member.rating}</span>
+                            <ChevronRightIcon className="h-4 w-4 shrink-0 text-fg-subtle" />
                           </motion.button>
                         ))}
                       </div>
                     </>
                   ) : (
-                    <p className="mt-1 text-sm text-ink/50">
+                    <p className="mt-1 text-sm text-fg-subtle">
                       We haven't onboarded verified contractor businesses for this category yet, so we can't show
                       real experience, ratings or pricing here. Send a request below and our team will follow up
                       once a match is ready.
@@ -319,7 +319,7 @@ function ContractorDetailPage() {
                     disabled={busy || checkingCart}
                     className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold transition-colors duration-200 sm:w-auto sm:px-8 ${
                       cartId
-                        ? 'bg-emerald-500/15 text-emerald-400 hover:bg-red-400/15 hover:text-red-400'
+                        ? 'bg-success/15 text-success hover:bg-danger/15 hover:text-danger'
                         : 'bg-gold-500 text-charcoal hover:bg-gold-400'
                     } disabled:cursor-wait disabled:opacity-80`}
                   >
@@ -352,28 +352,28 @@ function ContractorDetailPage() {
                     transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                     className="mt-6 flex flex-col gap-4 rounded-2xl border border-gold-500/30 bg-gradient-to-br from-gold-500/10 via-navy-900/60 to-navy-900/60 p-6 sm:flex-row sm:items-center"
                   >
-                    <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gold-500/15 font-display text-2xl font-bold text-gold-300">
+                    <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gold-500/15 font-display text-2xl font-bold text-accent">
                       {initials(selectedMember.name)}
                     </span>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="font-display text-xl font-semibold text-ink">{selectedMember.name}</h2>
                         <span
-                          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide ${
+                          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide ${
                             selectedMember.availability === 'Available'
-                              ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-400'
-                              : 'border-ink/15 bg-ink/5 text-ink/50'
+                              ? 'border-success/30 bg-success/10 text-success'
+                              : 'border-ink/15 bg-ink/5 text-fg-subtle'
                           }`}
                         >
                           {selectedMember.availability}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-ink/60">
+                      <p className="mt-1 text-sm text-fg-muted">
                         {selectedMember.role} · {category.name}
                       </p>
                       <div className="mt-2 flex items-center gap-4 text-sm">
-                        <span className="text-ink/70">{selectedMember.experienceYears} yrs experience</span>
-                        <span className="font-medium text-gold-300">★ {selectedMember.rating}/5</span>
+                        <span className="text-fg-muted">{selectedMember.experienceYears} yrs experience</span>
+                        <span className="font-medium text-accent">★ {selectedMember.rating}/5</span>
                       </div>
                     </div>
                   </motion.div>
@@ -386,8 +386,8 @@ function ContractorDetailPage() {
                     transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
                     className="mt-6 rounded-2xl border border-ink/10 bg-navy-900/40 p-5"
                   >
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink/40">Best For</p>
-                    <p className="mt-1.5 text-sm text-ink/75">{category.bestFor}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">Best For</p>
+                    <p className="mt-1.5 text-sm text-fg-muted">{category.bestFor}</p>
                   </motion.div>
                 )}
 
@@ -404,7 +404,7 @@ function ContractorDetailPage() {
                     disabled={busy || checkingCart}
                     className={`group/req flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold transition-colors duration-200 sm:flex-none sm:px-8 ${
                       cartId
-                        ? 'bg-emerald-500/15 text-emerald-400 hover:bg-red-400/15 hover:text-red-400'
+                        ? 'bg-success/15 text-success hover:bg-danger/15 hover:text-danger'
                         : 'bg-gold-500 text-charcoal hover:bg-gold-400'
                     } disabled:cursor-wait disabled:opacity-80`}
                   >
@@ -426,12 +426,12 @@ function ContractorDetailPage() {
 
                   <button
                     onClick={() => navigate('/dashboard/messages')}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-ink/15 py-3.5 text-sm font-semibold text-ink/70 transition-colors duration-200 hover:border-gold-500/30 hover:text-ink sm:flex-none sm:px-8"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-ink/15 py-3.5 text-sm font-semibold text-fg-muted transition-colors duration-200 hover:border-gold-500/30 hover:text-ink sm:flex-none sm:px-8"
                   >
                     <MessagesIcon className="h-4 w-4" /> Contact via Messages
                   </button>
                 </motion.div>
-                <p className="mt-3 text-xs text-ink/35">Reviews will appear here once contractor profiles are live.</p>
+                <p className="mt-3 text-xs text-fg-subtle">Reviews will appear here once contractor profiles are live.</p>
               </motion.div>
             )}
           </AnimatePresence>

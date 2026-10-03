@@ -1,20 +1,33 @@
-import Navbar from '../components/Navbar.jsx'
-import Hero from '../components/Hero.jsx'
-import JourneySection from '../components/JourneySection.jsx'
-import AboutSection from '../components/AboutSection.jsx'
-import VisualStorySection from '../components/VisualStorySection.jsx'
-import SupportSection from '../components/SupportSection.jsx'
-import Footer from '../components/Footer.jsx'
+import Navbar from '../components/landing/Navbar.jsx'
+import Hero from '../components/landing/Hero.jsx'
+import About from '../components/landing/About.jsx'
+import BlueprintStory from '../components/landing/BlueprintStory.jsx'
+import Journey from '../components/landing/Journey.jsx'
+import Platform from '../components/landing/Platform.jsx'
+import Stats from '../components/landing/Stats.jsx'
+import MaterialsMarquee from '../components/landing/MaterialsMarquee.jsx'
+import Support from '../components/landing/Support.jsx'
+import FinalCta from '../components/landing/FinalCta.jsx'
+import Footer from '../components/landing/Footer.jsx'
 
 function LandingPage() {
   return (
-    <div className="bg-navy-950">
+    <div className="bg-canvas">
+      <a href="#main" className="btn btn-primary sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50">
+        Skip to content
+      </a>
       <Navbar />
-      <Hero />
-      <JourneySection />
-      <AboutSection />
-      <VisualStorySection />
-      <SupportSection />
+      <main id="main">
+        <Hero />
+        <About />
+        <BlueprintStory />
+        <Journey />
+        <Platform />
+        <Stats />
+        <MaterialsMarquee />
+        <Support />
+        <FinalCta />
+      </main>
       <Footer />
     </div>
   )

@@ -85,7 +85,7 @@ function LoginPage() {
       footer={
         <>
           {t('auth.login.newToSankalp')}{' '}
-          <Link to="/signup" className="font-medium text-gold-400 hover:text-gold-300">
+          <Link to="/signup" className="font-medium text-accent hover:text-accent-hover">
             {t('auth.login.createAccount')}
           </Link>
         </>
@@ -96,7 +96,7 @@ function LoginPage() {
           <motion.p
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-300"
+            className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
             role="alert"
           >
             {formError}
@@ -130,7 +130,7 @@ function LoginPage() {
         />
 
         <div className="flex items-center justify-between text-sm">
-          <label htmlFor="remember" className="flex items-center gap-2 text-ink/60">
+          <label htmlFor="remember" className="flex items-center gap-2 text-fg-muted">
             <input
               id="remember"
               type="checkbox"
@@ -140,7 +140,7 @@ function LoginPage() {
             />
             {t('auth.login.rememberMe')}
           </label>
-          <Link to="/forgot-password" className="text-gold-400 hover:text-gold-300">
+          <Link to="/forgot-password" className="text-accent hover:text-accent-hover">
             {t('auth.login.forgotPassword')}
           </Link>
         </div>
@@ -148,7 +148,7 @@ function LoginPage() {
         <button
           type="submit"
           disabled={status === 'submitting'}
-          className="group relative mt-2 flex items-center justify-center gap-2 overflow-hidden rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal transition-all duration-300 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-70"
+          className="btn btn-primary mt-2"
         >
           {status === 'submitting' && <Spinner className="h-4 w-4" />}
           {status === 'submitting' ? t('auth.login.submitting') : t('auth.login.submit')}

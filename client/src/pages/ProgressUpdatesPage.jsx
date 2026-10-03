@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import DashboardShell from '../components/dashboard/DashboardShell.jsx'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
 import Spinner from '../components/Spinner.jsx'
+import { SkeletonRows } from '../components/ui/Skeleton.jsx'
 import FormField from '../components/FormField.jsx'
 import ProgressRing from '../components/tasks/ProgressRing.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
@@ -47,9 +48,9 @@ const TASK_TYPE_ICONS = {
 const AUTHOR_ROLE_LABELS = { supervisor: 'Site Supervisor', contractor: 'Contractor', customer: 'Customer' }
 
 const PRIORITY_STYLES = {
-  high: 'bg-red-500/10 text-red-300',
+  high: 'bg-danger/10 text-danger',
   medium: 'bg-amber-500/10 text-amber-300',
-  low: 'bg-emerald-500/10 text-emerald-300',
+  low: 'bg-success/10 text-success',
 }
 
 // Mirrors server/src/controllers/progressController.js's MILESTONES —
@@ -65,9 +66,9 @@ const MILESTONE_THRESHOLDS = [
 ]
 
 const STATUS_STYLES = {
-  completed: { dot: 'bg-emerald-400', text: 'text-emerald-300', bg: 'bg-emerald-500/10', label: 'Completed' },
-  in_progress: { dot: 'bg-gold-400', text: 'text-gold-300', bg: 'bg-gold-500/10', label: 'In Progress' },
-  pending: { dot: 'bg-ink/25', text: 'text-ink/45', bg: 'bg-ink/5', label: 'Pending' },
+  completed: { dot: 'bg-success', text: 'text-success', bg: 'bg-success/10', label: 'Completed' },
+  in_progress: { dot: 'bg-gold-400', text: 'text-accent', bg: 'bg-gold-500/10', label: 'In Progress' },
+  pending: { dot: 'bg-ink/25', text: 'text-fg-subtle', bg: 'bg-ink/5', label: 'Pending' },
 }
 
 const TABS = [
@@ -85,9 +86,9 @@ const TABS = [
 const CHART_COLOR = { dark: '#3987e5', light: '#2a78d6' }
 
 const QUICK_UPDATE_ACTIONS = [
-  { key: 'photos', label: 'Upload Photos', sub: 'Add site images', icon: CameraIcon, color: 'bg-emerald-500/15 text-emerald-400' },
-  { key: 'note', label: 'Add Note', sub: 'Write an update', icon: NoteIcon, color: 'bg-blue-500/15 text-blue-400' },
-  { key: 'task', label: 'Mark Task', sub: 'Update progress', icon: ChecklistIcon, color: 'bg-gold-500/15 text-gold-300' },
+  { key: 'photos', label: 'Upload Photos', sub: 'Add site images', icon: CameraIcon, color: 'bg-success/15 text-success' },
+  { key: 'note', label: 'Add Note', sub: 'Write an update', icon: NoteIcon, color: 'bg-blue-500/15 text-blueprint' },
+  { key: 'task', label: 'Mark Task', sub: 'Update progress', icon: ChecklistIcon, color: 'bg-gold-500/15 text-accent' },
   { key: 'notify', label: 'Notify Team', sub: 'Send to contractors', icon: PeopleIcon, color: 'bg-violet-500/15 text-violet-400' },
 ]
 
@@ -163,7 +164,7 @@ function timeAgo(iso) {
 // than fabricated: 0% is genuinely "Not Started", 100% is "Completed".
 function projectStatusFor(percent) {
   if (percent >= 100) return { label: 'Completed', dot: 'bg-blue-400' }
-  if (percent > 0) return { label: 'In Progress', dot: 'bg-emerald-400' }
+  if (percent > 0) return { label: 'In Progress', dot: 'bg-success' }
   return { label: 'Not Started', dot: 'bg-ink/30' }
 }
 
@@ -230,11 +231,11 @@ function ProgressChart({ points, color }) {
           </>
         )}
       </svg>
-      <div className="mt-1 flex justify-between text-[10px] text-ink/35">
+      <div className="mt-1 flex justify-between text-xs text-fg-subtle">
         <span>{formatDate(points[0]?.createdAt)}</span>
         <span>{formatDate(points[points.length - 1]?.createdAt)}</span>
       </div>
-      <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-ink/45">
+      <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-fg-subtle">
         <span className="h-2 w-2 rounded-full" style={{ background: color }} /> Project Progress
       </p>
     </div>
@@ -691,13 +692,13 @@ function ProgressUpdatesPage() {
         {({ onMenuClick }) => (
           <>
             <DashboardHeader onMenuClick={onMenuClick} title="Progress Updates" subtitle="Track your project progress and receive updates." />
-            <div className="mt-16 flex flex-col items-center gap-3 text-center text-ink/40">
+            <div className="mt-16 flex flex-col items-center gap-3 text-center text-fg-subtle">
               <ProjectsIcon className="h-10 w-10" />
               {canManageProject ? (
                 <>
                   <p className="text-sm">Create a project first to start tracking its progress.</p>
                   {user?.role === 'customer' && (
-                    <Link to="/dashboard/projects" className="mt-1 rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                    <Link to="/dashboard/projects" className="btn btn-primary btn-sm mt-1">
                       + New Project
                     </Link>
                   )}
@@ -721,7 +722,7 @@ function ProgressUpdatesPage() {
           </div>
 
           {projectsLoading ? (
-            <div className="mt-16 flex justify-center"><Spinner className="h-6 w-6 text-ink/40" /></div>
+            <SkeletonRows className="mt-6" />
           ) : (
             <>
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
@@ -737,12 +738,12 @@ function ProgressUpdatesPage() {
                           selected ? 'border-gold-500/50 bg-gold-500/10' : 'border-ink/10 bg-navy-900/50 hover:border-ink/20'
                         }`}
                       >
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/60">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-fg-muted">
                           <HouseIcon className="h-4 w-4" />
                         </span>
                         <span>
                           <span className="block text-xs font-semibold text-ink">{p.name}</span>
-                          <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-ink/50">
+                          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-fg-subtle">
                             <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} /> {st.label}
                           </span>
                         </span>
@@ -751,20 +752,20 @@ function ProgressUpdatesPage() {
                   })}
                   <Link
                     to="/dashboard/projects"
-                    className="flex items-center gap-1.5 rounded-xl border border-dashed border-ink/15 px-3.5 py-2.5 text-xs font-medium text-ink/50 hover:border-ink/30 hover:text-ink/80"
+                    className="flex items-center gap-1.5 rounded-xl border border-dashed border-ink/15 px-3.5 py-2.5 text-xs font-medium text-fg-subtle hover:border-ink/30 hover:text-fg"
                   >
                     <PlusIcon className="h-3.5 w-3.5" /> Add Project
                   </Link>
                 </div>
-                <button onClick={openModal} className="flex shrink-0 items-center gap-1.5 rounded-full bg-gold-500 px-4 py-2.5 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                <button onClick={openModal} className="btn btn-primary btn-sm shrink-0">
                   <PlusIcon className="h-3.5 w-3.5" /> Add Update
                 </button>
               </div>
 
-              {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+              {error && <p className="mt-4 text-sm text-danger">{error}</p>}
 
               {dataLoading || !project ? (
-                <div className="mt-16 flex justify-center"><Spinner className="h-6 w-6 text-ink/40" /></div>
+                <SkeletonRows className="mt-6" />
               ) : (
                 <>
                   {/* Stat tiles */}
@@ -772,7 +773,7 @@ function ProgressUpdatesPage() {
                     <div className="flex items-center gap-3 rounded-2xl border border-ink/10 bg-navy-900/50 p-3.5">
                       <ProgressRing percent={project.progressPercent} size={56} stroke={6} />
                       <div>
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-ink/40">Overall Progress</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Overall Progress</p>
                         <p className="mt-0.5 text-sm font-semibold text-ink">{project.progressPercent}%</p>
                       </div>
                     </div>
@@ -780,16 +781,16 @@ function ProgressUpdatesPage() {
                       { label: 'Start Date', value: formatDate(project.startDate) || 'Not set', icon: CalendarTileIcon },
                       { label: 'Expected Completion', value: formatDate(project.expectedCompletion) || 'Not set', sub: daysLeft != null ? (daysLeft >= 0 ? `${daysLeft} days left` : `${-daysLeft} days overdue`) : null, icon: FlagTileIcon },
                       { label: 'Completed Tasks', value: `${taskCounts.completed} / ${totalTasks || 0}`, icon: CheckTileIcon },
-                      { label: 'On Time', value: schedule ? (schedule.onTrack ? 'Yes' : 'No') : '—', accent: schedule ? (schedule.onTrack ? 'text-emerald-300' : 'text-red-400') : 'text-ink/50', icon: ClockTileIcon },
+                      { label: 'On Time', value: schedule ? (schedule.onTrack ? 'Yes' : 'No') : '—', accent: schedule ? (schedule.onTrack ? 'text-success' : 'text-danger') : 'text-fg-subtle', icon: ClockTileIcon },
                       { label: 'Total Updates', value: updates.length >= 50 ? '50+' : updates.length, icon: BellTileIcon },
                     ].map((tile) => (
                       <div key={tile.label} className="rounded-2xl border border-ink/10 bg-navy-900/50 p-3.5">
-                        <div className="flex items-center gap-1.5 text-ink/35">
+                        <div className="flex items-center gap-1.5 text-fg-subtle">
                           <tile.icon className="h-3.5 w-3.5" />
-                          <p className="text-[10px] font-medium uppercase tracking-wider">{tile.label}</p>
+                          <p className="text-xs font-medium uppercase tracking-wider">{tile.label}</p>
                         </div>
                         <p className={`mt-1.5 text-sm font-semibold ${tile.accent || 'text-ink'}`}>{tile.value}</p>
-                        {tile.sub && <p className={`mt-0.5 text-[10px] ${schedule?.onTrack === false ? 'text-red-400/80' : 'text-emerald-400/80'}`}>{tile.sub}</p>}
+                        {tile.sub && <p className={`mt-0.5 text-xs ${schedule?.onTrack === false ? 'text-danger/80' : 'text-success/80'}`}>{tile.sub}</p>}
                       </div>
                     ))}
                   </div>
@@ -801,7 +802,7 @@ function ProgressUpdatesPage() {
                         key={t.key}
                         onClick={() => setTab(t.key)}
                         className={`flex items-center gap-1.5 border-b-2 pb-2.5 text-xs font-medium transition-colors duration-150 ${
-                          tab === t.key ? 'border-gold-500 text-gold-300' : 'border-transparent text-ink/50 hover:text-ink'
+                          tab === t.key ? 'border-gold-500 text-accent' : 'border-transparent text-fg-subtle hover:text-ink'
                         }`}
                       >
                         <t.icon className="h-3.5 w-3.5" />
@@ -822,7 +823,7 @@ function ProgressUpdatesPage() {
                               <div key={m.key} className="flex gap-3">
                                 <div className="flex flex-col items-center">
                                   {m.status === 'completed' ? (
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success text-white">
                                       <CheckTileIcon className="h-4 w-4" />
                                     </span>
                                   ) : m.status === 'in_progress' ? (
@@ -840,7 +841,7 @@ function ProgressUpdatesPage() {
                                   <p className="text-sm font-medium text-ink">{m.label}</p>
                                   <p className={`text-xs font-medium ${style.text}`}>{style.label}</p>
                                   {(m.startDate || m.endDate) && (
-                                    <p className="mt-0.5 text-[11px] text-ink/35">{formatDate(m.startDate)} – {formatDate(m.endDate)}</p>
+                                    <p className="mt-0.5 text-xs text-fg-subtle">{formatDate(m.startDate)} – {formatDate(m.endDate)}</p>
                                   )}
                                 </div>
                               </div>
@@ -851,7 +852,7 @@ function ProgressUpdatesPage() {
 
                       {tab === 'photos' && (
                         photos.length === 0 ? (
-                          <p className="py-8 text-center text-sm text-ink/40">No photos yet. Add some with your next update.</p>
+                          <p className="py-8 text-center text-sm text-fg-subtle">No photos yet. Add some with your next update.</p>
                         ) : (
                           <div className="grid grid-cols-2 gap-2.5">
                             {photos.map((p, i) => (
@@ -861,7 +862,7 @@ function ProgressUpdatesPage() {
                                 className="overflow-hidden rounded-xl border border-ink/10 bg-navy-950/40 text-left transition-transform duration-150 hover:scale-[1.02] hover:border-gold-500/30"
                               >
                                 <img src={p.url} alt={p.updateTitle} className="h-24 w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                                <p className="truncate px-2 py-1.5 text-[10px] text-ink/45">{p.updateTitle}</p>
+                                <p className="truncate px-2 py-1.5 text-xs text-fg-subtle">{p.updateTitle}</p>
                               </button>
                             ))}
                           </div>
@@ -871,20 +872,20 @@ function ProgressUpdatesPage() {
                       {tab === 'tasks' && (
                         <div>
                           <div className="mb-3 flex items-center justify-between gap-2">
-                            <p className="text-xs text-ink/40">
+                            <p className="text-xs text-fg-subtle">
                               {taskCounts.completed} completed · {taskCounts.in_progress} in progress · {taskCounts.pending} pending
                             </p>
                             {canManageProject && (
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => setShowAssignContractor((v) => !v)}
-                                  className="rounded-full border border-ink/15 px-3 py-1 text-[11px] font-semibold text-ink/70 hover:bg-ink/5"
+                                  className="rounded-full border border-ink/15 px-3 py-1 text-xs font-semibold text-fg-muted hover:bg-ink/5"
                                 >
                                   {showAssignContractor ? 'Cancel' : '+ Assign Contractor'}
                                 </button>
                                 <button
                                   onClick={() => setShowTaskForm((v) => !v)}
-                                  className="rounded-full border border-gold-500/40 px-3 py-1 text-[11px] font-semibold text-gold-300 hover:bg-gold-500/10"
+                                  className="rounded-full border border-gold-500/40 px-3 py-1 text-xs font-semibold text-accent hover:bg-gold-500/10"
                                 >
                                   {showTaskForm ? 'Cancel' : '+ Add Task'}
                                 </button>
@@ -895,7 +896,7 @@ function ProgressUpdatesPage() {
                           {projectContractors.length > 0 && (
                             <div className="mb-3 flex flex-wrap gap-1.5">
                               {projectContractors.map((c) => (
-                                <span key={c.id} className="rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-[10px] text-ink/60">
+                                <span key={c.id} className="rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-xs text-fg-muted">
                                   {c.name} — {c.role}
                                 </span>
                               ))}
@@ -914,19 +915,19 @@ function ProgressUpdatesPage() {
                                   <option key={m.id} value={m.id}>{m.name} — {m.role} ({m.companyName})</option>
                                 ))}
                               </select>
-                              <p className="text-[10px] text-ink/40">If this contractor has never been assigned before, they'll need an email + phone so we can create their login.</p>
+                              <p className="text-xs text-fg-subtle">If this contractor has never been assigned before, they'll need an email + phone so we can create their login.</p>
                               <div className="grid grid-cols-2 gap-2">
                                 <input
                                   value={assignContractorForm.email}
                                   onChange={(e) => setAssignContractorForm((p) => ({ ...p, email: e.target.value }))}
                                   placeholder="Email (if new)"
-                                  className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
+                                  className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-fg-subtle"
                                 />
                                 <input
                                   value={assignContractorForm.phone}
                                   onChange={(e) => setAssignContractorForm((p) => ({ ...p, phone: e.target.value }))}
                                   placeholder="Phone (if new)"
-                                  className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-ink/35"
+                                  className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-fg-subtle"
                                 />
                               </div>
                               <button type="submit" disabled={assigningContractor || !assignContractorForm.teamMemberId} className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink/10 py-1.5 text-xs font-semibold text-ink hover:bg-ink/15 disabled:opacity-50">
@@ -942,7 +943,7 @@ function ProgressUpdatesPage() {
                                 value={taskForm.title}
                                 onChange={(e) => setTaskForm((p) => ({ ...p, title: e.target.value }))}
                                 placeholder="Task title"
-                                className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-ink/35"
+                                className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-fg-subtle"
                               />
                               <div className="grid grid-cols-2 gap-2">
                                 <select value={taskForm.type} onChange={(e) => setTaskForm((p) => ({ ...p, type: e.target.value }))} className="rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
@@ -956,7 +957,7 @@ function ProgressUpdatesPage() {
                                   <option value="low">Low</option>
                                 </select>
                               </div>
-                              <button type="submit" disabled={addingTask || !taskForm.title.trim()} className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-50">
+                              <button type="submit" disabled={addingTask || !taskForm.title.trim()} className="btn btn-primary btn-sm w-full">
                                 {addingTask && <Spinner className="h-3 w-3" />}
                                 Add Task
                               </button>
@@ -964,7 +965,7 @@ function ProgressUpdatesPage() {
                           )}
 
                           {tasks.length === 0 ? (
-                            <p className="py-8 text-center text-sm text-ink/40">No tasks linked to this project yet.</p>
+                            <p className="py-8 text-center text-sm text-fg-subtle">No tasks linked to this project yet.</p>
                           ) : (
                             <div className="space-y-2">
                               {tasks.map((task) => {
@@ -979,16 +980,16 @@ function ProgressUpdatesPage() {
                                 return (
                                   <div key={task.id} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
                                     <div className="flex items-center gap-2.5">
-                                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50">
+                                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-fg-subtle">
                                         <TypeIcon className="h-3.5 w-3.5" />
                                       </span>
-                                      <p className="min-w-0 flex-1 truncate text-sm text-ink/90">{task.title}</p>
+                                      <p className="min-w-0 flex-1 truncate text-sm text-fg">{task.title}</p>
                                       {canManageProject && (
                                         <button
                                           onClick={() => handleDeleteTask(task.id)}
                                           disabled={taskActionId === task.id}
                                           aria-label="Delete task"
-                                          className="shrink-0 text-[11px] text-red-400/70 hover:text-red-400 disabled:opacity-50"
+                                          className="shrink-0 text-xs text-danger/70 hover:text-danger disabled:opacity-50"
                                         >
                                           ✕
                                         </button>
@@ -996,8 +997,8 @@ function ProgressUpdatesPage() {
                                     </div>
 
                                     {task.assignedContractorName && (
-                                      <p className="mt-1.5 text-[11px] text-ink/50">
-                                        Assigned: <span className="text-ink/80">{task.assignedContractorName}</span> — {task.assignedContractorRole}
+                                      <p className="mt-1.5 text-xs text-fg-subtle">
+                                        Assigned: <span className="text-fg">{task.assignedContractorName}</span> — {task.assignedContractorRole}
                                         {task.dueDate && <span> · Due {formatDate(task.dueDate)}</span>}
                                       </p>
                                     )}
@@ -1006,15 +1007,15 @@ function ProgressUpdatesPage() {
                                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
                                         <div className="h-full rounded-full bg-gold-400" style={{ width: `${task.progressPercent || 0}%` }} />
                                       </div>
-                                      <span className="w-8 shrink-0 text-right text-[10px] text-ink/40">{task.progressPercent || 0}%</span>
+                                      <span className="w-8 shrink-0 text-right text-xs text-fg-subtle">{task.progressPercent || 0}%</span>
                                     </div>
 
                                     <div className="mt-2 flex items-center justify-between gap-2">
-                                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>{task.priority}</span>
+                                      <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase ${PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium}`}>{task.priority}</span>
                                       <button
                                         onClick={() => cycleTaskStatus(task)}
                                         disabled={taskActionId === task.id}
-                                        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium ${style.bg} ${style.text} disabled:opacity-50`}
+                                        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${style.bg} ${style.text} disabled:opacity-50`}
                                       >
                                         {taskActionId === task.id && <Spinner className="h-3 w-3" />}
                                         {style.label}
@@ -1026,19 +1027,19 @@ function ProgressUpdatesPage() {
                                         <select
                                           value={draft.contractorMemberId}
                                           onChange={(e) => setDraft({ contractorMemberId: e.target.value })}
-                                          className="rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-[10px] text-ink outline-none"
+                                          className="rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-xs text-ink outline-none"
                                         >
                                           <option value="">Unassigned</option>
                                           {projectContractors.map((c) => (
                                             <option key={c.id} value={c.id}>{c.name} — {c.role}</option>
                                           ))}
                                         </select>
-                                        <input type="date" value={draft.startDate} onChange={(e) => setDraft({ startDate: e.target.value })} className="w-[104px] rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-[10px] text-ink outline-none" />
-                                        <input type="date" value={draft.dueDate} onChange={(e) => setDraft({ dueDate: e.target.value })} className="w-[104px] rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-[10px] text-ink outline-none" />
+                                        <input type="date" value={draft.startDate} onChange={(e) => setDraft({ startDate: e.target.value })} className="w-[104px] rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-xs text-ink outline-none" />
+                                        <input type="date" value={draft.dueDate} onChange={(e) => setDraft({ dueDate: e.target.value })} className="w-[104px] rounded-lg border border-ink/15 bg-navy-900/60 px-1.5 py-1 text-xs text-ink outline-none" />
                                         <button
                                           onClick={() => handleAssignTask(task.id)}
                                           disabled={taskActionId === task.id}
-                                          className="rounded-lg bg-ink/10 px-2 py-1 text-[10px] font-semibold text-ink hover:bg-ink/15 disabled:opacity-50"
+                                          className="rounded-lg bg-ink/10 px-2 py-1 text-xs font-semibold text-ink hover:bg-ink/15 disabled:opacity-50"
                                         >
                                           Save
                                         </button>
@@ -1062,7 +1063,7 @@ function ProgressUpdatesPage() {
                             { label: 'Overall Status', value: schedule ? (schedule.onTrack ? 'On Track' : 'Behind Schedule') : 'Not enough data' },
                           ].map((r) => (
                             <div key={r.label} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
-                              <p className="text-[10px] font-medium uppercase tracking-wider text-ink/40">{r.label}</p>
+                              <p className="text-xs font-medium uppercase tracking-wider text-fg-subtle">{r.label}</p>
                               <p className="mt-1 text-sm font-semibold text-ink">{r.value}</p>
                             </div>
                           ))}
@@ -1071,19 +1072,19 @@ function ProgressUpdatesPage() {
 
                       {tab === 'team' && (
                         teamGroups.length === 0 ? (
-                          <p className="py-8 text-center text-sm text-ink/40">No updates from the team yet.</p>
+                          <p className="py-8 text-center text-sm text-fg-subtle">No updates from the team yet.</p>
                         ) : (
                           <div className="space-y-4">
                             {teamGroups.map((g) => (
                               <div key={g.author}>
                                 <div className="flex items-center gap-2">
-                                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-500/15 text-[9px] font-semibold text-gold-300">{initialsOf(g.author)}</span>
-                                  <p className="text-xs font-semibold text-ink">{g.author} <span className="font-normal text-ink/40">· {g.list.length}</span></p>
+                                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-500/15 text-xs font-semibold text-accent">{initialsOf(g.author)}</span>
+                                  <p className="text-xs font-semibold text-ink">{g.author} <span className="font-normal text-fg-subtle">· {g.list.length}</span></p>
                                 </div>
                                 <div className="mt-2 space-y-1.5 border-l-2 border-ink/10 pl-3">
                                   {g.list.slice(0, 4).map((u) => (
-                                    <p key={u.id} className="text-[11px] text-ink/60">
-                                      <span className="text-ink/35">{timeAgo(u.createdAt)} · </span>{u.title}
+                                    <p key={u.id} className="text-xs text-fg-muted">
+                                      <span className="text-fg-subtle">{timeAgo(u.createdAt)} · </span>{u.title}
                                     </p>
                                   ))}
                                 </div>
@@ -1100,20 +1101,20 @@ function ProgressUpdatesPage() {
                         <div className="rounded-2xl border border-gold-500/20 bg-navy-900/50 p-5">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="flex items-center gap-2.5">
-                              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400">
+                              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/15 text-blueprint">
                                 <NoteIcon className="h-4.5 w-4.5" />
                               </span>
                               <div>
-                                <p className="text-xs font-medium uppercase tracking-wider text-ink/40">Latest Update</p>
-                                <p className="text-[11px] text-ink/35">{formatDateTime(latestUpdate.createdAt)}</p>
+                                <p className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Latest Update</p>
+                                <p className="text-xs text-fg-subtle">{formatDateTime(latestUpdate.createdAt)}</p>
                               </div>
                             </div>
                             {latestUpdate.progressPercent != null ? (
-                              <span className="rounded-full bg-gold-500/10 px-2.5 py-1 text-[10px] font-semibold text-gold-300">
+                              <span className="rounded-full bg-gold-500/10 px-2.5 py-1 text-xs font-semibold text-accent">
                                 {schedule?.onTrack === false ? 'Behind Schedule' : 'On Schedule'}
                               </span>
                             ) : (
-                              <span className="rounded-full bg-ink/5 px-2.5 py-1 text-[10px] font-medium text-ink/45">Note</span>
+                              <span className="rounded-full bg-ink/5 px-2.5 py-1 text-xs font-medium text-fg-subtle">Note</span>
                             )}
                           </div>
 
@@ -1121,7 +1122,7 @@ function ProgressUpdatesPage() {
                             {latestUpdate.title}
                             {latestUpdate.progressPercent != null && !latestUpdate.title.includes('%') ? ` - ${latestUpdate.progressPercent}% Complete` : ''}
                           </p>
-                          {latestUpdate.description && <p className="mt-1.5 text-sm text-ink/60">{latestUpdate.description}</p>}
+                          {latestUpdate.description && <p className="mt-1.5 text-sm text-fg-muted">{latestUpdate.description}</p>}
 
                           {latestUpdate.photoUrls?.length > 0 && (
                             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1134,41 +1135,41 @@ function ProgressUpdatesPage() {
                           )}
 
                           <div className="mt-4 grid grid-cols-1 gap-3 border-t border-ink/10 pt-3 sm:grid-cols-3">
-                            <div className="flex items-center gap-2 text-xs text-ink/60">
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50"><PersonIcon className="h-3.5 w-3.5" /></span>
+                            <div className="flex items-center gap-2 text-xs text-fg-muted">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-fg-subtle"><PersonIcon className="h-3.5 w-3.5" /></span>
                               <span>
-                                <span className="block text-[10px] text-ink/35">Updated by</span>
+                                <span className="block text-xs text-fg-subtle">Updated by</span>
                                 {latestUpdate.authorName}
-                                {latestUpdate.authorRole && <span className="text-ink/35"> · {AUTHOR_ROLE_LABELS[latestUpdate.authorRole] || 'Customer'}</span>}
+                                {latestUpdate.authorRole && <span className="text-fg-subtle"> · {AUTHOR_ROLE_LABELS[latestUpdate.authorRole] || 'Customer'}</span>}
                               </span>
                             </div>
                             {(latestUpdate.location || project.location) && (
-                              <div className="flex items-center gap-2 text-xs text-ink/60">
-                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50"><LocationDotIcon className="h-3.5 w-3.5" /></span>
-                                <span><span className="block text-[10px] text-ink/35">Location</span>{latestUpdate.location || project.location}</span>
+                              <div className="flex items-center gap-2 text-xs text-fg-muted">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-fg-subtle"><LocationDotIcon className="h-3.5 w-3.5" /></span>
+                                <span><span className="block text-xs text-fg-subtle">Location</span>{latestUpdate.location || project.location}</span>
                               </div>
                             )}
                             {weather && (
-                              <div className="flex items-center gap-2 text-xs text-ink/60">
-                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/50">
+                              <div className="flex items-center gap-2 text-xs text-fg-muted">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-fg-subtle">
                                   {(() => { const WIcon = weatherIconFor(weather.code); return <WIcon className="h-3.5 w-3.5" /> })()}
                                 </span>
-                                <span><span className="block text-[10px] text-ink/35">Weather</span>{weather.condition}, {weather.tempC}°C</span>
+                                <span><span className="block text-xs text-fg-subtle">Weather</span>{weather.condition}, {weather.tempC}°C</span>
                               </div>
                             )}
                           </div>
 
                           <div className="mt-3 flex flex-wrap items-center gap-3">
                             {latestUpdate.photoUrls?.length > 0 && (
-                              <button onClick={() => setTab('photos')} className="flex items-center gap-1.5 text-xs font-medium text-gold-300 hover:text-gold-200">
+                              <button onClick={() => setTab('photos')} className="flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-hover">
                                 View All Photos <span aria-hidden>→</span>
                               </button>
                             )}
-                            <button onClick={() => openEditUpdate(latestUpdate)} className="text-xs font-medium text-ink/55 hover:text-ink">Edit</button>
+                            <button onClick={() => openEditUpdate(latestUpdate)} className="text-xs font-medium text-fg-muted hover:text-ink">Edit</button>
                             <button
                               onClick={() => handleDeleteUpdate(latestUpdate.id)}
                               disabled={deletingUpdateId === latestUpdate.id}
-                              className="text-xs font-medium text-red-400/80 hover:text-red-400 disabled:opacity-50"
+                              className="text-xs font-medium text-danger/80 hover:text-danger disabled:opacity-50"
                             >
                               {deletingUpdateId === latestUpdate.id ? 'Deleting…' : 'Delete'}
                             </button>
@@ -1190,7 +1191,7 @@ function ProgressUpdatesPage() {
                               </span>
                               <span>
                                 <span className="block text-xs font-semibold text-ink">{a.label}</span>
-                                <span className="block text-[10px] text-ink/40">{a.sub}</span>
+                                <span className="block text-xs text-fg-subtle">{a.sub}</span>
                               </span>
                             </button>
                           ))}
@@ -1206,13 +1207,13 @@ function ProgressUpdatesPage() {
                           <select
                             value={chartRange}
                             onChange={(e) => setChartRange(e.target.value)}
-                            className="rounded-lg border border-ink/10 bg-navy-950/40 px-2 py-1 text-[10px] text-ink/60 outline-none"
+                            className="rounded-lg border border-ink/10 bg-navy-950/40 px-2 py-1 text-xs text-fg-muted outline-none"
                           >
                             {CHART_RANGES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
                           </select>
                         </div>
                         {chartPoints.length < 2 ? (
-                          <p className="mt-6 text-center text-sm text-ink/40">Post at least two updates with a progress % to see the trend.</p>
+                          <p className="mt-6 text-center text-sm text-fg-subtle">Post at least two updates with a progress % to see the trend.</p>
                         ) : (
                           <div className="mt-3"><ProgressChart points={chartPoints} color={chartColor} /></div>
                         )}
@@ -1222,7 +1223,7 @@ function ProgressUpdatesPage() {
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-semibold text-ink">Recent Updates</p>
                           {updates.length > 0 && (
-                            <button onClick={() => setFeedExpanded((v) => !v)} className="text-xs font-medium text-gold-300 hover:text-gold-200">
+                            <button onClick={() => setFeedExpanded((v) => !v)} className="text-xs font-medium text-accent hover:text-accent-hover">
                               {feedExpanded ? 'Show Less' : 'View All'}
                             </button>
                           )}
@@ -1230,17 +1231,17 @@ function ProgressUpdatesPage() {
 
                         {feedExpanded && updates.length > 0 && (
                           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                            <select value={feedAuthor} onChange={(e) => setFeedAuthor(e.target.value)} className="rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-[10px] text-ink/70 outline-none">
+                            <select value={feedAuthor} onChange={(e) => setFeedAuthor(e.target.value)} className="rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-xs text-fg-muted outline-none">
                               <option value="all">All Authors</option>
                               {feedAuthors.map((a) => <option key={a} value={a}>{a}</option>)}
                             </select>
-                            <select value={feedSort} onChange={(e) => setFeedSort(e.target.value)} className="rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-[10px] text-ink/70 outline-none">
+                            <select value={feedSort} onChange={(e) => setFeedSort(e.target.value)} className="rounded-full border border-ink/10 bg-navy-950/40 px-2.5 py-1 text-xs text-fg-muted outline-none">
                               <option value="newest">Newest</option>
                               <option value="oldest">Oldest</option>
                             </select>
                             <button
                               onClick={() => setFeedPhotosOnly((v) => !v)}
-                              className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${feedPhotosOnly ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60'}`}
+                              className={`rounded-full border px-2.5 py-1 text-xs font-medium ${feedPhotosOnly ? 'border-gold-500/50 bg-gold-500/10 text-accent' : 'border-ink/10 text-fg-muted'}`}
                             >
                               With Photos
                             </button>
@@ -1248,7 +1249,7 @@ function ProgressUpdatesPage() {
                         )}
 
                         {updates.length === 0 ? (
-                          <p className="mt-3 text-sm text-ink/40">No updates posted yet.</p>
+                          <p className="mt-3 text-sm text-fg-subtle">No updates posted yet.</p>
                         ) : (
                           <div className="mt-3 space-y-2.5">
                             {(feedExpanded ? filteredFeed : updates).slice(0, feedExpanded ? 20 : 5).map((u) => (
@@ -1256,20 +1257,20 @@ function ProgressUpdatesPage() {
                                 {u.photoUrls?.[0] ? (
                                   <img src={resolveFileUrl(u.photoUrls[0])} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                                 ) : (
-                                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink/30">
+                                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-fg-subtle">
                                     <DocThumbIcon className="h-4 w-4" />
                                   </span>
                                 )}
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-xs text-ink/85">{u.title}</p>
-                                  <p className="text-[10px] text-ink/40">{formatDateTime(u.createdAt)}</p>
+                                  <p className="truncate text-xs text-fg">{u.title}</p>
+                                  <p className="text-xs text-fg-subtle">{formatDateTime(u.createdAt)}</p>
                                   {feedExpanded && (
                                     <div className="mt-1 flex items-center gap-2">
-                                      <button onClick={() => openEditUpdate(u)} className="text-[10px] text-ink/50 hover:text-ink">Edit</button>
+                                      <button onClick={() => openEditUpdate(u)} className="text-xs text-fg-subtle hover:text-ink">Edit</button>
                                       <button
                                         onClick={() => handleDeleteUpdate(u.id)}
                                         disabled={deletingUpdateId === u.id}
-                                        className="text-[10px] text-red-400/70 hover:text-red-400 disabled:opacity-50"
+                                        className="text-xs text-danger/70 hover:text-danger disabled:opacity-50"
                                       >
                                         {deletingUpdateId === u.id ? '…' : 'Delete'}
                                       </button>
@@ -1277,7 +1278,7 @@ function ProgressUpdatesPage() {
                                   )}
                                 </div>
                                 {u.progressPercent != null && (
-                                  <span className="shrink-0 rounded-full bg-gold-500/10 px-1.5 py-0.5 text-[9px] font-medium text-gold-300">{u.progressPercent}%</span>
+                                  <span className="shrink-0 rounded-full bg-gold-500/10 px-1.5 py-0.5 text-xs font-medium text-accent">{u.progressPercent}%</span>
                                 )}
                               </div>
                             ))}
@@ -1304,9 +1305,9 @@ function ProgressUpdatesPage() {
                 >
                   <div className="flex items-center justify-between">
                     <p className="font-display text-sm font-semibold text-ink">{editingUpdateId ? 'Edit Update' : 'Post an Update'}</p>
-                    <button type="button" onClick={() => setShowUpdateModal(false)} className="text-ink/40 hover:text-ink">✕</button>
+                    <button type="button" onClick={() => setShowUpdateModal(false)} className="text-fg-subtle hover:text-ink">✕</button>
                   </div>
-                  {updateError && <p className="mt-3 text-sm text-red-400">{updateError}</p>}
+                  {updateError && <p className="mt-3 text-sm text-danger">{updateError}</p>}
                   <div className="mt-4 space-y-3.5">
                     <FormField id="title" label="Title" value={updateForm.title} onChange={(e) => setUpdateForm((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Wall plastering completed" />
                     <FormField id="description" label="Description (optional)" value={updateForm.description} onChange={(e) => setUpdateForm((p) => ({ ...p, description: e.target.value }))} placeholder="What happened on site today?" />
@@ -1319,9 +1320,9 @@ function ProgressUpdatesPage() {
                       placeholder="e.g. 65"
                     />
                     <div>
-                      <label className="mb-1.5 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-ink/60">
+                      <label className="mb-1.5 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-fg-muted">
                         Location (optional)
-                        <button type="button" onClick={detectUpdateLocation} disabled={locatingUser} className="flex items-center gap-1 text-[10px] font-medium normal-case text-gold-300 hover:text-gold-200 disabled:opacity-50">
+                        <button type="button" onClick={detectUpdateLocation} disabled={locatingUser} className="flex items-center gap-1 text-xs font-medium normal-case text-accent hover:text-accent-hover disabled:opacity-50">
                           {locatingUser && <Spinner className="h-3 w-3" />}
                           <LocationDotIcon className="h-3 w-3" /> Use current location
                         </button>
@@ -1330,11 +1331,11 @@ function ProgressUpdatesPage() {
                         value={updateForm.location}
                         onChange={(e) => setUpdateForm((p) => ({ ...p, location: e.target.value }))}
                         placeholder={project?.location || 'e.g. Site — Block A'}
-                        className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/70"
+                        className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-4 py-2.5 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/70"
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Site Photos (optional)</label>
+                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Site Photos (optional)</label>
                       {existingPhotoUrls.length > 0 && (
                         <div className="mb-2 flex flex-wrap gap-2">
                           {existingPhotoUrls.map((url, i) => (
@@ -1343,7 +1344,7 @@ function ProgressUpdatesPage() {
                               <button
                                 type="button"
                                 onClick={() => setExistingPhotoUrls((prev) => prev.filter((_, idx) => idx !== i))}
-                                className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[9px] text-white"
+                                className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-danger text-xs text-white"
                               >
                                 ✕
                               </button>
@@ -1356,21 +1357,21 @@ function ProgressUpdatesPage() {
                         accept="image/png,image/jpeg,image/webp,image/gif"
                         multiple
                         onChange={(e) => setPhotoFiles((prev) => [...prev, ...Array.from(e.target.files || [])].slice(0, 6))}
-                        className="block w-full text-xs text-ink/60 file:mr-3 file:rounded-lg file:border-0 file:bg-gold-500/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gold-300 hover:file:bg-gold-500/25"
+                        className="block w-full text-xs text-fg-muted file:mr-3 file:rounded-lg file:border-0 file:bg-gold-500/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-accent hover:file:bg-gold-500/25"
                       />
                       {photoFiles.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {photoFiles.map((file, i) => (
                             <div key={i} className="relative">
                               <img src={URL.createObjectURL(file)} alt="" className="h-14 w-14 rounded-lg object-cover" />
-                              <button type="button" onClick={() => removePhotoFile(i)} className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[9px] text-white">✕</button>
+                              <button type="button" onClick={() => removePhotoFile(i)} className="absolute -right-1.5 -top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-danger text-xs text-white">✕</button>
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
                   </div>
-                  <button type="submit" disabled={submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
+                  <button type="submit" disabled={submitting} className="btn btn-primary mt-4 w-full">
                     {submitting && <Spinner className="h-4 w-4" />}
                     {editingUpdateId ? 'Save Changes' : 'Post Update'}
                   </button>
@@ -1389,7 +1390,7 @@ function ProgressUpdatesPage() {
                   exit={{ opacity: 0, scale: 0.96 }}
                   className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-2xl -translate-x-1/2 -translate-y-1/2"
                 >
-                  <button onClick={() => setLightboxUrl(null)} className="absolute -top-9 right-0 text-sm text-ink/70 hover:text-ink">✕ Close</button>
+                  <button onClick={() => setLightboxUrl(null)} className="absolute -top-9 right-0 text-sm text-fg-muted hover:text-ink">✕ Close</button>
                   <img src={lightboxUrl} alt="" className="max-h-[80vh] w-full rounded-2xl object-contain" />
                 </motion.div>
               </>

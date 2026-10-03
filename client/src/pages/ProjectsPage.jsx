@@ -3,7 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import DashboardShell from '../components/dashboard/DashboardShell.jsx'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
 import Spinner from '../components/Spinner.jsx'
+import { SkeletonCards } from '../components/ui/Skeleton.jsx'
 import FormField from '../components/FormField.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { apiFetch } from '../utils/api.js'
@@ -95,7 +97,7 @@ function ProjectsPage() {
           <div className="mt-5 flex justify-end">
             <button
               onClick={() => setShowForm((v) => !v)}
-              className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400"
+              className="btn btn-primary btn-sm"
             >
               {showForm ? 'Cancel' : '+ New Project'}
             </button>
@@ -110,7 +112,7 @@ function ProjectsPage() {
                 onSubmit={handleCreate}
                 className="mt-4 overflow-hidden rounded-2xl border border-ink/10 bg-navy-900/50 p-5"
               >
-                {formError && <p className="mb-3 text-sm text-red-400">{formError}</p>}
+                {formError && <p className="mb-3 text-sm text-danger">{formError}</p>}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <FormField
                     id="name"
@@ -120,7 +122,7 @@ function ProjectsPage() {
                     placeholder="e.g. New Home at Kondapur"
                   />
                   <div>
-                    <label htmlFor="projectType" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Project type</label>
+                    <label htmlFor="projectType" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Project type</label>
                     <select
                       id="projectType"
                       value={form.projectType}
@@ -167,32 +169,32 @@ function ProjectsPage() {
                     placeholder="e.g. 1500000"
                   />
                   <div>
-                    <label htmlFor="projectImage" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Project image (optional)</label>
+                    <label htmlFor="projectImage" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Project image (optional)</label>
                     <input
                       id="projectImage"
                       type="file"
                       accept="image/*"
                       onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                      className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2 text-xs text-ink/70 outline-none file:mr-3 file:rounded-md file:border-0 file:bg-gold-500/15 file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-gold-300"
+                      className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2 text-xs text-fg-muted outline-none file:mr-3 file:rounded-md file:border-0 file:bg-gold-500/15 file:px-2.5 file:py-1 file:text-xs file:font-medium file:text-accent"
                     />
                   </div>
                   <div className="sm:col-span-2 lg:col-span-3">
-                    <label htmlFor="description" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Description (optional)</label>
+                    <label htmlFor="description" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Description (optional)</label>
                     <textarea
                       id="description"
                       rows={3}
                       value={form.description}
                       onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                       placeholder="What's this project about?"
-                      className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/70"
+                      className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-4 py-2.5 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/70"
                     />
                   </div>
                 </div>
-                <p className="mt-3 text-[11px] text-ink/35">Adding dates and a budget unlocks the Timeline and Budget Planner views for this project.</p>
+                <p className="mt-3 text-xs text-fg-subtle">Adding dates and a budget unlocks the Timeline and Budget Planner views for this project.</p>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="mt-4 flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60"
+                  className="btn btn-primary mt-4"
                 >
                   {submitting && <Spinner className="h-4 w-4" />}
                   Create Project
@@ -201,17 +203,24 @@ function ProjectsPage() {
             )}
           </AnimatePresence>
 
-          {error && <p className="mt-5 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-5 text-sm text-danger">{error}</p>}
 
           {loading ? (
-            <div className="mt-16 flex justify-center">
-              <Spinner className="h-6 w-6 text-ink/40" />
-            </div>
+            <SkeletonCards className="mt-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" />
           ) : projects.length === 0 ? (
-            <div className="mt-16 flex flex-col items-center gap-3 text-center text-ink/40">
-              <ProjectsIcon className="h-10 w-10" />
-              <p className="text-sm">No projects yet. Create one to invite a supervisor onto it.</p>
-            </div>
+            <EmptyState
+              className="mt-8"
+              icon={<ProjectsIcon className="h-6 w-6" />}
+              title="No projects yet"
+              description="Create one to invite a supervisor onto it."
+              action={
+                !showForm && (
+                  <button type="button" onClick={() => setShowForm(true)} className="btn btn-primary">
+                    + New Project
+                  </button>
+                )
+              }
+            />
           ) : (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {projects.map((project, i) => (
@@ -226,13 +235,13 @@ function ProjectsPage() {
                     {project.imageUrl ? (
                       <img src={resolveFileUrl(project.imageUrl)} alt="" className="mb-3 h-28 w-full rounded-xl object-cover" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                     ) : (
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-300">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-accent">
                         <ProjectsIcon className="h-5 w-5" />
                       </span>
                     )}
                     <p className="mt-3 font-display text-sm font-semibold text-ink">{project.name}</p>
-                    <p className="mt-1 text-xs text-ink/45">{project.projectType ? `${project.projectType} · ` : ''}{project.location || 'No location set'}</p>
-                    <span className="mt-3 inline-block rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium capitalize text-emerald-300">
+                    <p className="mt-1 text-xs text-fg-subtle">{project.projectType ? `${project.projectType} · ` : ''}{project.location || 'No location set'}</p>
+                    <span className="mt-3 inline-block rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium capitalize text-success">
                       {project.status}
                     </span>
                   </Link>
@@ -240,14 +249,14 @@ function ProjectsPage() {
                     <Link
                       to="/dashboard/progress"
                       onClick={() => setSelectedProjectId(project.id)}
-                      className="rounded-full border border-ink/15 px-2.5 py-1 text-[10px] font-medium text-ink/60 hover:bg-ink/5"
+                      className="rounded-full border border-ink/15 px-2.5 py-1 text-xs font-medium text-fg-muted hover:bg-ink/5"
                     >
                       Progress Updates
                     </Link>
                     <Link
                       to="/dashboard/budget"
                       onClick={() => setSelectedProjectId(project.id)}
-                      className="rounded-full border border-ink/15 px-2.5 py-1 text-[10px] font-medium text-ink/60 hover:bg-ink/5"
+                      className="rounded-full border border-ink/15 px-2.5 py-1 text-xs font-medium text-fg-muted hover:bg-ink/5"
                     >
                       Budget & Expenses
                     </Link>
@@ -263,7 +272,7 @@ function ProjectsPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 16 }}
-                className="fixed bottom-6 right-6 rounded-xl border border-emerald-400/30 bg-navy-900 px-4 py-3 text-sm text-emerald-300 shadow-xl"
+                className="fixed bottom-6 right-6 rounded-xl border border-success/30 bg-navy-900 px-4 py-3 text-sm text-success shadow-xl"
               >
                 {toast}
               </motion.div>

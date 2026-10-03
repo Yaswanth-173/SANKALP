@@ -11,7 +11,7 @@ function SettingsPanelShell({ title, onBack, children }) {
     >
       <button
         onClick={onBack}
-        className="mb-4 flex items-center gap-1 text-xs font-medium text-ink/50 hover:text-gold-400"
+        className="mb-4 flex items-center gap-1 text-xs font-medium text-fg-subtle hover:text-accent-hover"
       >
         {t('settings.back')}
       </button>

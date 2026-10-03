@@ -57,7 +57,7 @@ function DayPanel({ dateKey, events, onCreate, onDelete }) {
       <div className="mt-4 flex-1 space-y-2 overflow-y-auto">
         <AnimatePresence initial={false}>
           {events.length === 0 && (
-            <p className="text-sm text-ink/40">{t('calendar.noEvents')}</p>
+            <p className="text-sm text-fg-subtle">{t('calendar.noEvents')}</p>
           )}
           {events.map((ev) => {
             const cfg = eventTypeConfig(ev.type)
@@ -69,7 +69,7 @@ function DayPanel({ dateKey, events, onCreate, onDelete }) {
                 exit={{ opacity: 0, height: 0 }}
                 whileHover={{ y: -2, scale: 1.015 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className={`flex items-start justify-between gap-2 rounded-lg border ${cfg.border} bg-navy-950/50 px-3 py-2 shadow-none hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.5)]`}
+                className={`flex items-start justify-between gap-2 rounded-lg border ${cfg.border} bg-navy-950/50 px-3 py-2 shadow-none hover:shadow-card`}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -77,13 +77,13 @@ function DayPanel({ dateKey, events, onCreate, onDelete }) {
                     <span className={`text-xs font-medium uppercase tracking-wide ${cfg.text}`}>{t(cfg.labelKey)}</span>
                   </div>
                   <p className="mt-1 truncate text-sm font-medium text-ink">{ev.title}</p>
-                  {ev.notes && <p className="mt-0.5 text-xs text-ink/50">{ev.notes}</p>}
+                  {ev.notes && <p className="mt-0.5 text-xs text-fg-subtle">{ev.notes}</p>}
                 </div>
                 <button
                   onClick={() => handleDelete(ev.id)}
                   disabled={deletingId === ev.id}
                   aria-label="Delete event"
-                  className="shrink-0 rounded-md p-1 text-ink/30 hover:bg-red-400/10 hover:text-red-400"
+                  className="shrink-0 rounded-md p-1 text-fg-subtle hover:bg-danger/10 hover:text-danger"
                 >
                   {deletingId === ev.id ? (
                     <Spinner className="h-3.5 w-3.5" />
@@ -100,12 +100,12 @@ function DayPanel({ dateKey, events, onCreate, onDelete }) {
       </div>
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-2 border-t border-ink/10 pt-4">
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-danger">{error}</p>}
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t('calendar.addEvent')}
-          className="w-full rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/30 focus:border-gold-500/60"
+          className="w-full rounded-lg border border-ink/15 bg-navy-950/60 px-3 py-2 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/60"
         />
         <div className="flex flex-wrap gap-1.5">
           {EVENT_TYPES.map((opt) => (
@@ -114,7 +114,7 @@ function DayPanel({ dateKey, events, onCreate, onDelete }) {
               type="button"
               onClick={() => setType(opt.value)}
               className={`rounded-full border px-2.5 py-1 text-xs transition-colors duration-150 ${
-                type === opt.value ? `${opt.border} ${opt.text} bg-ink/5` : 'border-ink/10 text-ink/40 hover:text-ink/70'
+                type === opt.value ? `${opt.border} ${opt.text} bg-ink/5` : 'border-ink/10 text-fg-subtle hover:text-fg'
               }`}
             >
               {t(opt.labelKey)}
@@ -124,7 +124,7 @@ function DayPanel({ dateKey, events, onCreate, onDelete }) {
         <button
           type="submit"
           disabled={!title.trim() || status === 'submitting'}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-2 text-sm font-semibold text-charcoal transition-colors duration-200 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary w-full"
         >
           {status === 'submitting' && <Spinner className="h-3.5 w-3.5" />}
           {t('calendar.addEventBtn')}

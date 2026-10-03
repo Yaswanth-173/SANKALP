@@ -22,7 +22,7 @@ function LanguagePanel({ onBack }) {
               key={opt.value}
               onClick={() => update({ language: opt.value })}
               className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors duration-200 ${
-                active ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 bg-navy-900/40 text-ink hover:border-ink/20'
+                active ? 'border-gold-500/50 bg-gold-500/10 text-accent' : 'border-ink/10 bg-navy-900/40 text-ink hover:border-ink/20'
               }`}
             >
               <span className="text-sm font-medium">{opt.label}</span>

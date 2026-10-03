@@ -88,12 +88,12 @@ export const FilterIcon = (p) => (
 
 export const TYPE_CONFIG = {
   materials: { label: 'Materials', icon: MaterialsIcon, bg: 'bg-orange-500/15', color: 'text-orange-300' },
-  work: { label: 'Work', icon: WorkIcon, bg: 'bg-red-500/15', color: 'text-red-300' },
-  site_visit: { label: 'Site Visit', icon: SiteVisitIcon, bg: 'bg-blue-500/15', color: 'text-blue-300' },
+  work: { label: 'Work', icon: WorkIcon, bg: 'bg-danger/15', color: 'text-danger' },
+  site_visit: { label: 'Site Visit', icon: SiteVisitIcon, bg: 'bg-blue-500/15', color: 'text-blueprint' },
 }
 
 export const PRIORITY_CONFIG = {
-  high: { label: 'High', border: 'border-red-400/40', bg: 'bg-red-500/10', color: 'text-red-400' },
-  medium: { label: 'Medium', border: 'border-gold-500/40', bg: 'bg-gold-500/10', color: 'text-gold-300' },
-  low: { label: 'Low', border: 'border-emerald-400/40', bg: 'bg-emerald-500/10', color: 'text-emerald-400' },
+  high: { label: 'High', border: 'border-danger/40', bg: 'bg-danger/10', color: 'text-danger' },
+  medium: { label: 'Medium', border: 'border-gold-500/40', bg: 'bg-gold-500/10', color: 'text-accent' },
+  low: { label: 'Low', border: 'border-success/40', bg: 'bg-success/10', color: 'text-success' },
 }

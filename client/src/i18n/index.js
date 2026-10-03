@@ -5,6 +5,8 @@ import { usePreferences } from '../context/PreferencesContext.jsx'
 
 const dictionaries = { en, hi, te }
 
+export const LANGUAGE_CODES = Object.keys(dictionaries)
+
 function lookup(dict, key) {
   return key.split('.').reduce((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), dict)
 }

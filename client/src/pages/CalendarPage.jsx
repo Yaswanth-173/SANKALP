@@ -112,14 +112,14 @@ function CalendarPage() {
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={goToToday}
-                    className="rounded-lg border border-ink/10 px-2.5 py-1 text-xs text-ink/60 hover:bg-ink/5"
+                    className="rounded-lg border border-ink/10 px-2.5 py-1 text-xs text-fg-muted hover:bg-ink/5"
                   >
                     {t('calendar.today')}
                   </button>
                   <button
                     onClick={() => goToMonth(-1)}
                     aria-label="Previous month"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink/10 text-ink/60 hover:bg-ink/5"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink/10 text-fg-muted hover:bg-ink/5"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 6l-6 6 6 6" />
@@ -128,7 +128,7 @@ function CalendarPage() {
                   <button
                     onClick={() => goToMonth(1)}
                     aria-label="Next month"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink/10 text-ink/60 hover:bg-ink/5"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink/10 text-fg-muted hover:bg-ink/5"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
@@ -137,7 +137,7 @@ function CalendarPage() {
                 </div>
               </div>
 
-              {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+              {error && <p className="mb-3 text-sm text-danger">{error}</p>}
               <AnimatePresence mode="wait" custom={direction}>
                 <motion.div
                   key={`${year}-${month}`}

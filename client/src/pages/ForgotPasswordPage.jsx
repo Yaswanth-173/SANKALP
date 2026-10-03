@@ -145,7 +145,7 @@ function ForgotPasswordPage() {
             : t('auth.forgot.doneSubtitle')
       }
       footer={
-        <Link to="/login" className="font-medium text-gold-400 hover:text-gold-300">
+        <Link to="/login" className="font-medium text-accent hover:text-accent-hover">
           {t('auth.forgot.backToSignIn')}
         </Link>
       }
@@ -162,7 +162,7 @@ function ForgotPasswordPage() {
             className="flex flex-col gap-4"
           >
             {formError && (
-              <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-300" role="alert">
+              <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
                 {formError}
               </p>
             )}
@@ -180,7 +180,7 @@ function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={status === 'submitting'}
-              className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal transition-all duration-300 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className="btn btn-primary mt-2"
             >
               {status === 'submitting' && <Spinner className="h-4 w-4" />}
               {status === 'submitting' ? t('auth.forgot.sendingCode') : t('auth.forgot.sendCode')}
@@ -199,12 +199,12 @@ function ForgotPasswordPage() {
             className="flex flex-col gap-4"
           >
             {infoMessage && !formError && (
-              <p className="rounded-lg border border-gold-500/30 bg-gold-500/10 px-3 py-2 text-sm text-gold-300">
+              <p className="rounded-lg border border-gold-500/30 bg-gold-500/10 px-3 py-2 text-sm text-accent">
                 {infoMessage}
               </p>
             )}
             {formError && (
-              <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-sm text-red-300" role="alert">
+              <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">
                 {formError}
               </p>
             )}
@@ -223,7 +223,7 @@ function ForgotPasswordPage() {
               type="button"
               onClick={handleResend}
               disabled={resendStatus === 'sending' || resendCooldown > 0}
-              className="-mt-2 flex items-center gap-1.5 self-start text-xs font-medium text-gold-400 hover:text-gold-300 disabled:cursor-not-allowed disabled:text-ink/30"
+              className="-mt-2 flex items-center gap-1.5 self-start text-xs font-medium text-accent hover:text-accent-hover disabled:cursor-not-allowed disabled:text-fg-subtle"
             >
               {resendStatus === 'sending' && <Spinner className="h-3 w-3" />}
               {resendCooldown > 0 ? t('auth.forgot.resendIn', { s: resendCooldown }) : t('auth.forgot.resend')}
@@ -260,7 +260,7 @@ function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={status === 'submitting'}
-              className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal transition-all duration-300 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className="btn btn-primary mt-2"
             >
               {status === 'submitting' && <Spinner className="h-4 w-4" />}
               {status === 'submitting' ? t('auth.forgot.resetting') : t('auth.forgot.resetPassword')}
@@ -272,7 +272,7 @@ function ForgotPasswordPage() {
                 setFormError('')
                 setInfoMessage('')
               }}
-              className="text-xs text-ink/40 hover:text-ink/70"
+              className="text-xs text-fg-subtle hover:text-fg"
             >
               {t('auth.forgot.useAnotherEmail')}
             </button>
@@ -290,13 +290,13 @@ function ForgotPasswordPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-gold-500/15 text-gold-400"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gold-500/15 text-accent"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-7 w-7">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </motion.div>
-            <p className="text-sm text-ink/60">{t('auth.forgot.takingToSignIn')}</p>
+            <p className="text-sm text-fg-muted">{t('auth.forgot.takingToSignIn')}</p>
           </motion.div>
         )}
       </AnimatePresence>

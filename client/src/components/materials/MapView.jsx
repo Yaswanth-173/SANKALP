@@ -10,8 +10,8 @@ const pin = (color) =>
   L.divIcon({
     className: '',
     html: `<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">
-      <path d="M13 0C5.8 0 0 5.8 0 13c0 9.5 13 21 13 21s13-11.5 13-21C26 5.8 20.2 0 13 0Z" fill="${color}" stroke="#05070f" stroke-width="1.5"/>
-      <circle cx="13" cy="13" r="5" fill="#05070f"/>
+      <path d="M13 0C5.8 0 0 5.8 0 13c0 9.5 13 21 13 21s13-11.5 13-21C26 5.8 20.2 0 13 0Z" fill="${color}" stroke="#0b0c0e" stroke-width="1.5"/>
+      <circle cx="13" cy="13" r="5" fill="#0b0c0e"/>
     </svg>`,
     iconSize: [26, 34],
     iconAnchor: [13, 34],
@@ -19,7 +19,7 @@ const pin = (color) =>
   })
 
 const userPin = pin('#3b82f6')
-const supplierPin = pin('#eab424')
+const supplierPin = pin('#f5a524')
 const selectedPin = pin('#ef4444')
 
 function Recenter({ center }) {

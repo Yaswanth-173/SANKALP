@@ -30,11 +30,11 @@ function AppearancePanel({ onBack }) {
                 active ? 'border-gold-500/50 bg-gold-500/10' : 'border-ink/10 bg-navy-900/40 hover:border-ink/20'
               }`}
             >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${active ? 'bg-gold-500/20 text-gold-300' : 'bg-ink/5 text-ink/50'}`}>
+              <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${active ? 'bg-gold-500/20 text-accent' : 'bg-ink/5 text-fg-subtle'}`}>
                 <Icon className="h-4.5 w-4.5" />
               </span>
               <span className="text-sm font-medium text-ink">{opt.label}</span>
-              <span className="text-xs text-ink/45">{opt.desc}</span>
+              <span className="text-xs text-fg-subtle">{opt.desc}</span>
             </motion.button>
           )
         })}

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import Modal from '../components/ui/Modal.jsx'
 import { Link } from 'react-router-dom'
 import DashboardShell from '../components/dashboard/DashboardShell.jsx'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
 import Spinner from '../components/Spinner.jsx'
+import { SkeletonRows } from '../components/ui/Skeleton.jsx'
 import FormField from '../components/FormField.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { usePreferences } from '../context/PreferencesContext.jsx'
@@ -22,7 +24,7 @@ const DEFAULT_BUDGET_CATEGORIES = ['Foundation', 'Structure', 'Electrical', 'Plu
 const PAYMENT_MODES = ['cash', 'upi', 'card', 'bank_transfer']
 
 // Fixed categorical hue order, validated with the dataviz skill's validator
-// against this app's actual card surfaces (dark #0a0e1a / light #ffffff) —
+// against this app's actual card surfaces (dark #121418 / light #ffffff) —
 // see the chat history for the exact `validate_palette.js` runs. Every
 // one of the default 6 categories always gets the same slot, never a
 // cycled/generated hue. A category an admin adds beyond these 6 falls back
@@ -72,7 +74,7 @@ function BudgetBarChart({ categories, colors }) {
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-4 text-xs text-ink/60">
+      <div className="mb-2 flex items-center gap-4 text-xs text-fg-muted">
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors.budgeted }} /> Budgeted</span>
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors.spent }} /> Spent</span>
       </div>
@@ -104,13 +106,13 @@ function BudgetBarChart({ categories, colors }) {
                 fill={colors.spent}
                 onMouseEnter={() => setHover({ category: c.category, label: 'Spent', value: c.spentAmount })}
               />
-              <text x={gx} y={height - 12} textAnchor="middle" className="fill-current text-ink/45" fontSize="10">{c.category}</text>
+              <text x={gx} y={height - 12} textAnchor="middle" className="fill-current text-fg-subtle" fontSize="10">{c.category}</text>
             </g>
           )
         })}
       </svg>
-      <p className="mt-1 h-4 text-center text-xs text-ink/60">
-        {hover ? <>{hover.category} — {hover.label}: <span className="font-semibold text-gold-300">{formatPrice(hover.value)}</span></> : ' '}
+      <p className="mt-1 h-4 text-center text-xs text-fg-muted">
+        {hover ? <>{hover.category} — {hover.label}: <span className="font-semibold text-accent">{formatPrice(hover.value)}</span></> : ' '}
       </p>
     </div>
   )
@@ -126,7 +128,7 @@ function ExpenseDonut({ categories, colors }) {
   let cumulative = 0
 
   if (total <= 0) {
-    return <p className="py-10 text-center text-sm text-ink/40">No expenses logged yet — add one to see the breakdown.</p>
+    return <p className="py-10 text-center text-sm text-fg-subtle">No expenses logged yet — add one to see the breakdown.</p>
   }
 
   return (
@@ -158,7 +160,7 @@ function ExpenseDonut({ categories, colors }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-display text-base font-bold text-ink">{formatPrice(total)}</span>
-          <span className="text-[10px] text-ink/40">Total Spent</span>
+          <span className="text-xs text-fg-subtle">Total Spent</span>
         </div>
       </div>
       <div className="flex-1 space-y-1.5">
@@ -166,11 +168,11 @@ function ExpenseDonut({ categories, colors }) {
           const pct = total > 0 ? Math.round((c.spentAmount / total) * 100) : 0
           return (
             <div key={c.category} className={`flex items-center justify-between gap-3 rounded-lg px-2 py-1 text-xs transition-colors ${hover?.category === c.category ? 'bg-ink/5' : ''}`}>
-              <span className="flex items-center gap-2 text-ink/70">
+              <span className="flex items-center gap-2 text-fg-muted">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: colors[c.category] }} />
                 {c.category}
               </span>
-              <span className="text-ink/50">{formatPrice(c.spentAmount)} <span className="text-ink/30">({pct}%)</span></span>
+              <span className="text-fg-subtle">{formatPrice(c.spentAmount)} <span className="text-fg-subtle">({pct}%)</span></span>
             </div>
           )
         })}
@@ -488,12 +490,12 @@ function BudgetExpensesPage() {
         {({ onMenuClick }) => (
           <>
             <DashboardHeader onMenuClick={onMenuClick} title="Budget & Expenses" subtitle="Calculate budget, track expenses and manage project costs." />
-            <div className="mt-16 flex flex-col items-center gap-3 text-center text-ink/40">
+            <div className="mt-16 flex flex-col items-center gap-3 text-center text-fg-subtle">
               <ProjectsIcon className="h-10 w-10" />
               {isCustomer ? (
                 <>
                   <p className="text-sm">Create a project first to start tracking its budget.</p>
-                  <Link to="/dashboard/projects" className="mt-1 rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                  <Link to="/dashboard/projects" className="btn btn-primary btn-sm mt-1">
                     + New Project
                   </Link>
                 </>
@@ -514,7 +516,7 @@ function BudgetExpensesPage() {
           <DashboardHeader onMenuClick={onMenuClick} title="Budget & Expenses" subtitle="Calculate budget, track expenses and manage project costs." />
 
           {projectsLoading ? (
-            <div className="mt-16 flex justify-center"><Spinner className="h-6 w-6 text-ink/40" /></div>
+            <SkeletonRows className="mt-6" />
           ) : (
             <>
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
@@ -524,7 +526,7 @@ function BudgetExpensesPage() {
                       key={p.id}
                       onClick={() => { setSelectedProjectId(p.id); persistSelectedProjectId(p.id) }}
                       className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                        selectedProjectId === p.id ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
+                        selectedProjectId === p.id ? 'border-gold-500/50 bg-gold-500/10 text-accent' : 'border-ink/10 text-fg-muted hover:border-ink/20'
                       }`}
                     >
                       {p.name}
@@ -532,26 +534,26 @@ function BudgetExpensesPage() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleExportCsv} disabled={filteredExpenses.length === 0} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-ink/70 hover:border-ink/30 disabled:opacity-40">Export</button>
-                  <button onClick={openAddExpense} className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">+ Add Expense</button>
+                  <button onClick={handleExportCsv} disabled={filteredExpenses.length === 0} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-medium text-fg-muted hover:border-ink/30 disabled:opacity-40">Export</button>
+                  <button onClick={openAddExpense} className="btn btn-primary btn-sm">+ Add Expense</button>
                 </div>
               </div>
 
-              {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+              {error && <p className="mt-4 text-sm text-danger">{error}</p>}
 
               {loading || !overview ? (
-                <div className="mt-16 flex justify-center"><Spinner className="h-6 w-6 text-ink/40" /></div>
+                <SkeletonRows className="mt-6" />
               ) : (
                 <>
                   <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
                     {[
                       { label: 'Total Budget', value: formatPrice(overview.totalBudget) },
                       { label: 'Total Spent', value: formatPrice(overview.totalSpent) },
-                      { label: 'Remaining Budget', value: formatPrice(overview.remaining), accent: overview.remaining < 0 ? 'text-red-400' : 'text-emerald-300' },
+                      { label: 'Remaining Budget', value: formatPrice(overview.remaining), accent: overview.remaining < 0 ? 'text-danger' : 'text-success' },
                       { label: 'Total Expenses', value: overview.totalExpenseCount },
                     ].map((tile) => (
                       <div key={tile.label} className="rounded-2xl border border-ink/10 bg-navy-900/50 p-4">
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-ink/40">{tile.label}</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-fg-subtle">{tile.label}</p>
                         <p className={`mt-1.5 font-display text-lg font-semibold ${tile.accent || 'text-ink'}`}>{tile.value}</p>
                       </div>
                     ))}
@@ -563,7 +565,7 @@ function BudgetExpensesPage() {
                         key={t.key}
                         onClick={() => setTab(t.key)}
                         className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                          tab === t.key ? 'bg-gold-500 text-charcoal' : 'text-ink/55 hover:text-ink'
+                          tab === t.key ? 'bg-gold-500 text-charcoal' : 'text-fg-muted hover:text-ink'
                         }`}
                       >
                         {t.label}
@@ -577,7 +579,7 @@ function BudgetExpensesPage() {
                         {(() => {
                           const alerts = overview.categories.map(budgetAlertFor).filter(Boolean)
                           if (alerts.length === 0) return null
-                          const styleFor = { critical: 'border-red-400/30 bg-red-400/5 text-red-300', warning: 'border-amber-400/30 bg-amber-400/5 text-amber-300', notice: 'border-gold-500/30 bg-gold-500/5 text-gold-300' }
+                          const styleFor = { critical: 'border-danger/30 bg-danger/5 text-danger', warning: 'border-amber-400/30 bg-amber-400/5 text-amber-300', notice: 'border-gold-500/30 bg-gold-500/5 text-accent' }
                           return (
                             <div className="mb-5 space-y-2">
                               {alerts.map((a, i) => (
@@ -606,11 +608,11 @@ function BudgetExpensesPage() {
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             placeholder="Search description, vendor, invoice #..."
-                            className="min-w-[220px] flex-1 rounded-full border border-ink/15 bg-navy-950/40 px-4 py-2 text-xs text-ink outline-none placeholder:text-ink/35"
+                            className="min-w-[220px] flex-1 rounded-full border border-ink/15 bg-navy-950/40 px-4 py-2 text-xs text-ink outline-none placeholder:text-fg-subtle"
                           />
                           <button
                             onClick={() => setFiltersOpen((v) => !v)}
-                            className={`rounded-full border px-3.5 py-2 text-xs font-medium ${filtersOpen ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60'}`}
+                            className={`rounded-full border px-3.5 py-2 text-xs font-medium ${filtersOpen ? 'border-gold-500/50 bg-gold-500/10 text-accent' : 'border-ink/10 text-fg-muted'}`}
                           >
                             Filters
                           </button>
@@ -619,37 +621,37 @@ function BudgetExpensesPage() {
                         {filtersOpen && (
                           <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-ink/10 bg-navy-950/40 p-3 sm:grid-cols-4">
                             <div>
-                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">From</label>
+                              <label className="mb-1 block text-xs uppercase tracking-wider text-fg-subtle">From</label>
                               <input type="date" value={filters.dateFrom} onChange={(e) => setFilters((p) => ({ ...p, dateFrom: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
                             </div>
                             <div>
-                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">To</label>
+                              <label className="mb-1 block text-xs uppercase tracking-wider text-fg-subtle">To</label>
                               <input type="date" value={filters.dateTo} onChange={(e) => setFilters((p) => ({ ...p, dateTo: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
                             </div>
                             <div>
-                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Category</label>
+                              <label className="mb-1 block text-xs uppercase tracking-wider text-fg-subtle">Category</label>
                               <select value={filters.category} onChange={(e) => setFilters((p) => ({ ...p, category: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
                                 <option value="all">All</option>
                                 {categoryNames.map((c) => <option key={c} value={c}>{c}</option>)}
                               </select>
                             </div>
                             <div>
-                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Payment Mode</label>
+                              <label className="mb-1 block text-xs uppercase tracking-wider text-fg-subtle">Payment Mode</label>
                               <select value={filters.paymentMode} onChange={(e) => setFilters((p) => ({ ...p, paymentMode: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
                                 <option value="all">All</option>
                                 {PAYMENT_MODES.map((m) => <option key={m} value={m} className="capitalize">{m.replace(/_/g, ' ')}</option>)}
                               </select>
                             </div>
                             <div>
-                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Min Amount</label>
+                              <label className="mb-1 block text-xs uppercase tracking-wider text-fg-subtle">Min Amount</label>
                               <input type="number" value={filters.minAmount} onChange={(e) => setFilters((p) => ({ ...p, minAmount: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
                             </div>
                             <div>
-                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Max Amount</label>
+                              <label className="mb-1 block text-xs uppercase tracking-wider text-fg-subtle">Max Amount</label>
                               <input type="number" value={filters.maxAmount} onChange={(e) => setFilters((p) => ({ ...p, maxAmount: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none" />
                             </div>
                             <div>
-                              <label className="mb-1 block text-[10px] uppercase tracking-wider text-ink/40">Status</label>
+                              <label className="mb-1 block text-xs uppercase tracking-wider text-fg-subtle">Status</label>
                               <select value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-2 py-1.5 text-xs text-ink outline-none">
                                 <option value="all">All</option>
                                 <option value="paid">Paid</option>
@@ -657,21 +659,21 @@ function BudgetExpensesPage() {
                               </select>
                             </div>
                             <div className="flex items-end">
-                              <button onClick={() => setFilters(filtersInitial)} className="w-full rounded-lg border border-ink/15 py-1.5 text-xs font-medium text-ink/60 hover:border-ink/30">Clear Filters</button>
+                              <button onClick={() => setFilters(filtersInitial)} className="w-full rounded-lg border border-ink/15 py-1.5 text-xs font-medium text-fg-muted hover:border-ink/30">Clear Filters</button>
                             </div>
                           </div>
                         )}
 
-                        <p className="mt-3 text-[11px] text-ink/35">Showing {filteredExpenses.length} of {expenses.length} expenses</p>
+                        <p className="mt-3 text-xs text-fg-subtle">Showing {filteredExpenses.length} of {expenses.length} expenses</p>
 
                         {expenses.length === 0 ? (
-                          <p className="py-8 text-center text-sm text-ink/40">No expenses recorded yet.</p>
+                          <p className="py-8 text-center text-sm text-fg-subtle">No expenses recorded yet.</p>
                         ) : filteredExpenses.length === 0 ? (
-                          <p className="py-8 text-center text-sm text-ink/40">No expenses match these filters.</p>
+                          <p className="py-8 text-center text-sm text-fg-subtle">No expenses match these filters.</p>
                         ) : (
                           <div className="mt-2 overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                              <thead className="text-xs uppercase tracking-wider text-ink/40">
+                              <thead className="text-xs uppercase tracking-wider text-fg-subtle">
                                 <tr>
                                   <th className="px-2 py-2">Date</th>
                                   <th className="px-2 py-2">Category</th>
@@ -685,27 +687,27 @@ function BudgetExpensesPage() {
                               <tbody>
                                 {filteredExpenses.map((e) => (
                                   <tr key={e.id} className="border-t border-ink/10">
-                                    <td className="px-2 py-2.5 text-ink/60">{formatDate(e.expenseDate)}</td>
-                                    <td className="px-2 py-2.5"><span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: `${colors[e.category]}22`, color: colors[e.category] }}>{e.category}</span></td>
-                                    <td className="px-2 py-2.5 text-ink/80">
+                                    <td className="px-2 py-2.5 text-fg-muted">{formatDate(e.expenseDate)}</td>
+                                    <td className="px-2 py-2.5"><span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: `${colors[e.category]}22`, color: colors[e.category] }}>{e.category}</span></td>
+                                    <td className="px-2 py-2.5 text-fg">
                                       {e.description}
                                       {(e.vendor || e.invoiceNumber) && (
-                                        <p className="text-[10px] text-ink/35">{[e.vendor, e.invoiceNumber && `#${e.invoiceNumber}`].filter(Boolean).join(' · ')}</p>
+                                        <p className="text-xs text-fg-subtle">{[e.vendor, e.invoiceNumber && `#${e.invoiceNumber}`].filter(Boolean).join(' · ')}</p>
                                       )}
                                     </td>
-                                    <td className="px-2 py-2.5 font-semibold text-gold-300">{formatPrice(e.amount)}</td>
-                                    <td className="px-2 py-2.5 text-ink/60 capitalize">{e.paymentMode.replace(/_/g, ' ')}</td>
+                                    <td className="px-2 py-2.5 font-semibold text-accent">{formatPrice(e.amount)}</td>
+                                    <td className="px-2 py-2.5 text-fg-muted capitalize">{e.paymentMode.replace(/_/g, ' ')}</td>
                                     <td className="px-2 py-2.5">
-                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${e.status === 'paid' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{e.status}</span>
+                                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${e.status === 'paid' ? 'bg-success/10 text-success' : 'bg-amber-500/10 text-amber-300'}`}>{e.status}</span>
                                     </td>
                                     <td className="px-2 py-2.5">
                                       <div className="flex items-center gap-2.5">
                                         {e.receiptUrl && (
-                                          <a href={resolveFileUrl(e.receiptUrl)} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300">Receipt</a>
+                                          <a href={resolveFileUrl(e.receiptUrl)} target="_blank" rel="noreferrer" className="text-xs text-blueprint hover:text-blueprint">Receipt</a>
                                         )}
-                                        <button onClick={() => openEditExpense(e)} className="text-xs text-ink/60 hover:text-ink">Edit</button>
+                                        <button onClick={() => openEditExpense(e)} className="text-xs text-fg-muted hover:text-ink">Edit</button>
                                         {isCustomer && (
-                                          <button onClick={() => handleDeleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs text-red-400/80 hover:text-red-400 disabled:opacity-50">
+                                          <button onClick={() => handleDeleteExpense(e.id)} disabled={deletingId === e.id} className="text-xs text-danger/80 hover:text-danger disabled:opacity-50">
                                             {deletingId === e.id ? '...' : 'Delete'}
                                           </button>
                                         )}
@@ -723,7 +725,7 @@ function BudgetExpensesPage() {
                     {tab === 'planner' && (
                       <div>
                         {!isCustomer && (
-                          <p className="mb-3 rounded-lg bg-ink/5 px-3 py-2 text-xs text-ink/50">Only the project owner can change budget allocations — you can still see how spending compares below.</p>
+                          <p className="mb-3 rounded-lg bg-ink/5 px-3 py-2 text-xs text-fg-subtle">Only the project owner can change budget allocations — you can still see how spending compares below.</p>
                         )}
                         <div className="max-w-xs">
                           <FormField id="totalBudget" label="Total project budget (₹)" type="number" value={plannerTotalBudget} onChange={(e) => setPlannerTotalBudget(e.target.value)} placeholder="e.g. 1500000" disabled={!isCustomer} />
@@ -735,8 +737,8 @@ function BudgetExpensesPage() {
                             const pct = budgeted > 0 ? Math.min(100, Math.round((spent / budgeted) * 100)) : 0
                             return (
                               <div key={category}>
-                                <div className="flex items-center justify-between text-xs text-ink/60">
-                                  <span className="flex items-center gap-1.5 font-medium text-ink/80">
+                                <div className="flex items-center justify-between text-xs text-fg-muted">
+                                  <span className="flex items-center gap-1.5 font-medium text-fg">
                                     <span className="h-2.5 w-2.5 rounded-sm" style={{ background: colors[category] }} /> {category}
                                   </span>
                                   <span>{formatPrice(spent)} spent of {formatPrice(budgeted)}</span>
@@ -759,7 +761,7 @@ function BudgetExpensesPage() {
                           })}
                         </div>
                         {isCustomer && (
-                          <button onClick={handleSavePlanner} disabled={savingPlanner} className="mt-5 flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
+                          <button onClick={handleSavePlanner} disabled={savingPlanner} className="btn btn-primary mt-5">
                             {savingPlanner && <Spinner className="h-4 w-4" />}
                             Save Budget
                           </button>
@@ -769,8 +771,8 @@ function BudgetExpensesPage() {
 
                     {tab === 'comparison' && (
                       <div className="flex flex-col items-center gap-3 py-6 text-center">
-                        <p className="text-sm text-ink/70">Comparing supplier prices before you spend is the easiest way to stay under budget.</p>
-                        <Link to="/dashboard/cost-comparison" className="rounded-full bg-gold-500 px-4 py-2 text-xs font-semibold text-charcoal hover:bg-gold-400">
+                        <p className="text-sm text-fg-muted">Comparing supplier prices before you spend is the easiest way to stay under budget.</p>
+                        <Link to="/dashboard/cost-comparison" className="btn btn-primary btn-sm">
                           Open Material Cost Comparison
                         </Link>
                       </div>
@@ -778,20 +780,20 @@ function BudgetExpensesPage() {
 
                     {tab === 'reports' && (
                       !reportStats ? (
-                        <p className="py-8 text-center text-sm text-ink/40">Add an expense to see a spending report.</p>
+                        <p className="py-8 text-center text-sm text-fg-subtle">Add an expense to see a spending report.</p>
                       ) : (
                         <div className="space-y-5">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm font-semibold text-ink">Budget vs Actual</p>
                             <div className="flex gap-2">
-                              <button onClick={handleExportReportCsv} className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30">Export CSV</button>
-                              <button onClick={handleExportReportPdf} className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30">Export PDF</button>
+                              <button onClick={handleExportReportCsv} className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-medium text-fg-muted hover:border-ink/30">Export CSV</button>
+                              <button onClick={handleExportReportPdf} className="rounded-full border border-ink/15 px-3.5 py-1.5 text-xs font-medium text-fg-muted hover:border-ink/30">Export PDF</button>
                             </div>
                           </div>
 
                           <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                              <thead className="text-xs uppercase tracking-wider text-ink/40">
+                              <thead className="text-xs uppercase tracking-wider text-fg-subtle">
                                 <tr>
                                   <th className="px-2 py-2">Category</th>
                                   <th className="px-2 py-2">Budgeted</th>
@@ -806,11 +808,11 @@ function BudgetExpensesPage() {
                                   const pct = c.budgetedAmount > 0 ? Math.round((c.spentAmount / c.budgetedAmount) * 100) : null
                                   return (
                                     <tr key={c.category} className="border-t border-ink/10">
-                                      <td className="px-2 py-2 text-ink/80">{c.category}</td>
-                                      <td className="px-2 py-2 text-ink/60">{formatPrice(c.budgetedAmount)}</td>
-                                      <td className="px-2 py-2 text-gold-300">{formatPrice(c.spentAmount)}</td>
-                                      <td className={`px-2 py-2 ${remaining < 0 ? 'text-red-400' : 'text-emerald-300'}`}>{formatPrice(remaining)}</td>
-                                      <td className="px-2 py-2 text-ink/60">{pct != null ? `${pct}%` : '—'}</td>
+                                      <td className="px-2 py-2 text-fg">{c.category}</td>
+                                      <td className="px-2 py-2 text-fg-muted">{formatPrice(c.budgetedAmount)}</td>
+                                      <td className="px-2 py-2 text-accent">{formatPrice(c.spentAmount)}</td>
+                                      <td className={`px-2 py-2 ${remaining < 0 ? 'text-danger' : 'text-success'}`}>{formatPrice(remaining)}</td>
+                                      <td className="px-2 py-2 text-fg-muted">{pct != null ? `${pct}%` : '—'}</td>
                                     </tr>
                                   )
                                 })}
@@ -828,14 +830,14 @@ function BudgetExpensesPage() {
                               { label: 'Categories Over Budget', value: reportStats.overBudget.length },
                             ].map((r) => (
                               <div key={r.label} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3.5">
-                                <p className="text-[10px] font-medium uppercase tracking-wider text-ink/40">{r.label}</p>
+                                <p className="text-xs font-medium uppercase tracking-wider text-fg-subtle">{r.label}</p>
                                 <p className="mt-1.5 text-sm font-semibold text-ink">{r.value}</p>
                               </div>
                             ))}
                           </div>
                           {reportStats.overBudget.length > 0 && (
-                            <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-3.5">
-                              <p className="text-xs font-medium text-red-300">Over budget: {reportStats.overBudget.map((c) => c.category).join(', ')}</p>
+                            <div className="rounded-xl border border-danger/20 bg-danger/5 p-3.5">
+                              <p className="text-xs font-medium text-danger">Over budget: {reportStats.overBudget.map((c) => c.category).join(', ')}</p>
                             </div>
                           )}
                         </div>
@@ -847,25 +849,16 @@ function BudgetExpensesPage() {
             </>
           )}
 
-          <AnimatePresence>
-            {showExpenseModal && (
-              <>
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExpenseModal(false)} className="fixed inset-0 z-40 bg-black/70" />
-                <motion.form
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  onSubmit={handleSubmitExpense}
-                  className="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
-                >
+          <Modal open={Boolean(showExpenseModal)} onClose={() => setShowExpenseModal(false)} label="Expense" className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-surface p-5 shadow-pop">
+                <form onSubmit={handleSubmitExpense} className="contents">
                   <div className="flex items-center justify-between">
                     <p className="font-display text-sm font-semibold text-ink">{editingExpenseId ? 'Edit Expense' : 'Add Expense'}</p>
-                    <button type="button" onClick={() => setShowExpenseModal(false)} className="text-ink/40 hover:text-ink">✕</button>
+                    <button type="button" onClick={() => setShowExpenseModal(false)} className="text-fg-subtle hover:text-ink">✕</button>
                   </div>
-                  {expenseError && <p className="mt-3 text-sm text-red-400">{expenseError}</p>}
+                  {expenseError && <p className="mt-3 text-sm text-danger">{expenseError}</p>}
                   <div className="mt-4 space-y-3.5">
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Category</label>
+                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Category</label>
                       <select
                         value={expenseForm.category}
                         onChange={(e) => setExpenseForm((p) => ({ ...p, category: e.target.value }))}
@@ -882,13 +875,13 @@ function BudgetExpensesPage() {
                     <FormField id="amount" label="Amount (₹)" type="number" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} placeholder="e.g. 21000" />
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Payment Mode</label>
+                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Payment Mode</label>
                         <select value={expenseForm.paymentMode} onChange={(e) => setExpenseForm((p) => ({ ...p, paymentMode: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2.5 text-sm text-ink outline-none capitalize">
                           {PAYMENT_MODES.map((m) => <option key={m} value={m} className="capitalize">{m.replace(/_/g, ' ')}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Status</label>
+                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Status</label>
                         <select value={expenseForm.status} onChange={(e) => setExpenseForm((p) => ({ ...p, status: e.target.value }))} className="w-full rounded-lg border border-ink/15 bg-navy-900/60 px-3 py-2.5 text-sm text-ink outline-none">
                           <option value="paid">Paid</option>
                           <option value="pending">Pending</option>
@@ -902,26 +895,24 @@ function BudgetExpensesPage() {
                     </div>
                     <FormField id="notes" label="Notes (optional)" value={expenseForm.notes} onChange={(e) => setExpenseForm((p) => ({ ...p, notes: e.target.value }))} placeholder="Anything else worth recording" />
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">Receipt / Invoice (optional)</label>
+                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">Receipt / Invoice (optional)</label>
                       {existingReceiptUrl && !receiptFile && (
-                        <p className="mb-1.5 text-[11px] text-ink/40">Current: <a href={resolveFileUrl(existingReceiptUrl)} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">view file</a> (uploading a new one replaces it)</p>
+                        <p className="mb-1.5 text-xs text-fg-subtle">Current: <a href={resolveFileUrl(existingReceiptUrl)} target="_blank" rel="noreferrer" className="text-blueprint hover:text-blueprint">view file</a> (uploading a new one replaces it)</p>
                       )}
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
                         onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                        className="block w-full text-xs text-ink/60 file:mr-3 file:rounded-lg file:border-0 file:bg-gold-500/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gold-300 hover:file:bg-gold-500/25"
+                        className="block w-full text-xs text-fg-muted file:mr-3 file:rounded-lg file:border-0 file:bg-gold-500/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-accent hover:file:bg-gold-500/25"
                       />
                     </div>
                   </div>
-                  <button type="submit" disabled={submitting} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60">
+                  <button type="submit" disabled={submitting} className="btn btn-primary mt-4 w-full">
                     {submitting && <Spinner className="h-4 w-4" />}
                     {editingExpenseId ? 'Save Changes' : 'Save Expense'}
                   </button>
-                </motion.form>
-              </>
-            )}
-          </AnimatePresence>
+                </form>
+          </Modal>
 
           <AnimatePresence>
             {toast && (

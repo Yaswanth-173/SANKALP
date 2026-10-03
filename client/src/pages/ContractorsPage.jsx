@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import DashboardShell from '../components/dashboard/DashboardShell.jsx'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
 import CategoryTabs from '../components/contractors/CategoryTabs.jsx'
 import ContractorCard from '../components/contractors/ContractorCard.jsx'
 import { SearchIcon } from '../components/contractors/contractorIcons.jsx'
@@ -80,12 +81,12 @@ function ContractorsPage() {
 
           <div className="mt-6 flex flex-col gap-4">
             <div className="relative max-w-md">
-              <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
+              <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search contractors…"
-                className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-4 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-gold-500/50"
+                className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-4 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/50"
               />
             </div>
 
@@ -128,7 +129,7 @@ function ContractorsPage() {
           </div>
 
           {visibleCategories.length === 0 && !showFullHouse && (
-            <p className="mt-10 text-center text-sm text-ink/40">No contractors match "{query}".</p>
+            <EmptyState className="mt-8" icon={<SearchIcon className="h-6 w-6" />} title={`No contractors match "${query}".`} />
           )}
 
           <AnimatePresence>

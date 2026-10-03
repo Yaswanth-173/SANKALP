@@ -45,7 +45,7 @@ function NoteComposer({ onCreate }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setOpen(true)}
-            className="flex h-full min-h-[128px] w-full flex-col items-center justify-center gap-2 text-ink/40 transition-colors duration-200 hover:text-gold-400"
+            className="flex h-full min-h-[128px] w-full flex-col items-center justify-center gap-2 text-fg-subtle transition-colors duration-200 hover:text-accent-hover"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full border border-ink/15 text-xl">
               +
@@ -70,7 +70,7 @@ function NoteComposer({ onCreate }) {
               }}
               placeholder={t('notes.placeholder')}
               rows={4}
-              className="flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-ink/30"
+              className="flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-fg-subtle"
             />
             <div className="mt-3 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
@@ -87,13 +87,13 @@ function NoteComposer({ onCreate }) {
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={close} className="text-xs text-ink/40 hover:text-ink/70">
+                <button type="button" onClick={close} className="text-xs text-fg-subtle hover:text-fg">
                   {t('notes.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={!content.trim() || status === 'submitting'}
-                  className="flex items-center gap-1.5 rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn btn-primary btn-sm"
                 >
                   {status === 'submitting' && <Spinner className="h-3 w-3" />}
                   {t('notes.save')}

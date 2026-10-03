@@ -4,7 +4,7 @@ function PasswordToggle({ visible, onToggle, label = 'password' }) {
       type="button"
       onClick={onToggle}
       aria-label={visible ? `Hide ${label}` : `Show ${label}`}
-      className="text-ink/40 transition-colors duration-200 hover:text-gold-400"
+      className="text-fg-subtle transition-colors duration-200 hover:text-accent-hover"
     >
       {visible ? (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4.5 w-4.5">

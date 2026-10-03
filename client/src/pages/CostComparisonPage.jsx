@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import Modal from '../components/ui/Modal.jsx'
 import DashboardShell from '../components/dashboard/DashboardShell.jsx'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
-import Spinner from '../components/Spinner.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
+import { SkeletonCards } from '../components/ui/Skeleton.jsx'
 import CartDrawer from '../components/materials/CartDrawer.jsx'
 import ProductImage from '../components/materials/ProductImage.jsx'
 import { CartIcon, SearchIcon, CheckCircleIcon, LocationIcon, StarIcon, TruckIcon } from '../components/materials/materialIcons.jsx'
@@ -109,7 +111,7 @@ function PriceHistoryChart({ listing }) {
 
   return (
     <div>
-      <p className="text-xs font-medium uppercase tracking-wider text-ink/40">Price History <span className="text-ink/30">(Last 6 Months)</span></p>
+      <p className="text-xs font-medium uppercase tracking-wider text-fg-subtle">Price History <span className="text-fg-subtle">(Last 6 Months)</span></p>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="mt-2 w-full"
@@ -117,15 +119,15 @@ function PriceHistoryChart({ listing }) {
       >
         <defs>
           <linearGradient id="price-history-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#eab424" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="#eab424" stopOpacity="0" />
+            <stop offset="0%" stopColor="#f5a524" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#f5a524" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d={areaPath} fill="url(#price-history-fill)" />
-        <path d={linePath} fill="none" stroke="#eab424" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="#f5a524" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {points.map((p, i) => (
           <g key={i}>
-            <circle cx={p.x} cy={p.y} r={hoverIdx === i ? 3.5 : 2} fill="#eab424" />
+            <circle cx={p.x} cy={p.y} r={hoverIdx === i ? 3.5 : 2} fill="#f5a524" />
             <rect
               x={p.x - (width / data.length) / 2}
               y={0}
@@ -137,25 +139,25 @@ function PriceHistoryChart({ listing }) {
           </g>
         ))}
         {hoverIdx !== null && (
-          <line x1={points[hoverIdx].x} y1={padY} x2={points[hoverIdx].x} y2={height - padY} stroke="#eab424" strokeOpacity="0.35" strokeWidth="1" />
+          <line x1={points[hoverIdx].x} y1={padY} x2={points[hoverIdx].x} y2={height - padY} stroke="#f5a524" strokeOpacity="0.35" strokeWidth="1" />
         )}
       </svg>
-      <div className="flex justify-between text-[10px] text-ink/35">
+      <div className="flex justify-between text-xs text-fg-subtle">
         {data.map((d) => (
           <span key={d.month}>{d.month}</span>
         ))}
       </div>
       {hoverIdx !== null && (
-        <p className="mt-1 text-center text-xs text-ink/60">{data[hoverIdx].month}: <span className="font-semibold text-gold-300">{formatPrice(data[hoverIdx].price)}</span></p>
+        <p className="mt-1 text-center text-xs text-fg-muted">{data[hoverIdx].month}: <span className="font-semibold text-accent">{formatPrice(data[hoverIdx].price)}</span></p>
       )}
-      <p className="mt-1 text-center text-[10px] text-ink/30">Average Market Price — illustrative trend</p>
+      <p className="mt-1 text-center text-xs text-fg-subtle">Average Market Price — illustrative trend</p>
     </div>
   )
 }
 
 function ToggleSwitch({ checked, onChange, label }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-ink/70">
+    <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-muted">
       {label}
       <button
         type="button"
@@ -409,18 +411,18 @@ function CostComparisonPage() {
 
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[220px] flex-1">
-              <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
+              <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
               <input
                 value={queryInput}
                 onChange={(e) => setQueryInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && runSearch()}
                 placeholder="Search materials, brands, suppliers..."
-                className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-9 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-gold-500/50"
+                className="w-full rounded-full border border-ink/15 bg-navy-900/60 py-2.5 pl-10 pr-9 text-sm text-ink outline-none placeholder:text-fg-subtle focus:border-gold-500/50"
               />
               {query && (
                 <button
                   onClick={() => { setQuery(''); setQueryInput('') }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/35 hover:text-ink"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-ink"
                   aria-label="Clear search"
                 >
                   ✕
@@ -458,7 +460,7 @@ function CostComparisonPage() {
             </select>
             <button
               onClick={runSearch}
-              className="rounded-full bg-gold-500 px-5 py-2.5 text-xs font-semibold text-charcoal hover:bg-gold-400"
+              className="btn btn-primary btn-sm"
             >
               Search
             </button>
@@ -468,7 +470,7 @@ function CostComparisonPage() {
             >
               <CartIcon className="h-4 w-4" /> Cart
               {cartCount > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-xs font-bold text-white">
                   {cartCount}
                 </span>
               )}
@@ -481,7 +483,7 @@ function CostComparisonPage() {
                 key={opt.value}
                 onClick={() => setSortBy(opt.value)}
                 className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors duration-150 ${
-                  sortBy === opt.value ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-ink/10 text-ink/60 hover:border-ink/20'
+                  sortBy === opt.value ? 'border-gold-500/50 bg-gold-500/10 text-accent' : 'border-ink/10 text-fg-muted hover:border-ink/20'
                 }`}
               >
                 {opt.label}
@@ -489,28 +491,26 @@ function CostComparisonPage() {
             ))}
           </div>
 
-          {error && <p className="mt-5 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-5 text-sm text-danger">{error}</p>}
 
           {loading ? (
-            <div className="mt-16 flex justify-center">
-              <Spinner className="h-6 w-6 text-ink/40" />
-            </div>
+            <SkeletonCards className="mt-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" />
           ) : (
             <div className="mt-6 grid grid-cols-1 gap-5 xl:grid-cols-[220px_1fr_280px]">
               {/* Filters sidebar */}
               <div className="rounded-2xl border border-ink/10 bg-navy-900/50 p-4 xl:order-1 xl:h-fit">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-ink">Filters</p>
-                  <button onClick={clearFilters} className="text-xs font-medium text-gold-300 hover:text-gold-200">Clear All</button>
+                  <button onClick={clearFilters} className="text-xs font-medium text-accent hover:text-accent-hover">Clear All</button>
                 </div>
 
-                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Category</p>
-                <p className="mt-1 text-sm text-ink/80">{categoryFilter === 'all' ? 'All Categories' : categoryFilter} ({filteredListings.length})</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-fg-subtle">Category</p>
+                <p className="mt-1 text-sm text-fg">{categoryFilter === 'all' ? 'All Categories' : categoryFilter} ({filteredListings.length})</p>
 
-                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Brand</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-fg-subtle">Brand</p>
                 <div className="mt-2 max-h-36 space-y-1.5 overflow-y-auto">
                   {brands.map((brand) => (
-                    <label key={brand} className="flex items-center gap-2 text-sm text-ink/70">
+                    <label key={brand} className="flex items-center gap-2 text-sm text-fg-muted">
                       <input
                         type="checkbox"
                         checked={brandFilters.has(brand)}
@@ -522,7 +522,7 @@ function CostComparisonPage() {
                   ))}
                 </div>
 
-                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Price Range</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-fg-subtle">Price Range</p>
                 <div className="mt-2">
                   <input
                     type="range"
@@ -533,13 +533,13 @@ function CostComparisonPage() {
                     onChange={(e) => setMaxPrice(Number(e.target.value))}
                     className="w-full accent-gold-500"
                   />
-                  <p className="mt-1 text-xs text-ink/50">₹0 – {formatPrice(effectiveMaxPrice)}</p>
+                  <p className="mt-1 text-xs text-fg-subtle">₹0 – {formatPrice(effectiveMaxPrice)}</p>
                 </div>
 
-                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Rating</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-fg-subtle">Rating</p>
                 <div className="mt-2 space-y-1">
                   {[4.5, 4, 3.5].map((r) => (
-                    <label key={r} className="flex items-center gap-2 text-sm text-ink/70">
+                    <label key={r} className="flex items-center gap-2 text-sm text-fg-muted">
                       <input
                         type="checkbox"
                         checked={minRating === r}
@@ -548,7 +548,7 @@ function CostComparisonPage() {
                       />
                       <span className="flex items-center gap-0.5">
                         {Array.from({ length: Math.floor(r) }).map((_, i) => (
-                          <StarIcon key={i} className="h-3.5 w-3.5 text-gold-300" />
+                          <StarIcon key={i} className="h-3.5 w-3.5 text-accent" />
                         ))}
                       </span>
                       &amp; above
@@ -556,7 +556,7 @@ function CostComparisonPage() {
                   ))}
                 </div>
 
-                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-ink/40">Supplier</p>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wider text-fg-subtle">Supplier</p>
                 <select
                   value={supplierFilter}
                   onChange={(e) => setSupplierFilter(e.target.value)}
@@ -575,7 +575,7 @@ function CostComparisonPage() {
 
                 <button
                   onClick={() => document.getElementById('comparison-results')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="mt-4 w-full rounded-lg bg-gold-500 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400"
+                  className="btn btn-primary mt-4 w-full"
                 >
                   Apply Filters
                 </button>
@@ -584,17 +584,17 @@ function CostComparisonPage() {
               {/* Product grid / table */}
               <div id="comparison-results" className="xl:order-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs text-ink/40">Showing {filteredListings.length} result{filteredListings.length === 1 ? '' : 's'}{query ? ` for "${query}"` : ''}</p>
+                  <p className="text-xs text-fg-subtle">Showing {filteredListings.length} result{filteredListings.length === 1 ? '' : 's'}{query ? ` for "${query}"` : ''}</p>
                   <div className="flex items-center gap-1 rounded-full border border-ink/10 p-1">
                     <button
                       onClick={() => setViewMode('grid')}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'grid' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'grid' ? 'bg-gold-500 text-charcoal' : 'text-fg-subtle hover:text-ink'}`}
                     >
                       Grid
                     </button>
                     <button
                       onClick={() => setViewMode('table')}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'table' ? 'bg-gold-500 text-charcoal' : 'text-ink/50 hover:text-ink'}`}
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${viewMode === 'table' ? 'bg-gold-500 text-charcoal' : 'text-fg-subtle hover:text-ink'}`}
                     >
                       Table
                     </button>
@@ -602,11 +602,11 @@ function CostComparisonPage() {
                 </div>
 
                 {filteredListings.length === 0 ? (
-                  <p className="mt-10 text-center text-sm text-ink/40">No materials match your filters.</p>
+                  <EmptyState className="mt-8" icon={<SearchIcon className="h-6 w-6" />} title="No materials match your filters." />
                 ) : viewMode === 'table' ? (
                   <div className="mt-3 overflow-x-auto rounded-2xl border border-ink/10">
                     <table className="w-full text-left text-sm">
-                      <thead className="bg-navy-900/60 text-xs uppercase tracking-wider text-ink/40">
+                      <thead className="bg-navy-900/60 text-xs uppercase tracking-wider text-fg-subtle">
                         <tr>
                           <th className="px-4 py-3">Material</th>
                           <th className="px-4 py-3">Brand</th>
@@ -625,14 +625,14 @@ function CostComparisonPage() {
                               <ProductImage product={listing} className="h-9 w-9 rounded-md object-cover" />
                               {listing.name}
                             </td>
-                            <td className="px-4 py-2.5 text-ink/60">{listing.brand}</td>
-                            <td className="px-4 py-2.5 text-ink/60">{listing.shopName}</td>
-                            <td className="px-4 py-2.5 font-semibold text-gold-300">{formatPrice(listing.price)}<span className="text-ink/40"> /{listing.unit}</span></td>
-                            <td className="px-4 py-2.5 text-ink/60">{listing.shopRating != null ? listing.shopRating.toFixed(1) : '—'}</td>
-                            <td className="px-4 py-2.5 text-ink/60 capitalize">{listing.stockStatus.replace(/_/g, ' ')}</td>
-                            <td className="px-4 py-2.5 text-ink/60">{listing.shopDeliveryAvailable ? deliveryDaysFor(listing.shopDeliveryEtaHours) : 'Pickup only'}</td>
+                            <td className="px-4 py-2.5 text-fg-muted">{listing.brand}</td>
+                            <td className="px-4 py-2.5 text-fg-muted">{listing.shopName}</td>
+                            <td className="px-4 py-2.5 font-semibold text-accent">{formatPrice(listing.price)}<span className="text-fg-subtle"> /{listing.unit}</span></td>
+                            <td className="px-4 py-2.5 text-fg-muted">{listing.shopRating != null ? listing.shopRating.toFixed(1) : '—'}</td>
+                            <td className="px-4 py-2.5 text-fg-muted capitalize">{listing.stockStatus.replace(/_/g, ' ')}</td>
+                            <td className="px-4 py-2.5 text-fg-muted">{listing.shopDeliveryAvailable ? deliveryDaysFor(listing.shopDeliveryEtaHours) : 'Pickup only'}</td>
                             <td className="px-4 py-2.5">
-                              <button onClick={() => handleBuyNow(listing)} disabled={listing.stockStatus === 'out_of_stock'} className="rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-40">Buy Now</button>
+                              <button onClick={() => handleBuyNow(listing)} disabled={listing.stockStatus === 'out_of_stock'} className="btn btn-primary btn-sm">Buy Now</button>
                             </td>
                           </tr>
                         ))}
@@ -655,7 +655,7 @@ function CostComparisonPage() {
                           className="flex flex-col gap-2.5 rounded-2xl border border-ink/10 bg-navy-900/50 p-4"
                         >
                           <div className="flex items-start justify-between">
-                            <label className="flex items-center gap-1.5 text-[11px] text-ink/50">
+                            <label className="flex items-center gap-1.5 text-xs text-fg-subtle">
                               <input
                                 type="checkbox"
                                 checked={isComparing}
@@ -667,9 +667,9 @@ function CostComparisonPage() {
                             </label>
                             <div className="flex items-center gap-1.5">
                               {sortBy === 'lowestPrice' && i === 0 && (
-                                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Lowest Price</span>
+                                <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">Lowest Price</span>
                               )}
-                              <button onClick={() => toggleWishlist(listing.id)} aria-label="Save to wishlist" className={isWishlisted ? 'text-red-400' : 'text-ink/30 hover:text-ink/60'}>
+                              <button onClick={() => toggleWishlist(listing.id)} aria-label="Save to wishlist" className={isWishlisted ? 'text-danger' : 'text-fg-subtle hover:text-fg'}>
                                 <svg viewBox="0 0 24 24" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" className="h-4 w-4">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 20s-7-4.35-9.5-8.5C.7 8.2 2.4 5 5.6 5c1.7 0 3.2.9 4.1 2.3.9 1.5.3-2.3 4.1-2.3 3.2 0 4.9 3.2 3.1 6.5C19 15.65 12 20 12 20Z" />
                                 </svg>
@@ -680,38 +680,38 @@ function CostComparisonPage() {
                           <ProductImage product={listing} className="h-28 w-full rounded-xl object-cover" />
 
                           <div>
-                            <p className="text-xs font-medium uppercase tracking-wide text-gold-300/80">{listing.brand}</p>
-                            <p className="mt-0.5 text-sm text-ink/90">{listing.name}</p>
+                            <p className="text-xs font-medium uppercase tracking-wide text-accent/80">{listing.brand}</p>
+                            <p className="mt-0.5 text-sm text-fg">{listing.name}</p>
                           </div>
 
-                          <div className="flex items-center gap-1.5 text-xs text-ink/60">
-                            <CheckCircleIcon className="h-3.5 w-3.5 text-emerald-400" />
+                          <div className="flex items-center gap-1.5 text-xs text-fg-muted">
+                            <CheckCircleIcon className="h-3.5 w-3.5 text-success" />
                             {listing.shopName}
-                            {listing.shopDistanceKm != null && <span className="text-ink/35">· {listing.shopDistanceKm} km</span>}
+                            {listing.shopDistanceKm != null && <span className="text-fg-subtle">· {listing.shopDistanceKm} km</span>}
                           </div>
 
-                          <div className="flex items-center gap-2 text-xs text-ink/50">
+                          <div className="flex items-center gap-2 text-xs text-fg-subtle">
                             {listing.shopRating != null && (
                               <span className="flex items-center gap-1">
-                                <StarIcon className="h-3.5 w-3.5 text-gold-300" /> {listing.shopRating.toFixed(1)}
+                                <StarIcon className="h-3.5 w-3.5 text-accent" /> {listing.shopRating.toFixed(1)}
                               </span>
                             )}
                             <span>({reviewCountFor(listing.id)} reviews)</span>
                           </div>
 
-                          <p className="font-display text-lg font-semibold text-gold-300">
-                            {formatPrice(listing.price)} <span className="text-xs font-normal text-ink/40">/ {listing.unit}</span>
+                          <p className="font-display text-lg font-semibold text-accent">
+                            {formatPrice(listing.price)} <span className="text-xs font-normal text-fg-subtle">/ {listing.unit}</span>
                           </p>
 
                           <span
-                            className={`inline-block w-fit rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                              outOfStock ? 'bg-red-500/10 text-red-300' : listing.stockStatus === 'low_stock' ? 'bg-amber-500/10 text-amber-300' : 'bg-emerald-500/10 text-emerald-300'
+                            className={`inline-block w-fit rounded-full px-2 py-0.5 text-xs font-medium ${
+                              outOfStock ? 'bg-danger/10 text-danger' : listing.stockStatus === 'low_stock' ? 'bg-amber-500/10 text-amber-300' : 'bg-success/10 text-success'
                             }`}
                           >
                             {outOfStock ? 'Out of stock' : listing.stockStatus === 'low_stock' ? 'Low stock' : 'In stock'}
                           </span>
 
-                          <div className="space-y-0.5 text-[11px] text-ink/45">
+                          <div className="space-y-0.5 text-xs text-fg-subtle">
                             <div className="flex items-center gap-1.5">
                               <TruckIcon className="h-3.5 w-3.5" />
                               {listing.shopDeliveryAvailable ? `Delivery: ${deliveryDaysFor(listing.shopDeliveryEtaHours)}` : 'Pickup only'}
@@ -722,7 +722,7 @@ function CostComparisonPage() {
                           <div className="mt-1 flex items-center gap-2">
                             <button
                               onClick={() => setViewListing(listing)}
-                              className="rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-medium text-ink/70 hover:border-ink/30 hover:text-ink"
+                              className="rounded-lg border border-ink/15 px-3 py-1.5 text-xs font-medium text-fg-muted hover:border-ink/30 hover:text-ink"
                             >
                               View
                             </button>
@@ -730,7 +730,7 @@ function CostComparisonPage() {
                               <button
                                 onClick={() => increment(listing.id)}
                                 disabled={outOfStock}
-                                className="flex-1 rounded-lg border border-gold-500/40 px-3 py-1.5 text-xs font-semibold text-gold-300 hover:bg-gold-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="flex-1 rounded-lg border border-gold-500/40 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-gold-500/10 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 Add to Cart
                               </button>
@@ -745,7 +745,7 @@ function CostComparisonPage() {
                           <button
                             onClick={() => handleBuyNow(listing)}
                             disabled={outOfStock || placingShopId === listing.shopId}
-                            className="rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-semibold text-charcoal hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="btn btn-primary btn-sm"
                           >
                             Buy Now
                           </button>
@@ -759,11 +759,11 @@ function CostComparisonPage() {
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/10 bg-navy-900/50 px-5 py-4">
                   <div>
                     <p className="text-sm font-semibold text-ink">Compare Selected Materials ({compareIds.size})</p>
-                    <p className="text-xs text-ink/40">Select 2 or more materials to compare prices, delivery, and other details.</p>
+                    <p className="text-xs text-fg-subtle">Select 2 or more materials to compare prices, delivery, and other details.</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {compareIds.size > 0 && (
-                      <button onClick={() => setCompareIds(new Set())} className="text-xs text-ink/40 hover:text-ink/70">Clear</button>
+                      <button onClick={() => setCompareIds(new Set())} className="text-xs text-fg-subtle hover:text-fg">Clear</button>
                     )}
                     <button
                       onClick={() => setShowCompareModal(true)}
@@ -787,8 +787,8 @@ function CostComparisonPage() {
                           className="flex w-32 shrink-0 flex-col items-start gap-1.5 rounded-xl border border-ink/10 bg-navy-900/50 p-2.5 text-left hover:border-gold-500/30"
                         >
                           <ProductImage product={l} className="h-16 w-full rounded-lg object-cover" />
-                          <p className="line-clamp-2 text-xs text-ink/80">{l.name}</p>
-                          <p className="text-xs font-semibold text-gold-300">From {formatPrice(l.price)}/{l.unit}</p>
+                          <p className="line-clamp-2 text-xs text-fg">{l.name}</p>
+                          <p className="text-xs font-semibold text-accent">From {formatPrice(l.price)}/{l.unit}</p>
                         </button>
                       ))}
                     </div>
@@ -800,7 +800,7 @@ function CostComparisonPage() {
               <div className="rounded-2xl border border-ink/10 bg-navy-900/50 p-4 xl:order-3 xl:h-fit xl:sticky xl:top-6">
                 <p className="text-sm font-semibold text-ink">Cost Calculator</p>
                 <div className="mt-3">
-                  <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-ink/40">Material</label>
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-fg-subtle">Material</label>
                   <select
                     value={calcListingId || ''}
                     onChange={(e) => setCalcListingId(e.target.value)}
@@ -812,7 +812,7 @@ function CostComparisonPage() {
                   </select>
                 </div>
                 <div className="mt-3">
-                  <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-ink/40">Quantity</label>
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-fg-subtle">Quantity</label>
                   <input
                     type="number"
                     min="1"
@@ -822,20 +822,20 @@ function CostComparisonPage() {
                   />
                 </div>
                 {calcListing && (
-                  <div className="mt-4 space-y-1.5 border-t border-ink/10 pt-3 text-xs text-ink/60">
+                  <div className="mt-4 space-y-1.5 border-t border-ink/10 pt-3 text-xs text-fg-muted">
                     <div className="flex justify-between"><span>Unit Price</span><span>{formatPrice(calcListing.price)}</span></div>
                     <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(calcSubtotal)}</span></div>
                     <div className="flex justify-between"><span>Delivery Charge</span><span>{calcDelivery ? formatPrice(calcDelivery) : 'Free'}</span></div>
                     <div className="mt-2 flex justify-between border-t border-ink/10 pt-2 text-sm font-semibold text-ink">
                       <span>Estimated Total</span>
-                      <span className="text-gold-300">{formatPrice(calcTotal)}</span>
+                      <span className="text-accent">{formatPrice(calcTotal)}</span>
                     </div>
                   </div>
                 )}
                 <button
                   onClick={() => calcListing && setCart((prev) => ({ ...prev, [calcListing.id]: (prev[calcListing.id] || 0) + calcQuantity }))}
                   disabled={!calcListing}
-                  className="mt-4 w-full rounded-lg bg-gold-500 py-2.5 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-50"
+                  className="btn btn-primary mt-4 w-full"
                 >
                   Add to Cart
                 </button>
@@ -849,19 +849,10 @@ function CostComparisonPage() {
             </div>
           )}
 
-          <AnimatePresence>
-            {showCompareModal && (
-              <>
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCompareModal(false)} className="fixed inset-0 z-40 bg-black/70" />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  className="fixed inset-4 z-50 mx-auto flex max-w-4xl flex-col overflow-hidden rounded-2xl border border-ink/10 bg-navy-900 shadow-2xl sm:inset-x-8 sm:inset-y-10"
-                >
+          <Modal open={Boolean(showCompareModal)} onClose={() => setShowCompareModal(false)} label="Compare prices" className="flex max-w-4xl flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-pop w-full h-[calc(100svh-2rem)] sm:h-[calc(100svh-5rem)]">
                   <div className="flex items-center justify-between border-b border-ink/10 px-5 py-4">
                     <p className="font-display text-sm font-semibold text-ink">Compare Materials</p>
-                    <button onClick={() => setShowCompareModal(false)} className="text-ink/40 hover:text-ink">✕</button>
+                    <button onClick={() => setShowCompareModal(false)} className="text-fg-subtle hover:text-ink">✕</button>
                   </div>
                   <div className="flex-1 overflow-auto p-5">
                     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${compareIds.size}, minmax(180px, 1fr))` }}>
@@ -871,10 +862,10 @@ function CostComparisonPage() {
                         return (
                           <div key={id} className="rounded-xl border border-ink/10 bg-navy-950/40 p-3">
                             <ProductImage product={l} className="h-24 w-full rounded-lg object-cover" />
-                            <p className="mt-2 text-xs font-medium text-gold-300/80">{l.brand} · {l.shopName}</p>
-                            <p className="text-sm text-ink/90">{l.name}</p>
-                            <p className="mt-2 font-display text-base font-semibold text-gold-300">{formatPrice(l.price)} <span className="text-[10px] font-normal text-ink/40">/ {l.unit}</span></p>
-                            <div className="mt-2 space-y-1 text-xs text-ink/55">
+                            <p className="mt-2 text-xs font-medium text-accent/80">{l.brand} · {l.shopName}</p>
+                            <p className="text-sm text-fg">{l.name}</p>
+                            <p className="mt-2 font-display text-base font-semibold text-accent">{formatPrice(l.price)} <span className="text-xs font-normal text-fg-subtle">/ {l.unit}</span></p>
+                            <div className="mt-2 space-y-1 text-xs text-fg-muted">
                               <p>Rating: {l.shopRating != null ? l.shopRating.toFixed(1) : 'N/A'}</p>
                               <p>Location: {l.shopLocation}</p>
                               <p>Stock: {l.stockStatus.replace(/_/g, ' ')}</p>
@@ -885,45 +876,34 @@ function CostComparisonPage() {
                       })}
                     </div>
                   </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          </Modal>
 
-          <AnimatePresence>
+          <Modal open={Boolean(viewListing)} onClose={() => setViewListing(null)} label="Listing details" className="w-full max-w-md rounded-2xl border border-line bg-surface p-5 shadow-pop">
             {viewListing && (
               <>
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setViewListing(null)} className="fixed inset-0 z-40 bg-black/70" />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-ink/10 bg-navy-900 p-5 shadow-2xl"
-                >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-gold-300/80">{viewListing.brand} · {viewListing.shopName}</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-accent/80">{viewListing.brand} · {viewListing.shopName}</p>
                       <p className="font-display text-base font-semibold text-ink">{viewListing.name}</p>
                     </div>
-                    <button onClick={() => setViewListing(null)} className="text-ink/40 hover:text-ink">✕</button>
+                    <button onClick={() => setViewListing(null)} className="text-fg-subtle hover:text-ink">✕</button>
                   </div>
                   <ProductImage product={viewListing} className="mt-3 h-40 w-full rounded-xl object-cover" />
-                  <p className="mt-3 font-display text-xl font-semibold text-gold-300">
-                    {formatPrice(viewListing.price)} <span className="text-xs font-normal text-ink/40">/ {viewListing.unit}</span>
+                  <p className="mt-3 font-display text-xl font-semibold text-accent">
+                    {formatPrice(viewListing.price)} <span className="text-xs font-normal text-fg-subtle">/ {viewListing.unit}</span>
                   </p>
-                  <div className="mt-3 space-y-1.5 text-sm text-ink/60">
-                    <p className="flex items-center gap-1.5"><LocationIcon className="h-4 w-4 text-ink/40" /> {viewListing.shopAddress || viewListing.shopLocation}</p>
-                    {viewListing.shopRating != null && <p className="flex items-center gap-1.5"><StarIcon className="h-4 w-4 text-gold-300" /> {viewListing.shopRating.toFixed(1)} ({reviewCountFor(viewListing.id)} reviews)</p>}
-                    <p className="flex items-center gap-1.5"><TruckIcon className="h-4 w-4 text-ink/40" /> {viewListing.shopDeliveryAvailable ? `Delivery: ${deliveryDaysFor(viewListing.shopDeliveryEtaHours)} · ${formatPrice(DELIVERY_CHARGE)}` : 'Pickup only'}</p>
+                  <div className="mt-3 space-y-1.5 text-sm text-fg-muted">
+                    <p className="flex items-center gap-1.5"><LocationIcon className="h-4 w-4 text-fg-subtle" /> {viewListing.shopAddress || viewListing.shopLocation}</p>
+                    {viewListing.shopRating != null && <p className="flex items-center gap-1.5"><StarIcon className="h-4 w-4 text-accent" /> {viewListing.shopRating.toFixed(1)} ({reviewCountFor(viewListing.id)} reviews)</p>}
+                    <p className="flex items-center gap-1.5"><TruckIcon className="h-4 w-4 text-fg-subtle" /> {viewListing.shopDeliveryAvailable ? `Delivery: ${deliveryDaysFor(viewListing.shopDeliveryEtaHours)} · ${formatPrice(DELIVERY_CHARGE)}` : 'Pickup only'}</p>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <button onClick={() => { increment(viewListing.id); setViewListing(null) }} className="flex-1 rounded-lg border border-gold-500/40 px-3 py-2 text-sm font-semibold text-gold-300 hover:bg-gold-500/10">Add to Cart</button>
-                    <button onClick={() => { handleBuyNow(viewListing); setViewListing(null) }} className="flex-1 rounded-lg bg-gold-500 px-3 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400">Buy Now</button>
+                    <button onClick={() => { increment(viewListing.id); setViewListing(null) }} className="flex-1 rounded-lg border border-gold-500/40 px-3 py-2 text-sm font-semibold text-accent hover:bg-gold-500/10">Add to Cart</button>
+                    <button onClick={() => { handleBuyNow(viewListing); setViewListing(null) }} className="btn btn-primary flex-1">Buy Now</button>
                   </div>
-                </motion.div>
               </>
             )}
-          </AnimatePresence>
+          </Modal>
 
           <CartDrawer
             open={cartOpen}
@@ -945,7 +925,7 @@ function CostComparisonPage() {
                 className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-gold-500/40 bg-navy-900 px-5 py-2.5 text-sm text-ink shadow-2xl"
               >
                 <span className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-4 w-4 text-emerald-400" /> {toast}
+                  <CheckCircleIcon className="h-4 w-4 text-success" /> {toast}
                 </span>
               </motion.div>
             )}

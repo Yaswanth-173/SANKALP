@@ -1,33 +1,96 @@
 @import "tailwindcss";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/inter";
+/* Loaded per unicode-range, so these only download when Hindi/Telugu text renders. */
+@import "@fontsource-variable/noto-sans-devanagari";
+@import "@fontsource-variable/noto-sans-telugu";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 
+/* ==========================================================================
+   Design tokens — "Blueprint Noir"
+   Every color below resolves through a --c-* variable redefined per
+   [data-theme], so one token change rethemes the whole app. Legacy names
+   (navy-*, ink, gold-*) are kept as aliases of the semantic tokens so
+   existing pages pick up the new palette without a rewrite.
+   ========================================================================== */
 @theme {
-  --font-display: "Poppins", system-ui, "Segoe UI", sans-serif;
-  --font-sans: "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk Variable", "Noto Sans Devanagari Variable", "Noto Sans Telugu Variable", system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Noto Sans Devanagari Variable", "Noto Sans Telugu Variable", system-ui, "Segoe UI", sans-serif;
 
-  /* Theme-reactive surfaces (redefined per [data-theme] below). */
-  --color-navy-950: var(--c-navy-950);
-  --color-navy-900: var(--c-navy-900);
-  --color-navy-800: var(--c-navy-800);
-  --color-navy-700: var(--c-navy-700);
-  --color-navy-600: var(--c-navy-600);
+  /* Semantic surfaces & text */
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-surface-3: var(--c-surface-3);
+  --color-line: var(--c-line);
+  --color-fg: var(--c-fg);
+  --color-fg-muted: var(--c-fg-muted);
+  --color-fg-subtle: var(--c-fg-subtle);
 
-  --color-ink: var(--c-ink);
+  /* Accent: amber for text/links (theme-aware for contrast), constant
+     amber for filled surfaces, safety orange reserved for emphasis. */
+  --color-accent: var(--c-accent);
+  --color-accent-hover: var(--c-accent-hover);
+  --color-accent-strong: #ff6a13;
+  --color-on-accent: #0b0c0e;
+  --color-blueprint: var(--c-blueprint);
+  --color-success: var(--c-success);
+  --color-danger: var(--c-danger);
 
-  /* Always-dark ink for text on the gold accent — stays legible in
-     both themes, independent of the reactive navy-950 surface token. */
-  --color-charcoal: #05070f;
+  /* Legacy aliases — used across the dashboard pages. */
+  --color-navy-950: var(--c-canvas);
+  --color-navy-900: var(--c-surface);
+  --color-navy-800: var(--c-surface-2);
+  --color-navy-700: var(--c-surface-3);
+  --color-navy-600: var(--c-line);
+  --color-ink: var(--c-fg);
+  --color-charcoal: #0b0c0e;
+  --color-gold-200: #ffe3a6;
+  --color-gold-300: #ffcb66;
+  --color-gold-400: #ffb83d;
+  --color-gold-500: #f5a524;
+  --color-gold-600: #d98a0b;
 
-  /* Brand gold stays constant across themes. */
-  --color-gold-200: #fbe2a8;
-  --color-gold-300: #f8d179;
-  --color-gold-400: #f6c453;
-  --color-gold-500: #eab424;
-  --color-gold-600: #c8941a;
+  /* Fluid display scale (body sizes use Tailwind's defaults, 12px minimum). */
+  --text-display-2xl: clamp(4.5rem, 17vw, 15rem);
+  --text-display-2xl--line-height: 0.82;
+  --text-display-2xl--letter-spacing: -0.04em;
+  --text-display-xl: clamp(3.25rem, 10vw, 8rem);
+  --text-display-xl--line-height: 0.9;
+  --text-display-xl--letter-spacing: -0.035em;
+  --text-display-lg: clamp(2.5rem, 6.5vw, 5.25rem);
+  --text-display-lg--line-height: 0.95;
+  --text-display-lg--letter-spacing: -0.03em;
+  --text-display: clamp(2rem, 4.4vw, 3.5rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.025em;
+  --text-title: clamp(1.375rem, 2.2vw, 1.75rem);
+  --text-title--line-height: 1.15;
+  --text-title--letter-spacing: -0.015em;
+
+  /* Radius: 4 · 6 · 10 · 16 · 24 · full */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+
+  /* Elevation */
+  --shadow-card: var(--c-shadow-card);
+  --shadow-pop: var(--c-shadow-pop);
+  --shadow-glow: 0 0 0 1px rgb(245 165 36 / 0.35), 0 18px 48px -14px rgb(245 165 36 / 0.4);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-curtain: cubic-bezier(0.76, 0, 0.24, 1);
 
   --animate-fade-up: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-fade-in: fade-in 1s ease forwards;
+  --animate-marquee: marquee var(--marquee-duration, 40s) linear infinite;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
 
   @keyframes fade-up {
     from {
@@ -48,67 +111,263 @@
       opacity: 1;
     }
   }
+
+  @keyframes marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
 }
 
-:root {
-  --c-navy-950: #05070f;
-  --c-navy-900: #0a0e1a;
-  --c-navy-800: #0f1526;
-  --c-navy-700: #161d35;
-  --c-navy-600: #202a4a;
-  --c-ink: #f5f6fa;
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-canvas: #0b0c0e;
+  --c-surface: #121418;
+  --c-surface-2: #1a1d22;
+  --c-surface-3: #23272e;
+  --c-line: #2e333b;
+  --c-fg: #f2f1ee;
+  --c-fg-muted: #b4b8bf;
+  --c-fg-subtle: #8b9099;
+  --c-accent: #ffb547;
+  --c-accent-hover: #ffcb75;
+  --c-blueprint: #6fa3ff;
+  --c-success: #3dd68c;
+  --c-danger: #ff6b6b;
+  --c-shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 16px 40px -24px rgb(0 0 0 / 0.8);
+  --c-shadow-pop: 0 28px 70px -24px rgb(0 0 0 / 0.85);
+  --c-grid-line: rgb(111 163 255 / 0.07);
+  /* Building illustration */
+  --c-b-top: #353b45;
+  --c-b-left: #1b1e24;
+  --c-b-right: #262a32;
+  --c-b-site: #15171b;
+  --c-b-edge: #3a404a;
+  --c-b-slab: #4a515c;
+  --c-b-glass: #0f1115;
+  --c-b-lit: #ffbf5e;
 }
 
 :root[data-theme="light"] {
-  --c-navy-950: #faf8f4;
-  --c-navy-900: #ffffff;
-  --c-navy-800: #efe9dd;
-  --c-navy-700: #e4ddcf;
-  --c-navy-600: #d8cfba;
-  --c-ink: #14182a;
+  color-scheme: light;
+  --c-canvas: #f4f3f0;
+  --c-surface: #ffffff;
+  --c-surface-2: #eceae5;
+  --c-surface-3: #e2dfd8;
+  --c-line: #d3cfc6;
+  --c-fg: #121418;
+  --c-fg-muted: #474c55;
+  --c-fg-subtle: #5e646e;
+  --c-accent: #9a4a06;
+  --c-accent-hover: #7a3a03;
+  --c-blueprint: #1d5bd8;
+  --c-success: #0f6e42;
+  --c-danger: #c2302f;
+  --c-shadow-card: 0 1px 2px rgb(18 20 24 / 0.06), 0 12px 32px -20px rgb(18 20 24 / 0.25);
+  --c-shadow-pop: 0 28px 60px -24px rgb(18 20 24 / 0.35);
+  --c-grid-line: rgb(29 91 216 / 0.08);
+  --c-b-top: #ffffff;
+  --c-b-left: #cfcac0;
+  --c-b-right: #e3dfd7;
+  --c-b-site: #e9e6e0;
+  --c-b-edge: #b3ada2;
+  --c-b-slab: #f7f5f1;
+  --c-b-glass: #5b6270;
+  --c-b-lit: #f5a524;
 }
 
+/* ==========================================================================
+   Component utilities — the only place buttons, eyebrows and layout
+   containers are styled. Use these (or <Button>) instead of one-offs.
+   ========================================================================== */
+@utility container-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+
+@utility section-pad {
+  padding-block: clamp(5rem, 11vw, 9rem);
+}
+
+@utility eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+@utility btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  padding: 0.625rem 1.125rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.3s, transform 0.2s;
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+}
+
+@utility btn-sm {
+  padding: 0.4375rem 0.875rem;
+  font-size: 0.8125rem;
+}
+
+@utility btn-lg {
+  padding: 0.875rem 1.625rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+@utility btn-primary {
+  background-color: var(--color-gold-500);
+  color: var(--color-on-accent);
+  &:hover:not(:disabled) {
+    background-color: var(--color-gold-400);
+    box-shadow: var(--shadow-glow);
+  }
+}
+
+@utility btn-secondary {
+  background-color: color-mix(in oklab, var(--color-fg) 4%, transparent);
+  border-color: var(--color-line);
+  color: var(--color-fg);
+  &:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--color-gold-500) 60%, transparent);
+    color: var(--color-accent);
+  }
+}
+
+@utility btn-ghost {
+  color: var(--color-fg-muted);
+  &:hover:not(:disabled) {
+    background-color: color-mix(in oklab, var(--color-fg) 6%, transparent);
+    color: var(--color-fg);
+  }
+}
+
+@utility btn-danger {
+  border-color: color-mix(in oklab, var(--color-danger) 35%, transparent);
+  color: var(--color-danger);
+  &:hover:not(:disabled) {
+    background-color: color-mix(in oklab, var(--color-danger) 12%, transparent);
+  }
+}
+
+@utility card {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-line);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+@utility bg-blueprint-grid {
+  background-image:
+    linear-gradient(var(--c-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
 * {
   box-sizing: border-box;
 }
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 body {
   margin: 0;
-  background: var(--color-navy-950);
-  color: var(--color-ink);
+  background: var(--color-canvas);
+  color: var(--color-fg);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
 #root {
   min-height: 100svh;
-  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 ::selection {
   background: var(--color-gold-500);
-  color: var(--color-navy-950);
+  color: var(--color-on-accent);
 }
 
 ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-navy-950);
+  background: var(--color-canvas);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-navy-600);
+  background: var(--color-line);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-gold-600);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes shine {
@@ -139,7 +398,7 @@ body {
   }
 }
 
-/* Gold shockwave ring that rides the leading edge of the reveal above,
+/* Amber shockwave ring that rides the leading edge of the reveal above,
    plus a quick flash at the origin, so the switch reads as an obvious
    "event" rather than a soft fade. A plain <div> (not a pseudo-element)
    spawned/removed by PreferencesContext.setTheme, so it also works as a

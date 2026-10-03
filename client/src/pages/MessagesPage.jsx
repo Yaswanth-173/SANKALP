@@ -96,7 +96,7 @@ function MessagesPage() {
             subtitle={t('messages.subtitle')}
           />
 
-          {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-4 text-sm text-danger">{error}</p>}
 
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -118,7 +118,7 @@ function MessagesPage() {
               {mobileView === 'thread' && (
                 <button
                   onClick={() => setMobileView('list')}
-                  className="m-2 flex items-center gap-1 text-xs text-ink/50 hover:text-ink lg:hidden"
+                  className="m-2 flex items-center gap-1 text-xs text-fg-subtle hover:text-ink lg:hidden"
                 >
                   {t('messages.backToDeals')}
                 </button>

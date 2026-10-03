@@ -14,7 +14,7 @@ function CategoryTabs({ groups, active, onChange }) {
             key={tab.id}
             onClick={() => onChange(tab.id)}
             className={`relative rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-              isActive ? 'border-transparent text-charcoal' : 'border-ink/10 text-ink/60 hover:border-ink/20 hover:text-ink'
+              isActive ? 'border-transparent text-charcoal' : 'border-ink/10 text-fg-muted hover:border-ink/20 hover:text-ink'
             }`}
           >
             {isActive && (

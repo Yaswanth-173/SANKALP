@@ -3,7 +3,8 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import DashboardShell from '../components/dashboard/DashboardShell.jsx'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
-import Spinner from '../components/Spinner.jsx'
+import EmptyState from '../components/ui/EmptyState.jsx'
+import { SkeletonCards } from '../components/ui/Skeleton.jsx'
 import { ProjectsIcon } from '../components/dashboard/icons.jsx'
 import { apiFetch } from '../utils/api.js'
 import { supervisorNavItems } from '../utils/supervisorNav.js'
@@ -40,17 +41,17 @@ function SupervisorDashboardPage({ basePath = '/supervisor', navItems = supervis
             subtitle={subtitle}
           />
 
-          {error && <p className="mt-5 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-5 text-sm text-danger">{error}</p>}
 
           {loading ? (
-            <div className="mt-16 flex justify-center">
-              <Spinner className="h-6 w-6 text-ink/40" />
-            </div>
+            <SkeletonCards className="mt-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" />
           ) : projects.length === 0 ? (
-            <div className="mt-16 flex flex-col items-center gap-3 text-center text-ink/40">
-              <ProjectsIcon className="h-10 w-10" />
-              <p className="text-sm">You haven't been added to any projects yet.</p>
-            </div>
+            <EmptyState
+              className="mt-8"
+              icon={<ProjectsIcon className="h-6 w-6" />}
+              title="No projects yet"
+              description="You haven't been added to any projects yet."
+            />
           ) : (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {projects.map((project, i) => (
@@ -64,13 +65,13 @@ function SupervisorDashboardPage({ basePath = '/supervisor', navItems = supervis
                     to={`${basePath}/projects/${project.id}`}
                     className="block rounded-2xl border border-ink/10 bg-navy-900/50 p-5 transition-colors duration-200 hover:border-gold-500/30"
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-300">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-accent">
                       <ProjectsIcon className="h-5 w-5" />
                     </span>
                     <p className="mt-3 font-display text-sm font-semibold text-ink">{project.name}</p>
-                    <p className="mt-1 text-xs text-ink/45">{project.location || 'No location set'}</p>
-                    <p className="mt-1 text-xs text-ink/45">Customer: {project.customerName}</p>
-                    <span className="mt-3 inline-block rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium capitalize text-emerald-300">
+                    <p className="mt-1 text-xs text-fg-subtle">{project.location || 'No location set'}</p>
+                    <p className="mt-1 text-xs text-fg-subtle">Customer: {project.customerName}</p>
+                    <span className="mt-3 inline-block rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium capitalize text-success">
                       {project.status}
                     </span>
                   </Link>

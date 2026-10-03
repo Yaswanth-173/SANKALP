@@ -57,7 +57,7 @@ function ProfilePanel({ onBack }) {
     <SettingsPanelShell title={t('settings.profile.title')} onBack={onBack}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {message && (
-          <p className={`text-sm ${status === 'success' ? 'text-gold-300' : 'text-red-400'}`}>{message}</p>
+          <p className={`text-sm ${status === 'success' ? 'text-accent' : 'text-danger'}`}>{message}</p>
         )}
         <FormField
           id="fullName"
@@ -78,7 +78,7 @@ function ProfilePanel({ onBack }) {
           error={touched.phone ? errors.phone : ''}
         />
         <div>
-          <label htmlFor="location" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink/60">
+          <label htmlFor="location" className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-fg-muted">
             Your City
           </label>
           <select
@@ -97,12 +97,12 @@ function ProfilePanel({ onBack }) {
               </optgroup>
             ))}
           </select>
-          <p className="mt-1.5 text-xs text-ink/35">Used to show material shops near you.</p>
+          <p className="mt-1.5 text-xs text-fg-subtle">Used to show material shops near you.</p>
         </div>
         <button
           type="submit"
           disabled={status === 'submitting'}
-          className="flex items-center justify-center gap-2 self-start rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-charcoal transition-colors duration-200 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn btn-primary self-start"
         >
           {status === 'submitting' && <Spinner className="h-4 w-4" />}
           {t('settings.profilePanel.save')}

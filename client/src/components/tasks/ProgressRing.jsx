@@ -26,7 +26,7 @@ function ProgressRing({ percent = 0, size = 88, stroke = 8, label, sublabel }) {
             stroke="currentColor"
             strokeWidth={stroke}
             strokeLinecap="round"
-            className="text-gold-400"
+            className="text-accent"
             strokeDasharray={circumference}
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset: offset }}
@@ -40,7 +40,7 @@ function ProgressRing({ percent = 0, size = 88, stroke = 8, label, sublabel }) {
       {(label || sublabel) && (
         <div>
           {label && <p className="font-display text-sm font-semibold text-ink">{label}</p>}
-          {sublabel && <p className="mt-0.5 text-xs text-ink/45">{sublabel}</p>}
+          {sublabel && <p className="mt-0.5 text-xs text-fg-subtle">{sublabel}</p>}
         </div>
       )}
     </div>

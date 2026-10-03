@@ -19,7 +19,7 @@ function NotificationsPanel({ onBack }) {
       <div className="flex items-center justify-between rounded-xl border border-ink/10 bg-navy-900/40 px-4 py-3.5">
         <div>
           <p className="text-sm font-medium text-ink">{t('settings.notificationsPanel.email')}</p>
-          <p className="mt-0.5 text-xs text-ink/45">{t('settings.notificationsPanel.emailDesc')}</p>
+          <p className="mt-0.5 text-xs text-fg-subtle">{t('settings.notificationsPanel.emailDesc')}</p>
         </div>
         <button
           onClick={handleToggle}
@@ -36,7 +36,7 @@ function NotificationsPanel({ onBack }) {
           />
         </button>
       </div>
-      {saved && <p className="mt-3 text-xs text-gold-300">{t('settings.notificationsPanel.saved')}</p>}
+      {saved && <p className="mt-3 text-xs text-accent">{t('settings.notificationsPanel.saved')}</p>}
     </SettingsPanelShell>
   )
 }

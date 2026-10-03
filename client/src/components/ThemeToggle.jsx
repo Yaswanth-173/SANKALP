@@ -23,7 +23,7 @@ function ThemeToggle({ className = '' }) {
       whileHover={{ scale: 1.08 }}
       whileTap={{ scale: 0.88, rotate: isDark ? -25 : 25 }}
       transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-      className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-ink/10 bg-navy-900/60 text-ink/70 transition-colors duration-200 hover:text-gold-300 ${className}`}
+      className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-ink/10 bg-navy-900/60 text-fg-muted transition-colors duration-200 hover:text-accent-hover ${className}`}
     >
       <AnimatePresence mode="wait" initial={false}>
         {isDark ? (

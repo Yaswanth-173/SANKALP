@@ -65,7 +65,7 @@ function ProjectDetailPage() {
           <>
             <DashboardHeader onMenuClick={onMenuClick} title="Project" subtitle="Loading…" />
             <div className="mt-16 flex justify-center">
-              <Spinner className="h-6 w-6 text-ink/40" />
+              <Spinner className="h-6 w-6 text-fg-subtle" />
             </div>
           </>
         )}
@@ -79,7 +79,7 @@ function ProjectDetailPage() {
         {({ onMenuClick }) => (
           <>
             <DashboardHeader onMenuClick={onMenuClick} title="Project" subtitle="" />
-            <p className="mt-5 text-sm text-red-400">{error || 'Project not found'}</p>
+            <p className="mt-5 text-sm text-danger">{error || 'Project not found'}</p>
           </>
         )}
       </DashboardShell>
@@ -94,7 +94,7 @@ function ProjectDetailPage() {
 
           <button
             onClick={() => navigate('/dashboard/projects')}
-            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-ink/50 hover:text-ink"
+            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-fg-subtle hover:text-ink"
           >
             <BackArrowIcon className="h-3.5 w-3.5" /> All projects
           </button>
@@ -103,11 +103,11 @@ function ProjectDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-display text-sm font-semibold text-ink">Supervisors</p>
-                <p className="text-xs text-ink/45">People overseeing day-to-day work on this project.</p>
+                <p className="text-xs text-fg-subtle">People overseeing day-to-day work on this project.</p>
               </div>
               <button
                 onClick={() => setShowInvite((v) => !v)}
-                className="rounded-full border border-gold-500/40 px-3.5 py-1.5 text-xs font-semibold text-gold-300 hover:bg-gold-500/10"
+                className="rounded-full border border-gold-500/40 px-3.5 py-1.5 text-xs font-semibold text-accent hover:bg-gold-500/10"
               >
                 {showInvite ? 'Cancel' : '+ Invite Supervisor'}
               </button>
@@ -123,7 +123,7 @@ function ProjectDetailPage() {
                   className="mt-4 overflow-hidden border-t border-ink/10 pt-4"
                 >
                   {inviteMessage && (
-                    <p className={`mb-3 text-sm ${inviteStatus === 'success' ? 'text-emerald-300' : 'text-red-400'}`}>{inviteMessage}</p>
+                    <p className={`mb-3 text-sm ${inviteStatus === 'success' ? 'text-success' : 'text-danger'}`}>{inviteMessage}</p>
                   )}
                   <div className="grid gap-4 sm:grid-cols-3">
                     <FormField
@@ -155,7 +155,7 @@ function ProjectDetailPage() {
                   <button
                     type="submit"
                     disabled={inviteStatus === 'submitting'}
-                    className="mt-4 flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-gold-400 disabled:opacity-60"
+                    className="btn btn-primary mt-4"
                   >
                     {inviteStatus === 'submitting' && <Spinner className="h-4 w-4" />}
                     Send Invite
@@ -166,15 +166,15 @@ function ProjectDetailPage() {
 
             <div className="mt-4 space-y-2">
               {project.members?.length === 0 || !project.members ? (
-                <p className="text-sm text-ink/40">No supervisors added yet.</p>
+                <p className="text-sm text-fg-subtle">No supervisors added yet.</p>
               ) : (
                 project.members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between rounded-xl border border-ink/10 bg-navy-950/40 px-4 py-2.5">
                     <div>
-                      <p className="text-sm text-ink/90">{m.fullName}</p>
-                      <p className="text-xs text-ink/40">{m.email}</p>
+                      <p className="text-sm text-fg">{m.fullName}</p>
+                      <p className="text-xs text-fg-subtle">{m.email}</p>
                     </div>
-                    <span className="rounded-full bg-gold-500/10 px-2.5 py-1 text-[10px] font-medium capitalize text-gold-300">
+                    <span className="rounded-full bg-gold-500/10 px-2.5 py-1 text-xs font-medium capitalize text-accent">
                       {m.roleOnProject}
                     </span>
                   </div>
