@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Sankalp construction-tech platform (client/ = React+Vite, server/ = Node+Express)",
+  "type": "module",
   "scripts": {
     "dev": "npm --prefix client run dev",
     "build": "cd client && npm install && npm run build",

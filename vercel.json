@@ -1,9 +1,10 @@
 {
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
-  "installCommand": "echo 'root install skipped - client installs its own deps in buildCommand'",
+  "installCommand": "cd server && npm install",
   "framework": null,
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

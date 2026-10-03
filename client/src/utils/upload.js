@@ -4,7 +4,7 @@
 // returns a client-only object URL instead (works for previewing in the
 // current tab, but isn't persisted — consistent with demo mode's existing
 // "no real backend" limitation elsewhere in this app).
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5055'
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5055' : '')
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 // Photo/receipt URLs come back from the API as relative paths (`/api/files/

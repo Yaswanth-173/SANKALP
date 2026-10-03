@@ -9,6 +9,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: MONGODB_URI
+        sync: false
+      # Legacy — the app no longer connects to Postgres. Left declared only
+      # until DATABASE_URL is fully retired; see server/.env.example.
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET

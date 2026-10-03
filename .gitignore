@@ -17,6 +17,7 @@ Thumbs.db
 
 .vercel
 .env*
+atlas-credentials.env
 
 # User-uploaded files (receipts, site photos) — real user content, not
 # source; local disk storage only (see server/src/middleware/upload.js).
