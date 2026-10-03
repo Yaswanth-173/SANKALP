@@ -1,18 +1,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { query } from '../config/db.js'
+import ProjectFile from '../models/ProjectFile.js'
 import { canAccessProject } from './projectsController.js'
 import { UPLOAD_DIR } from '../middleware/upload.js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 async function insertFileRow({ projectId, uploadedBy, kind, file }) {
-  const { rows } = await query(
-    `INSERT INTO project_files (project_id, uploaded_by, kind, filename, original_name, mime_type, size_bytes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-    [projectId, uploadedBy, kind, file.filename, file.originalname, file.mimetype, file.size]
-  )
-  return rows[0].id
+  const doc = await ProjectFile.create({
+    project_id: projectId,
+    uploaded_by: uploadedBy,
+    kind,
+    filename: file.filename,
+    original_name: file.originalname,
+    mime_type: file.mimetype,
+    size_bytes: file.size,
+  })
+  return doc._id
 }
 
 export async function uploadProjectImages(req, res) {
@@ -49,17 +53,13 @@ export async function uploadProjectDocument(req, res) {
   }
 }
 
-// Every read re-checks project membership — a valid session from a
-// different project (or no project at all) gets the same 404 as a
-// made-up id, so the response never confirms a file exists.
 export async function getFile(req, res) {
   const { fileId } = req.params
   if (!UUID_RE.test(fileId)) return res.status(404).json({ message: 'Not found' })
 
   try {
-    const { rows } = await query('SELECT * FROM project_files WHERE id = $1', [fileId])
-    if (!rows.length) return res.status(404).json({ message: 'Not found' })
-    const file = rows[0]
+    const file = await ProjectFile.findById(fileId).lean()
+    if (!file) return res.status(404).json({ message: 'Not found' })
 
     const allowed = await canAccessProject(req.user.id, req.user.role, file.project_id)
     if (!allowed) return res.status(404).json({ message: 'Not found' })

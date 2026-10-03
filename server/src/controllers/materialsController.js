@@ -1,64 +1,60 @@
-import { query, withTransaction } from '../config/db.js'
+import Material from '../models/Material.js'
+import MaterialCategory from '../models/MaterialCategory.js'
+import Brand from '../models/Brand.js'
+import Supplier from '../models/Supplier.js'
+import SupplierMaterial from '../models/SupplierMaterial.js'
+import Inventory from '../models/Inventory.js'
+import MaterialPrice from '../models/MaterialPrice.js'
+import MaterialOrder from '../models/MaterialOrder.js'
+import CalendarEvent from '../models/CalendarEvent.js'
+import { nextSeq } from '../models/Counter.js'
 import { searchSupplierMaterials } from './suppliersController.js'
+import { withTransaction } from '../config/mongo.js'
 
 function todayDateKey() {
   const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const publicCategory = (c) => ({
-  id: c.id, name: c.name, parentCategoryId: c.parent_category_id, sortOrder: c.sort_order, isActive: c.is_active,
-})
+const publicCategory = (c) => ({ id: c._id, name: c.name, parentCategoryId: c.parent_category_id, sortOrder: c.sort_order, isActive: c.is_active })
 
 export async function listCategoriesHandler(req, res) {
   try {
-    const { rows } = await query('SELECT * FROM material_categories WHERE is_active = true ORDER BY sort_order, name')
-    res.json({ categories: rows.map(publicCategory) })
+    const categories = await MaterialCategory.find({ is_active: true }).sort({ sort_order: 1, name: 1 }).lean()
+    res.json({ categories: categories.map(publicCategory) })
   } catch (err) {
     console.error('List material categories error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
 }
 
-const publicMaterial = (m) => ({
-  id: m.id,
-  name: m.name,
-  category: m.category_name,
-  categoryId: m.category_id,
-  subcategoryId: m.subcategory_id,
-  brand: m.brand_name,
-  brandId: m.brand_id,
-  description: m.description,
-  specification: m.specification,
-  grade: m.grade,
-  unit: m.unit,
-  imageUrl: m.image_url,
-  imageSource: m.image_source,
-  active: m.active,
+const publicMaterial = (m, categoryName, brandName) => ({
+  id: m._id, name: m.name, category: categoryName, categoryId: m.category_id, subcategoryId: m.subcategory_id,
+  brand: brandName, brandId: m.brand_id, description: m.description, specification: m.specification, grade: m.grade,
+  unit: m.unit, imageUrl: m.image_url, imageSource: m.image_source, active: m.active,
 })
 
 export async function listMaterialsHandler(req, res) {
   try {
-    const params = []
-    const where = ['m.active = true']
+    const filter = { active: true }
     if (req.query.q && req.query.q.trim()) {
-      params.push(`%${req.query.q.trim()}%`)
-      where.push(`(m.name ILIKE $${params.length} OR m.search_keywords ILIKE $${params.length})`)
+      const re = new RegExp(req.query.q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+      filter.$or = [{ name: re }, { search_keywords: re }]
     }
-    if (req.query.categoryId) { params.push(req.query.categoryId); where.push(`m.category_id = $${params.length}`) }
+    if (req.query.categoryId) filter.category_id = req.query.categoryId
     const limit = Math.min(Number(req.query.pageSize) || 50, 100)
-    params.push(limit)
-    const { rows } = await query(
-      `SELECT m.*, c.name AS category_name, b.name AS brand_name FROM materials m
-       LEFT JOIN material_categories c ON c.id = m.category_id
-       LEFT JOIN brands b ON b.id = m.brand_id
-       WHERE ${where.join(' AND ')} ORDER BY m.name LIMIT $${params.length}`,
-      params
-    )
-    res.json({ materials: rows.map(publicMaterial) })
+    const materials = await Material.find(filter).sort({ name: 1 }).limit(limit).lean()
+
+    const categoryIds = [...new Set(materials.map((m) => m.category_id).filter(Boolean))]
+    const brandIds = [...new Set(materials.map((m) => m.brand_id).filter(Boolean))]
+    const [categories, brands] = await Promise.all([
+      MaterialCategory.find({ _id: { $in: categoryIds } }).select('_id name').lean(),
+      Brand.find({ _id: { $in: brandIds } }).select('_id name').lean(),
+    ])
+    const categoryById = new Map(categories.map((c) => [c._id, c.name]))
+    const brandById = new Map(brands.map((b) => [b._id, b.name]))
+
+    res.json({ materials: materials.map((m) => publicMaterial(m, categoryById.get(m.category_id), brandById.get(m.brand_id))) })
   } catch (err) {
     console.error('List materials error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -67,15 +63,11 @@ export async function listMaterialsHandler(req, res) {
 
 export async function getMaterialHandler(req, res) {
   try {
-    const { rows } = await query(
-      `SELECT m.*, c.name AS category_name, b.name AS brand_name FROM materials m
-       LEFT JOIN material_categories c ON c.id = m.category_id
-       LEFT JOIN brands b ON b.id = m.brand_id
-       WHERE m.id = $1`,
-      [req.params.id]
-    )
-    if (!rows.length) return res.status(404).json({ message: 'Material not found' })
-    res.json({ material: publicMaterial(rows[0]) })
+    const material = await Material.findById(req.params.id).lean()
+    if (!material) return res.status(404).json({ message: 'Material not found' })
+    const category = material.category_id ? await MaterialCategory.findById(material.category_id).select('name').lean() : null
+    const brand = material.brand_id ? await Brand.findById(material.brand_id).select('name').lean() : null
+    res.json({ material: publicMaterial(material, category?.name, brand?.name) })
   } catch (err) {
     console.error('Get material error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -98,11 +90,6 @@ export async function materialSuppliersHandler(req, res) {
   }
 }
 
-// The main "search construction materials near me" surface: combines free
-// text (material/brand name), category, and location/radius/sort in one
-// call, so a query like "Ultratech OPC 53 Cement" returns supplier cards
-// (material + brand + spec + supplier + location + inventory + price)
-// directly, without a separate per-material lookup round trip.
 export async function searchMaterialsHandler(req, res) {
   try {
     const results = await searchSupplierMaterials({
@@ -124,35 +111,16 @@ export async function searchMaterialsHandler(req, res) {
 
 export async function listOrdersHandler(req, res) {
   try {
-    const { rows: orders } = await query(
-      `SELECT o.*, s.business_name AS supplier_name FROM material_orders o
-       JOIN suppliers s ON s.id = o.supplier_id
-       WHERE o.user_id = $1 ORDER BY o.created_at DESC`,
-      [req.user.id]
-    )
-    const { rows: items } = await query(
-      `SELECT oi.* FROM material_order_items oi
-       JOIN material_orders o ON o.id = oi.order_id
-       WHERE o.user_id = $1`,
-      [req.user.id]
-    )
-    const itemsByOrder = new Map()
-    for (const it of items) {
-      if (!itemsByOrder.has(it.order_id)) itemsByOrder.set(it.order_id, [])
-      itemsByOrder.get(it.order_id).push({
-        productName: it.product_name, unit: it.unit, unitPrice: Number(it.unit_price), quantity: it.quantity,
-      })
-    }
+    const orders = await MaterialOrder.find({ user_id: req.user.id }).sort({ created_at: -1 }).lean()
+    const supplierIds = [...new Set(orders.map((o) => o.supplier_id))]
+    const suppliers = await Supplier.find({ _id: { $in: supplierIds } }).select('_id business_name').lean()
+    const nameById = new Map(suppliers.map((s) => [s._id, s.business_name]))
+
     res.json({
       orders: orders.map((o) => ({
-        id: o.id,
-        displayId: `MO-${100 + Number(o.seq)}`,
-        supplierId: o.supplier_id,
-        supplierName: o.supplier_name,
-        totalAmount: Number(o.total_amount),
-        status: o.status,
-        createdAt: o.created_at,
-        items: itemsByOrder.get(o.id) || [],
+        id: o._id, displayId: `MO-${100 + Number(o.seq)}`, supplierId: o.supplier_id, supplierName: nameById.get(o.supplier_id),
+        totalAmount: Number(o.total_amount), status: o.status, createdAt: o.created_at,
+        items: o.items.map((i) => ({ productName: i.product_name, unit: i.unit, unitPrice: Number(i.unit_price), quantity: i.quantity })),
       })),
     })
   } catch (err) {
@@ -168,10 +136,9 @@ export async function createOrderHandler(req, res) {
   }
 
   try {
-    const order = await withTransaction(async (client) => {
-      const { rows: supplierRows } = await client.query('SELECT * FROM suppliers WHERE id = $1', [supplierId])
-      if (!supplierRows.length) throw new Error('SUPPLIER_NOT_FOUND')
-      const supplier = supplierRows[0]
+    const order = await withTransaction(async (session) => {
+      const supplier = await Supplier.findById(supplierId).session(session)
+      if (!supplier) throw new Error('SUPPLIER_NOT_FOUND')
 
       const requestedItems = [...items.reduce((map, item) => {
         const quantity = Number(item.quantity)
@@ -182,88 +149,86 @@ export async function createOrderHandler(req, res) {
       }, new Map())].map(([supplierMaterialId, quantity]) => ({ supplierMaterialId, quantity }))
       if (!requestedItems.length) throw new Error('NO_VALID_ITEMS')
 
-      const { rows: smRows } = await client.query(
-        `SELECT sm.*, inv.id AS inv_id, inv.quantity AS inv_quantity, inv.stock_status,
-                mp.id AS price_id, mp.price
-         FROM supplier_materials sm
-         LEFT JOIN inventory inv ON inv.supplier_material_id = sm.id
-         LEFT JOIN material_prices mp ON mp.supplier_material_id = sm.id AND mp.valid_until IS NULL
-         WHERE sm.supplier_id = $1 AND sm.id = ANY($2::uuid[]) FOR UPDATE OF sm`,
-        [supplierId, requestedItems.map((i) => i.supplierMaterialId)]
-      )
-      const smMap = new Map(smRows.map((r) => [r.id, r]))
+      const smDocs = await SupplierMaterial.find({ supplier_id: supplierId, _id: { $in: requestedItems.map((i) => i.supplierMaterialId) } }).session(session).lean()
+      const smMap = new Map(smDocs.map((sm) => [sm._id, sm]))
+      const invDocs = await Inventory.find({ supplier_material_id: { $in: [...smMap.keys()] } }).session(session).lean()
+      const invBySm = new Map(invDocs.map((i) => [i.supplier_material_id, i]))
+      const priceDocs = await MaterialPrice.find({ supplier_material_id: { $in: [...smMap.keys()] }, valid_until: null }).session(session).lean()
+      const priceBySm = new Map(priceDocs.map((p) => [p.supplier_material_id, p]))
 
       let total = 0
       const resolvedItems = []
       for (const item of requestedItems) {
         const sm = smMap.get(item.supplierMaterialId)
-        // Creation/update now require a real product_name (see suppliersController.js),
-        // but this guards any listing that predates that validation — excluded like
-        // an unavailable item rather than crashing the INSERT below on a NOT NULL
-        // violation. No fallback name is fabricated; the item is simply skipped.
-        if (!sm || !sm.available || sm.price == null || !sm.product_name) continue
-        if (sm.stock_status === 'OUT_OF_STOCK') throw new Error('INSUFFICIENT_STOCK')
-        const unitPrice = Number(sm.price)
+        const price = sm ? priceBySm.get(sm._id) : null
+        const inv = sm ? invBySm.get(sm._id) : null
+        // Same guard set as the Postgres version: skip (not order) anything
+        // unavailable, priceless, or missing a real product name — no
+        // fallback name is fabricated for a listing that predates validation.
+        if (!sm || !sm.available || price == null || !sm.product_name) continue
+        if (inv?.stock_status === 'OUT_OF_STOCK') throw new Error('INSUFFICIENT_STOCK')
+        const unitPrice = Number(price.price)
         total += unitPrice * item.quantity
         resolvedItems.push({
-          supplierMaterialId: sm.id, name: sm.product_name, unit: sm.unit, unitPrice, quantity: item.quantity,
-          // NULL quantity means "not stock-tracked" (e.g. ON_REQUEST/UNKNOWN) — never
-          // decremented, never fabricated into a fake 0, per the earlier snapshot read.
-          isQuantityTracked: sm.inv_quantity != null,
+          supplierMaterialId: sm._id, name: sm.product_name, unit: sm.unit, unitPrice, quantity: item.quantity,
+          isQuantityTracked: inv?.quantity != null,
         })
       }
       if (!resolvedItems.length) throw new Error('NO_VALID_ITEMS')
 
-      const { rows: orderRows } = await client.query(
-        `INSERT INTO material_orders (user_id, supplier_id, total_amount) VALUES ($1, $2, $3) RETURNING *`,
-        [req.user.id, supplierId, total]
+      const seq = await nextSeq('material_orders')
+      const [newOrder] = await MaterialOrder.create(
+        [{
+          user_id: req.user.id, seq, supplier_id: supplierId, total_amount: total, status: 'placed',
+          items: resolvedItems.map((i) => ({ supplier_material_id: i.supplierMaterialId, product_name: i.name, unit: i.unit, unit_price: i.unitPrice, quantity: i.quantity })),
+        }],
+        { session }
       )
-      const newOrder = orderRows[0]
 
       for (const item of resolvedItems) {
-        await client.query(
-          `INSERT INTO material_order_items (order_id, supplier_material_id, product_name, unit, unit_price, quantity)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [newOrder.id, item.supplierMaterialId, item.name, item.unit, item.unitPrice, item.quantity]
-        )
-
         if (!item.isQuantityTracked) continue
 
-        // Atomic guarded decrement: the WHERE clause is evaluated against the
-        // row's current value at UPDATE time, not an earlier snapshot, so this
-        // is race-proof against concurrent orders AND concurrent manual
-        // inventory edits alike — no separate read-then-check step needed.
-        // Affecting 0 rows here is unambiguous proof of insufficient stock.
-        const { rowCount } = await client.query(
-          `UPDATE inventory SET quantity = quantity - $1, stock_status = CASE
-             WHEN quantity - $1 <= 0 THEN 'OUT_OF_STOCK'
-             WHEN quantity - $1 <= 3 THEN 'LIMITED'
-             ELSE stock_status END, last_updated_at = now()
-           WHERE supplier_material_id = $2 AND quantity >= $1`,
-          [item.quantity, item.supplierMaterialId]
+        // Atomic guarded decrement — findOneAndUpdate's filter and update are
+        // evaluated as a single atomic operation by MongoDB, exactly like the
+        // Postgres `UPDATE ... WHERE quantity >= $1` this replaces. A null
+        // result here (not an unlocked read-then-check) is the actual proof
+        // of insufficient stock, race-proof against concurrent orders AND
+        // concurrent manual inventory edits alike.
+        const updatedInv = await Inventory.findOneAndUpdate(
+          { supplier_material_id: item.supplierMaterialId, quantity: { $gte: item.quantity } },
+          [{
+            $set: {
+              quantity: { $subtract: ['$quantity', item.quantity] },
+              stock_status: {
+                $switch: {
+                  branches: [
+                    { case: { $lte: [{ $subtract: ['$quantity', item.quantity] }, 0] }, then: 'OUT_OF_STOCK' },
+                    { case: { $lte: [{ $subtract: ['$quantity', item.quantity] }, 3] }, then: 'LIMITED' },
+                  ],
+                  default: '$stock_status',
+                },
+              },
+              last_updated_at: new Date(),
+            },
+          }],
+          { session, returnDocument: 'after', updatePipeline: true }
         )
-        if (rowCount === 0) throw new Error('INSUFFICIENT_STOCK')
+        if (!updatedInv) throw new Error('INSUFFICIENT_STOCK')
       }
 
-      await client.query(
-        `INSERT INTO calendar_events (user_id, title, notes, event_date, event_type)
-         VALUES ($1, $2, $3, $4, 'delivery')`,
-        [req.user.id, `Material delivery: ${supplier.business_name}`, `${resolvedItems.length} item(s), ₹${total.toFixed(2)}`, todayDateKey()]
+      await CalendarEvent.create(
+        [{ user_id: req.user.id, title: `Material delivery: ${supplier.business_name}`, notes: `${resolvedItems.length} item(s), ₹${total.toFixed(2)}`, event_date: todayDateKey(), event_type: 'delivery' }],
+        { session }
       )
 
-      return { ...newOrder, supplier_name: supplier.business_name, items: resolvedItems }
+      return { ...newOrder.toObject(), supplier_name: supplier.business_name }
     })
 
     res.status(201).json({
       order: {
-        id: order.id,
-        displayId: `MO-${100 + Number(order.seq)}`,
-        supplierId: order.supplier_id,
-        supplierName: order.supplier_name,
-        totalAmount: Number(order.total_amount),
-        status: order.status,
-        createdAt: order.created_at,
-        items: order.items.map((i) => ({ productName: i.name, unit: i.unit, unitPrice: i.unitPrice, quantity: i.quantity })),
+        id: order._id, displayId: `MO-${100 + Number(order.seq)}`, supplierId: order.supplier_id, supplierName: order.supplier_name,
+        totalAmount: Number(order.total_amount), status: order.status, createdAt: order.created_at,
+        items: order.items.map((i) => ({ productName: i.product_name, unit: i.unit, unitPrice: Number(i.unit_price), quantity: i.quantity })),
       },
     })
   } catch (err) {

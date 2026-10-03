@@ -1,4 +1,7 @@
-import { query, withTransaction } from '../config/db.js'
+import Contact from '../models/Contact.js'
+import Message from '../models/Message.js'
+import CalendarEvent from '../models/CalendarEvent.js'
+import { withTransaction } from '../config/mongo.js'
 
 const ROLES = ['contractor', 'supervisor', 'worker', 'material_shop']
 const PHONE_RE = /^[0-9+\-\s()]{7,15}$/
@@ -10,8 +13,6 @@ const ROLE_LABELS = {
   material_shop: 'Material Shop',
 }
 
-// pg's DATE parser builds local-midnight dates; format the CURRENT
-// server date the same way a DATE column would round-trip it.
 function todayDateKey() {
   const d = new Date()
   const y = d.getFullYear()
@@ -21,18 +22,18 @@ function todayDateKey() {
 }
 
 const publicContact = (c) => ({
-  id: c.id,
+  id: c._id,
   name: c.name,
   role: c.role,
   phone: c.phone,
   dealNote: c.deal_note,
   createdAt: c.created_at,
-  lastMessageAt: c.last_message_at ?? null,
-  lastMessagePreview: c.last_message_preview ?? null,
+  lastMessageAt: c.last_message?.[0]?.created_at ?? null,
+  lastMessagePreview: c.last_message?.[0]?.content ?? null,
 })
 
 const publicMessage = (m) => ({
-  id: m.id,
+  id: m._id,
   contactId: m.contact_id,
   sender: m.sender,
   content: m.content,
@@ -41,18 +42,27 @@ const publicMessage = (m) => ({
 
 export async function listContacts(req, res) {
   try {
-    const { rows } = await query(
-      `SELECT c.*, m.content AS last_message_preview, m.created_at AS last_message_at
-       FROM contacts c
-       LEFT JOIN LATERAL (
-         SELECT content, created_at FROM messages
-         WHERE contact_id = c.id ORDER BY created_at DESC LIMIT 1
-       ) m ON true
-       WHERE c.user_id = $1
-       ORDER BY COALESCE(m.created_at, c.created_at) DESC`,
-      [req.user.id]
-    )
-    res.json({ contacts: rows.map(publicContact) })
+    // Replaces `LEFT JOIN LATERAL (... ORDER BY created_at DESC LIMIT 1)` —
+    // a pipeline-based $lookup with its own sort+limit does the same thing.
+    const contacts = await Contact.aggregate([
+      { $match: { user_id: req.user.id } },
+      {
+        $lookup: {
+          from: 'messages',
+          let: { contactId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$contact_id', '$$contactId'] } } },
+            { $sort: { created_at: -1 } },
+            { $limit: 1 },
+            { $project: { content: 1, created_at: 1 } },
+          ],
+          as: 'last_message',
+        },
+      },
+      { $addFields: { sort_at: { $ifNull: [{ $arrayElemAt: ['$last_message.created_at', 0] }, '$created_at'] } } },
+      { $sort: { sort_at: -1 } },
+    ])
+    res.json({ contacts: contacts.map(publicContact) })
   } catch (err) {
     console.error('List contacts error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -66,26 +76,28 @@ export async function createContact(req, res) {
   if (!name || !name.trim()) errors.name = 'Enter a name'
   if (!role || !ROLES.includes(role)) errors.role = 'Choose a valid role'
   if (phone && !PHONE_RE.test(phone.trim())) errors.phone = 'Enter a valid phone number'
-
   if (Object.keys(errors).length) {
     return res.status(400).json({ message: 'Please fix the highlighted fields', errors })
   }
 
   try {
-    const contact = await withTransaction(async (client) => {
-      const { rows } = await client.query(
-        `INSERT INTO contacts (user_id, name, role, phone, deal_note) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [req.user.id, name.trim(), role, phone?.trim() || null, dealNote?.trim() || null]
+    const contact = await withTransaction(async (session) => {
+      const [newContact] = await Contact.create(
+        [{ user_id: req.user.id, name: name.trim(), role, phone: phone?.trim() || null, deal_note: dealNote?.trim() || null }],
+        { session }
       )
-      const newContact = rows[0]
 
       const roleLabel = ROLE_LABELS[role]
       const eventType = role === 'material_shop' ? 'delivery' : 'milestone'
-      const title = `New deal: ${newContact.name} (${roleLabel})`
-      await client.query(
-        `INSERT INTO calendar_events (user_id, title, notes, event_date, event_type)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [req.user.id, title, dealNote?.trim() || null, todayDateKey(), eventType]
+      await CalendarEvent.create(
+        [{
+          user_id: req.user.id,
+          title: `New deal: ${newContact.name} (${roleLabel})`,
+          notes: dealNote?.trim() || null,
+          event_date: todayDateKey(),
+          event_type: eventType,
+        }],
+        { session }
       )
 
       return newContact
@@ -100,11 +112,8 @@ export async function createContact(req, res) {
 export async function deleteContact(req, res) {
   const { id } = req.params
   try {
-    const { rows } = await query(
-      'DELETE FROM contacts WHERE id = $1 AND user_id = $2 RETURNING id',
-      [id, req.user.id]
-    )
-    if (!rows.length) return res.status(404).json({ message: 'Contact not found' })
+    const deleted = await Contact.findOneAndDelete({ _id: id, user_id: req.user.id })
+    if (!deleted) return res.status(404).json({ message: 'Contact not found' })
     res.json({ message: 'Contact removed' })
   } catch (err) {
     console.error('Delete contact error', err)
@@ -113,8 +122,8 @@ export async function deleteContact(req, res) {
 }
 
 async function assertOwnedContact(contactId, userId) {
-  const { rows } = await query('SELECT id FROM contacts WHERE id = $1 AND user_id = $2', [contactId, userId])
-  return rows.length > 0
+  const contact = await Contact.findOne({ _id: contactId, user_id: userId }).select('_id').lean()
+  return !!contact
 }
 
 export async function listMessages(req, res) {
@@ -123,11 +132,8 @@ export async function listMessages(req, res) {
     if (!(await assertOwnedContact(contactId, req.user.id))) {
       return res.status(404).json({ message: 'Contact not found' })
     }
-    const { rows } = await query(
-      'SELECT * FROM messages WHERE contact_id = $1 ORDER BY created_at ASC',
-      [contactId]
-    )
-    res.json({ messages: rows.map(publicMessage) })
+    const messages = await Message.find({ contact_id: contactId }).sort({ created_at: 1 }).lean()
+    res.json({ messages: messages.map(publicMessage) })
   } catch (err) {
     console.error('List messages error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -146,11 +152,8 @@ export async function sendMessage(req, res) {
     if (!(await assertOwnedContact(contactId, req.user.id))) {
       return res.status(404).json({ message: 'Contact not found' })
     }
-    const { rows } = await query(
-      `INSERT INTO messages (contact_id, sender, content) VALUES ($1, 'customer', $2) RETURNING *`,
-      [contactId, content.trim()]
-    )
-    res.status(201).json({ chatMessage: publicMessage(rows[0]) })
+    const message = await Message.create({ contact_id: contactId, sender: 'customer', content: content.trim() })
+    res.status(201).json({ chatMessage: publicMessage(message) })
   } catch (err) {
     console.error('Send message error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })

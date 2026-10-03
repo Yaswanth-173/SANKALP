@@ -1,20 +1,29 @@
 import 'dotenv/config'
 import app from './app.js'
-import { ensureSchema } from './db/ensureSchema.js'
-import { seedContractors } from './db/seedContractors.js'
-import { seedMaterials } from './db/seedMaterials.js'
+import { connectMongo, ensureCollectionValidators } from './config/mongo.js'
+import { seedContractorsMongo } from './db/seedContractorsMongo.js'
+import { seedMaterialsMongo } from './db/seedMaterialsMongo.js'
+import { seedBudgetCategoriesMongo } from './db/seedBudgetCategoriesMongo.js'
 
 const PORT = process.env.PORT || 5000
+const MONGODB_URI = process.env.MONGODB_URI
 
-ensureSchema()
-  .then(() => seedContractors())
-  .then(() => seedMaterials())
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not set. Add it to server/.env (see .env.example).')
+  process.exit(1)
+}
+
+connectMongo(MONGODB_URI)
+  .then((connection) => ensureCollectionValidators(connection.db))
+  .then(() => seedContractorsMongo())
+  .then(() => seedMaterialsMongo())
+  .then(() => seedBudgetCategoriesMongo())
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`Sankalp server listening on port ${PORT}`)
+      console.log(`Sankalp server listening on port ${PORT} (MongoDB)`)
     })
   })
   .catch((err) => {
-    console.error('Failed to initialize database schema', err)
+    console.error('Failed to initialize MongoDB connection/seed data', err)
     process.exit(1)
   })

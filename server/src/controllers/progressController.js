@@ -1,10 +1,11 @@
-import { query, withTransaction } from '../config/db.js'
+import ProjectUpdate from '../models/ProjectUpdate.js'
+import Task from '../models/Task.js'
+import User from '../models/User.js'
+import ContractorTeamMember from '../models/ContractorTeamMember.js'
+import Project from '../models/Project.js'
 import { canAccessProject, publicProject } from './projectsController.js'
+import { withTransaction } from '../config/mongo.js'
 
-// Fixed construction phases, in order. A milestone's status is derived from
-// the project's current progress_percent rather than tracked separately, so
-// there's one source of truth (the % on the project) instead of two things
-// that can drift out of sync.
 const MILESTONES = [
   { key: 'foundation', label: 'Foundation Work', threshold: 15 },
   { key: 'plinth', label: 'Plinth & Columns', threshold: 30 },
@@ -20,9 +21,6 @@ function addDays(date, days) {
   return d
 }
 
-// Splits the project's own start/expected-completion dates evenly across
-// the 6 phases — a reasonable approximation from real project dates, not
-// a fabricated schedule, and only shown when both dates are actually set.
 function buildMilestones(project) {
   const progress = project.progressPercent
   let dateRanges = null
@@ -54,7 +52,7 @@ function buildMilestones(project) {
 }
 
 const publicUpdate = (u) => ({
-  id: u.id,
+  id: u._id,
   title: u.title,
   description: u.description,
   progressPercent: u.progress_percent,
@@ -70,41 +68,54 @@ const publicUpdate = (u) => ({
   createdAt: u.created_at,
 })
 
+// Replaces the 3-way JOIN (users/contractor_team_members/tasks) with a
+// batch enrichment pass over already-fetched updates.
+async function enrichUpdates(updates) {
+  const authorIds = [...new Set(updates.map((u) => u.author_id))]
+  const contractorIds = [...new Set(updates.map((u) => u.contractor_id).filter(Boolean))]
+  const taskIds = [...new Set(updates.map((u) => u.task_id).filter(Boolean))]
+
+  const [authors, contractors, tasks] = await Promise.all([
+    User.find({ _id: { $in: authorIds } }).select('_id full_name role').lean(),
+    contractorIds.length ? ContractorTeamMember.find({ _id: { $in: contractorIds } }).select('_id name').lean() : [],
+    taskIds.length ? Task.find({ _id: { $in: taskIds } }).select('_id title').lean() : [],
+  ])
+  const authorById = new Map(authors.map((a) => [a._id, a]))
+  const contractorById = new Map(contractors.map((c) => [c._id, c]))
+  const taskById = new Map(tasks.map((t) => [t._id, t]))
+
+  return updates.map((u) => publicUpdate({
+    ...u,
+    author_name: authorById.get(u.author_id)?.full_name,
+    author_role: authorById.get(u.author_id)?.role,
+    contractor_name: u.contractor_id ? contractorById.get(u.contractor_id)?.name : null,
+    task_title: u.task_id ? taskById.get(u.task_id)?.title : null,
+  }))
+}
+
 export async function getProjectProgress(req, res) {
   const { id } = req.params
   try {
     const allowed = await canAccessProject(req.user.id, req.user.role, id)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const { rows: projectRows } = await query(
-      `SELECT p.*, u.full_name AS customer_name FROM projects p JOIN users u ON u.id = p.customer_id WHERE p.id = $1`,
-      [id]
-    )
-    if (!projectRows.length) return res.status(404).json({ message: 'Project not found' })
-    const project = publicProject(projectRows[0])
+    const projectDoc = await Project.findById(id).lean()
+    if (!projectDoc) return res.status(404).json({ message: 'Project not found' })
+    const project = publicProject(projectDoc)
 
-    const { rows: updateRows } = await query(
-      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role,
-              ctm.name AS contractor_name, t.title AS task_title
-       FROM project_updates pu
-       JOIN users u ON u.id = pu.author_id
-       LEFT JOIN contractor_team_members ctm ON ctm.id = pu.contractor_id
-       LEFT JOIN tasks t ON t.id = pu.task_id
-       WHERE pu.project_id = $1 ORDER BY pu.created_at DESC LIMIT 50`,
-      [id]
-    )
+    const updateRows = await ProjectUpdate.find({ project_id: id }).sort({ created_at: -1 }).limit(50).lean()
 
-    const { rows: taskRows } = await query(
-      `SELECT status, count(*)::int AS count FROM tasks WHERE project_id = $1 GROUP BY status`,
-      [id]
-    )
+    const taskRows = await Task.aggregate([
+      { $match: { project_id: id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ])
     const taskCounts = { pending: 0, in_progress: 0, completed: 0 }
-    for (const row of taskRows) taskCounts[row.status] = row.count
+    for (const row of taskRows) taskCounts[row._id] = row.count
 
     res.json({
       project,
       milestones: buildMilestones(project),
-      updates: updateRows.map(publicUpdate),
+      updates: await enrichUpdates(updateRows),
       taskCounts,
     })
   } catch (err) {
@@ -129,44 +140,35 @@ export async function addProgressUpdate(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    // A contractor's own posts are auto-tagged with their contractor
-    // directory record, so "who posted this" and "which trade" both show
-    // up without asking them to pick themselves from a list.
     let contractorId = null
     if (req.user.role === 'contractor') {
-      const { rows } = await query('SELECT id FROM contractor_team_members WHERE user_id = $1', [req.user.id])
-      contractorId = rows[0]?.id || null
+      const member = await ContractorTeamMember.findOne({ user_id: req.user.id }).select('_id').lean()
+      contractorId = member?._id || null
     }
 
     let validTaskId = null
     if (taskId) {
-      const { rows } = await query('SELECT id FROM tasks WHERE id = $1 AND project_id = $2', [taskId, projectId])
-      validTaskId = rows[0]?.id || null
+      const task = await Task.findOne({ _id: taskId, project_id: projectId }).select('_id').lean()
+      validTaskId = task?._id || null
     }
 
-    const update = await withTransaction(async (client) => {
-      const { rows } = await client.query(
-        `INSERT INTO project_updates (project_id, author_id, title, description, progress_percent, photo_urls, location, task_id, contractor_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [projectId, req.user.id, title.trim(), description?.trim() || null, progressPercent ?? null, JSON.stringify(cleanPhotoUrls), location?.trim() || null, validTaskId, contractorId]
+    const update = await withTransaction(async (session) => {
+      const [created] = await ProjectUpdate.create(
+        [{
+          project_id: projectId, author_id: req.user.id, title: title.trim(), description: description?.trim() || null,
+          progress_percent: progressPercent ?? null, photo_urls: cleanPhotoUrls, location: location?.trim() || null,
+          task_id: validTaskId, contractor_id: contractorId,
+        }],
+        { session }
       )
       if (progressPercent != null) {
-        await client.query('UPDATE projects SET progress_percent = $1, updated_at = now() WHERE id = $2', [progressPercent, projectId])
+        await Project.updateOne({ _id: projectId }, { $set: { progress_percent: progressPercent, updated_at: new Date() } }, { session })
       }
-      return rows[0]
+      return created
     })
 
-    const { rows: enriched } = await query(
-      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role,
-              ctm.name AS contractor_name, t.title AS task_title
-       FROM project_updates pu
-       JOIN users u ON u.id = pu.author_id
-       LEFT JOIN contractor_team_members ctm ON ctm.id = pu.contractor_id
-       LEFT JOIN tasks t ON t.id = pu.task_id
-       WHERE pu.id = $1`,
-      [update.id]
-    )
-    res.status(201).json({ update: publicUpdate(enriched[0]) })
+    const enriched = await enrichUpdates([update.toObject()])
+    res.status(201).json({ update: enriched[0] })
   } catch (err) {
     console.error('Add progress update error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -189,39 +191,24 @@ export async function editProgressUpdate(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const updated = await withTransaction(async (client) => {
-      const { rows } = await client.query(
-        `UPDATE project_updates SET title = $1, description = $2, progress_percent = $3, photo_urls = $4, location = $5
-         WHERE id = $6 AND project_id = $7 RETURNING *`,
-        [title.trim(), description?.trim() || null, progressPercent ?? null, JSON.stringify(cleanPhotoUrls), location?.trim() || null, updateId, projectId]
+    const updated = await withTransaction(async (session) => {
+      const doc = await ProjectUpdate.findOneAndUpdate(
+        { _id: updateId, project_id: projectId },
+        { $set: { title: title.trim(), description: description?.trim() || null, progress_percent: progressPercent ?? null, photo_urls: cleanPhotoUrls, location: location?.trim() || null } },
+        { returnDocument: 'after', session }
       )
-      if (!rows.length) return null
+      if (!doc) return null
 
-      // Only push this onto the project's live progress % if it's still the
-      // most recent update — editing an older entry shouldn't override a
-      // newer one's progress.
-      const { rows: latestRows } = await client.query(
-        'SELECT id FROM project_updates WHERE project_id = $1 ORDER BY created_at DESC LIMIT 1',
-        [projectId]
-      )
-      if (progressPercent != null && latestRows[0]?.id === updateId) {
-        await client.query('UPDATE projects SET progress_percent = $1, updated_at = now() WHERE id = $2', [progressPercent, projectId])
+      const latest = await ProjectUpdate.findOne({ project_id: projectId }).sort({ created_at: -1 }).select('_id').session(session).lean()
+      if (progressPercent != null && latest?._id === updateId) {
+        await Project.updateOne({ _id: projectId }, { $set: { progress_percent: progressPercent, updated_at: new Date() } }, { session })
       }
-      return rows[0]
+      return doc
     })
     if (!updated) return res.status(404).json({ message: 'Update not found' })
 
-    const { rows: enriched } = await query(
-      `SELECT pu.*, u.full_name AS author_name, u.role AS author_role,
-              ctm.name AS contractor_name, t.title AS task_title
-       FROM project_updates pu
-       JOIN users u ON u.id = pu.author_id
-       LEFT JOIN contractor_team_members ctm ON ctm.id = pu.contractor_id
-       LEFT JOIN tasks t ON t.id = pu.task_id
-       WHERE pu.id = $1`,
-      [updated.id]
-    )
-    res.json({ update: publicUpdate(enriched[0]) })
+    const enriched = await enrichUpdates([updated.toObject()])
+    res.json({ update: enriched[0] })
   } catch (err) {
     console.error('Edit progress update error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -234,22 +221,17 @@ export async function deleteProgressUpdate(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const deleted = await withTransaction(async (client) => {
-      const { rowCount } = await client.query('DELETE FROM project_updates WHERE id = $1 AND project_id = $2', [updateId, projectId])
-      if (!rowCount) return false
+    const deleted = await withTransaction(async (session) => {
+      const removed = await ProjectUpdate.findOneAndDelete({ _id: updateId, project_id: projectId }, { session })
+      if (!removed) return false
 
-      // Recompute the project's live progress % from whatever update is now
-      // the most recent one that actually set a percentage, so deleting the
-      // latest one doesn't leave a stale/incorrect number behind.
-      const { rows } = await client.query(
-        `SELECT progress_percent FROM project_updates
-         WHERE project_id = $1 AND progress_percent IS NOT NULL
-         ORDER BY created_at DESC LIMIT 1`,
-        [projectId]
+      const latestWithProgress = await ProjectUpdate.findOne({ project_id: projectId, progress_percent: { $ne: null } })
+        .sort({ created_at: -1 }).select('progress_percent').session(session).lean()
+      await Project.updateOne(
+        { _id: projectId },
+        { $set: { progress_percent: latestWithProgress ? latestWithProgress.progress_percent : 0, updated_at: new Date() } },
+        { session }
       )
-      if (rows.length) {
-        await client.query('UPDATE projects SET progress_percent = $1, updated_at = now() WHERE id = $2', [rows[0].progress_percent, projectId])
-      }
       return true
     })
     if (!deleted) return res.status(404).json({ message: 'Update not found' })

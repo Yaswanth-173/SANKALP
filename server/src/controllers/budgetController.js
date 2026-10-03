@@ -1,10 +1,14 @@
-import { query, withTransaction } from '../config/db.js'
+import BudgetCategoryDef from '../models/BudgetCategoryDef.js'
+import BudgetCategory from '../models/BudgetCategory.js'
+import Expense from '../models/Expense.js'
+import Project from '../models/Project.js'
 import { canAccessProject } from './projectsController.js'
+import { uuidId } from '../models/_shared.js'
 
 const PAYMENT_MODES = ['cash', 'upi', 'card', 'bank_transfer']
 
 const publicCategoryDef = (c) => ({
-  id: c.id,
+  id: c._id,
   name: c.name,
   description: c.description,
   parentCategoryId: c.parent_category_id,
@@ -14,21 +18,17 @@ const publicCategoryDef = (c) => ({
   updatedAt: c.updated_at,
 })
 
-// The active, ordered master list — this is what expense/budget forms show
-// and what new expenses/allocations are validated against. Admin-managed via
-// the /api/budget-categories CRUD endpoints below (see budgetCategories.routes.js).
 async function getActiveCategoryNames() {
-  const { rows } = await query('SELECT name FROM budget_category_defs WHERE is_active = true ORDER BY sort_order, name')
-  return rows.map((r) => r.name)
+  const defs = await BudgetCategoryDef.find({ is_active: true }).sort({ sort_order: 1, name: 1 }).select('name').lean()
+  return defs.map((d) => d.name)
 }
 
 export async function listBudgetCategoriesHandler(req, res) {
   try {
     const includeInactive = req.query.all === 'true' && req.user.role === 'admin'
-    const { rows } = await query(
-      `SELECT * FROM budget_category_defs ${includeInactive ? '' : 'WHERE is_active = true'} ORDER BY sort_order, name`
-    )
-    res.json({ categories: rows.map(publicCategoryDef) })
+    const filter = includeInactive ? {} : { is_active: true }
+    const categories = await BudgetCategoryDef.find(filter).sort({ sort_order: 1, name: 1 }).lean()
+    res.json({ categories: categories.map(publicCategoryDef) })
   } catch (err) {
     console.error('List budget categories error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -40,15 +40,17 @@ export async function createBudgetCategoryHandler(req, res) {
   if (!name || !name.trim()) return res.status(400).json({ message: 'Enter a category name' })
 
   try {
-    const { rows: maxRows } = await query('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM budget_category_defs')
-    const { rows } = await query(
-      `INSERT INTO budget_category_defs (name, description, parent_category_id, sort_order)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name.trim(), description?.trim() || null, parentCategoryId || null, maxRows[0].next]
-    )
-    res.status(201).json({ category: publicCategoryDef(rows[0]) })
+    const maxDoc = await BudgetCategoryDef.findOne().sort({ sort_order: -1 }).select('sort_order').lean()
+    const nextSortOrder = maxDoc ? maxDoc.sort_order + 1 : 0
+    const category = await BudgetCategoryDef.create({
+      name: name.trim(),
+      description: description?.trim() || null,
+      parent_category_id: parentCategoryId || null,
+      sort_order: nextSortOrder,
+    })
+    res.status(201).json({ category: publicCategoryDef(category.toObject()) })
   } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ message: 'A category with this name already exists' })
+    if (err.code === 11000) return res.status(409).json({ message: 'A category with this name already exists' })
     console.error('Create budget category error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
@@ -60,15 +62,15 @@ export async function updateBudgetCategoryHandler(req, res) {
   if (!name || !name.trim()) return res.status(400).json({ message: 'Enter a category name' })
 
   try {
-    const { rows } = await query(
-      `UPDATE budget_category_defs SET name = $1, description = $2, parent_category_id = $3, updated_at = now()
-       WHERE id = $4 RETURNING *`,
-      [name.trim(), description?.trim() || null, parentCategoryId || null, id]
-    )
-    if (!rows.length) return res.status(404).json({ message: 'Category not found' })
-    res.json({ category: publicCategoryDef(rows[0]) })
+    const category = await BudgetCategoryDef.findOneAndUpdate(
+      { _id: id },
+      { $set: { name: name.trim(), description: description?.trim() || null, parent_category_id: parentCategoryId || null, updated_at: new Date() } },
+      { returnDocument: 'after' }
+    ).lean()
+    if (!category) return res.status(404).json({ message: 'Category not found' })
+    res.json({ category: publicCategoryDef(category) })
   } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ message: 'A category with this name already exists' })
+    if (err.code === 11000) return res.status(409).json({ message: 'A category with this name already exists' })
     console.error('Update budget category error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
   }
@@ -78,12 +80,13 @@ export async function toggleBudgetCategoryActiveHandler(req, res) {
   const { id } = req.params
   const { isActive } = req.body ?? {}
   try {
-    const { rows } = await query(
-      `UPDATE budget_category_defs SET is_active = $1, updated_at = now() WHERE id = $2 RETURNING *`,
-      [!!isActive, id]
-    )
-    if (!rows.length) return res.status(404).json({ message: 'Category not found' })
-    res.json({ category: publicCategoryDef(rows[0]) })
+    const category = await BudgetCategoryDef.findOneAndUpdate(
+      { _id: id },
+      { $set: { is_active: !!isActive, updated_at: new Date() } },
+      { returnDocument: 'after' }
+    ).lean()
+    if (!category) return res.status(404).json({ message: 'Category not found' })
+    res.json({ category: publicCategoryDef(category) })
   } catch (err) {
     console.error('Toggle budget category error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -96,13 +99,11 @@ export async function reorderBudgetCategoriesHandler(req, res) {
     return res.status(400).json({ message: 'orderedIds must be a non-empty array' })
   }
   try {
-    await withTransaction(async (client) => {
-      for (let i = 0; i < orderedIds.length; i++) {
-        await client.query('UPDATE budget_category_defs SET sort_order = $1, updated_at = now() WHERE id = $2', [i, orderedIds[i]])
-      }
-    })
-    const { rows } = await query('SELECT * FROM budget_category_defs ORDER BY sort_order, name')
-    res.json({ categories: rows.map(publicCategoryDef) })
+    await Promise.all(
+      orderedIds.map((id, i) => BudgetCategoryDef.updateOne({ _id: id }, { $set: { sort_order: i, updated_at: new Date() } }))
+    )
+    const categories = await BudgetCategoryDef.find().sort({ sort_order: 1, name: 1 }).lean()
+    res.json({ categories: categories.map(publicCategoryDef) })
   } catch (err) {
     console.error('Reorder budget categories error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -110,7 +111,7 @@ export async function reorderBudgetCategoriesHandler(req, res) {
 }
 
 const publicExpense = (e) => ({
-  id: e.id,
+  id: e._id,
   category: e.category,
   description: e.description,
   amount: Number(e.amount),
@@ -133,27 +134,21 @@ export async function getBudgetOverview(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const { rows: projectRows } = await query('SELECT total_budget FROM projects WHERE id = $1', [projectId])
-    if (!projectRows.length) return res.status(404).json({ message: 'Project not found' })
-    const totalBudget = projectRows[0].total_budget != null ? Number(projectRows[0].total_budget) : 0
+    const project = await Project.findById(projectId).select('total_budget').lean()
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const totalBudget = project.total_budget != null ? Number(project.total_budget) : 0
 
-    const { rows: defRows } = await query('SELECT name, sort_order, is_active FROM budget_category_defs ORDER BY sort_order, name')
-
-    const { rows: budgetRows } = await query('SELECT category, budgeted_amount FROM budget_categories WHERE project_id = $1', [projectId])
+    const defRows = await BudgetCategoryDef.find().sort({ sort_order: 1, name: 1 }).select('name sort_order is_active').lean()
+    const budgetRows = await BudgetCategory.find({ project_id: projectId }).select('category budgeted_amount').lean()
     const budgetByCategory = new Map(budgetRows.map((r) => [r.category, Number(r.budgeted_amount)]))
 
-    const { rows: spentRows } = await query(
-      `SELECT category, COALESCE(SUM(amount), 0)::numeric AS spent, count(*)::int AS count
-       FROM expenses WHERE project_id = $1 GROUP BY category`,
-      [projectId]
-    )
-    const spentByCategory = new Map(spentRows.map((r) => [r.category, Number(r.spent)]))
+    const spentRows = await Expense.aggregate([
+      { $match: { project_id: projectId } },
+      { $group: { _id: '$category', spent: { $sum: '$amount' }, count: { $sum: 1 } } },
+    ])
+    const spentByCategory = new Map(spentRows.map((r) => [r._id, Number(r.spent)]))
     const totalExpenseCount = spentRows.reduce((sum, r) => sum + r.count, 0)
 
-    // Active categories drive the list first (in admin-defined order); any
-    // category name that was disabled after it already had budget/expense
-    // data stays visible too, so disabling a category never silently hides
-    // real spend from the totals or charts.
     const definedNames = defRows.map((d) => d.name)
     const activeNames = defRows.filter((d) => d.is_active).map((d) => d.name)
     const nameSet = new Set(activeNames)
@@ -170,10 +165,7 @@ export async function getBudgetOverview(req, res) {
 
     const totalSpent = [...spentByCategory.values()].reduce((sum, v) => sum + v, 0)
 
-    const { rows: recentExpenses } = await query(
-      `SELECT * FROM expenses WHERE project_id = $1 ORDER BY expense_date DESC, created_at DESC LIMIT 10`,
-      [projectId]
-    )
+    const recentExpenses = await Expense.find({ project_id: projectId }).sort({ expense_date: -1, created_at: -1 }).limit(10).lean()
 
     res.json({
       totalBudget,
@@ -205,16 +197,17 @@ export async function setBudgetCategories(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    for (const c of categories) {
-      await query(
-        `INSERT INTO budget_categories (project_id, category, budgeted_amount)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (project_id, category) DO UPDATE SET budgeted_amount = $3, updated_at = now()`,
-        [projectId, c.category, c.budgetedAmount]
+    await Promise.all(
+      categories.map((c) =>
+        BudgetCategory.updateOne(
+          { project_id: projectId, category: c.category },
+          { $set: { budgeted_amount: c.budgetedAmount, updated_at: new Date() }, $setOnInsert: { _id: uuidId() } },
+          { upsert: true }
+        )
       )
-    }
+    )
     if (totalBudget != null) {
-      await query('UPDATE projects SET total_budget = $1, updated_at = now() WHERE id = $2', [Number(totalBudget), projectId])
+      await Project.updateOne({ _id: projectId }, { $set: { total_budget: Number(totalBudget), updated_at: new Date() } })
     }
 
     res.json({ message: 'Budget updated' })
@@ -230,8 +223,8 @@ export async function listExpenses(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const { rows } = await query('SELECT * FROM expenses WHERE project_id = $1 ORDER BY expense_date DESC, created_at DESC', [projectId])
-    res.json({ expenses: rows.map(publicExpense) })
+    const expenses = await Expense.find({ project_id: projectId }).sort({ expense_date: -1, created_at: -1 }).lean()
+    res.json({ expenses: expenses.map(publicExpense) })
   } catch (err) {
     console.error('List expenses error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -248,6 +241,11 @@ function validateExpenseInput({ category, description, amount, paymentMode }, va
   return { errors, amountNum }
 }
 
+function todayDateKey() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export async function createExpense(req, res) {
   const { id: projectId } = req.params
   const { category, description, amount, paymentMode, status, expenseDate, vendor, invoiceNumber, notes, receiptUrl, subcategory, material } = req.body ?? {}
@@ -260,17 +258,23 @@ export async function createExpense(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const { rows } = await query(
-      `INSERT INTO expenses (project_id, created_by, category, description, amount, payment_mode, status, expense_date, vendor, invoice_number, notes, receipt_url, subcategory, material)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, CURRENT_DATE), $9, $10, $11, $12, $13, $14) RETURNING *`,
-      [
-        projectId, req.user.id, category, description.trim(), amountNum, paymentMode || 'cash',
-        status === 'pending' ? 'pending' : 'paid', expenseDate || null,
-        vendor?.trim() || null, invoiceNumber?.trim() || null, notes?.trim() || null, receiptUrl || null,
-        subcategory?.trim() || null, material?.trim() || null,
-      ]
-    )
-    res.status(201).json({ expense: publicExpense(rows[0]) })
+    const expense = await Expense.create({
+      project_id: projectId,
+      created_by: req.user.id,
+      category,
+      description: description.trim(),
+      amount: amountNum,
+      payment_mode: paymentMode || 'cash',
+      status: status === 'pending' ? 'pending' : 'paid',
+      expense_date: expenseDate || todayDateKey(),
+      vendor: vendor?.trim() || null,
+      invoice_number: invoiceNumber?.trim() || null,
+      notes: notes?.trim() || null,
+      receipt_url: receiptUrl || null,
+      subcategory: subcategory?.trim() || null,
+      material: material?.trim() || null,
+    })
+    res.status(201).json({ expense: publicExpense(expense.toObject()) })
   } catch (err) {
     console.error('Create expense error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -289,19 +293,17 @@ export async function updateExpense(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const { rows } = await query(
-      `UPDATE expenses SET category = $1, description = $2, amount = $3, payment_mode = $4, status = $5,
-         expense_date = COALESCE($6, expense_date), vendor = $7, invoice_number = $8, notes = $9,
-         receipt_url = COALESCE($10, receipt_url), subcategory = $13, material = $14, updated_at = now()
-       WHERE id = $11 AND project_id = $12 RETURNING *`,
-      [
-        category, description.trim(), amountNum, paymentMode || 'cash', status === 'pending' ? 'pending' : 'paid',
-        expenseDate || null, vendor?.trim() || null, invoiceNumber?.trim() || null, notes?.trim() || null,
-        receiptUrl || null, expenseId, projectId, subcategory?.trim() || null, material?.trim() || null,
-      ]
-    )
-    if (!rows.length) return res.status(404).json({ message: 'Expense not found' })
-    res.json({ expense: publicExpense(rows[0]) })
+    const patch = {
+      category, description: description.trim(), amount: amountNum, payment_mode: paymentMode || 'cash',
+      status: status === 'pending' ? 'pending' : 'paid', vendor: vendor?.trim() || null, invoice_number: invoiceNumber?.trim() || null,
+      notes: notes?.trim() || null, subcategory: subcategory?.trim() || null, material: material?.trim() || null, updated_at: new Date(),
+    }
+    if (expenseDate) patch.expense_date = expenseDate
+    if (receiptUrl) patch.receipt_url = receiptUrl
+
+    const expense = await Expense.findOneAndUpdate({ _id: expenseId, project_id: projectId }, { $set: patch }, { returnDocument: 'after' }).lean()
+    if (!expense) return res.status(404).json({ message: 'Expense not found' })
+    res.json({ expense: publicExpense(expense) })
   } catch (err) {
     console.error('Update expense error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -314,8 +316,8 @@ export async function deleteExpense(req, res) {
     const allowed = await canAccessProject(req.user.id, req.user.role, projectId)
     if (!allowed) return res.status(404).json({ message: 'Project not found' })
 
-    const { rowCount } = await query('DELETE FROM expenses WHERE id = $1 AND project_id = $2', [expenseId, projectId])
-    if (!rowCount) return res.status(404).json({ message: 'Expense not found' })
+    const deleted = await Expense.findOneAndDelete({ _id: expenseId, project_id: projectId })
+    if (!deleted) return res.status(404).json({ message: 'Expense not found' })
     res.json({ message: 'Expense deleted' })
   } catch (err) {
     console.error('Delete expense error', err)

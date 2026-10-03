@@ -1,9 +1,9 @@
-import { query } from '../config/db.js'
+import Note from '../models/Note.js'
 
 const COLORS = ['gold', 'blue', 'teal', 'rose', 'violet']
 
 const publicNote = (n) => ({
-  id: n.id,
+  id: n._id,
   title: n.title,
   content: n.content,
   color: n.color,
@@ -13,11 +13,8 @@ const publicNote = (n) => ({
 
 export async function listNotes(req, res) {
   try {
-    const { rows } = await query(
-      'SELECT * FROM notes WHERE user_id = $1 ORDER BY updated_at DESC',
-      [req.user.id]
-    )
-    res.json({ notes: rows.map(publicNote) })
+    const notes = await Note.find({ user_id: req.user.id }).sort({ updated_at: -1 }).lean()
+    res.json({ notes: notes.map(publicNote) })
   } catch (err) {
     console.error('List notes error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -30,17 +27,18 @@ export async function createNote(req, res) {
   const errors = {}
   if (!content || !content.trim()) errors.content = 'Write something first'
   if (color && !COLORS.includes(color)) errors.color = 'Invalid color'
-
   if (Object.keys(errors).length) {
     return res.status(400).json({ message: 'Please fix the highlighted fields', errors })
   }
 
   try {
-    const { rows } = await query(
-      `INSERT INTO notes (user_id, title, content, color) VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.user.id, title?.trim() || null, content.trim(), color || 'gold']
-    )
-    res.status(201).json({ note: publicNote(rows[0]) })
+    const note = await Note.create({
+      user_id: req.user.id,
+      title: title?.trim() || null,
+      content: content.trim(),
+      color: color || 'gold',
+    })
+    res.status(201).json({ note: publicNote(note) })
   } catch (err) {
     console.error('Create note error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -59,17 +57,14 @@ export async function updateNote(req, res) {
   }
 
   try {
-    const { rows } = await query(
-      `UPDATE notes SET
-         title = COALESCE($1, title),
-         content = COALESCE($2, content),
-         color = COALESCE($3, color),
-         updated_at = now()
-       WHERE id = $4 AND user_id = $5 RETURNING *`,
-      [title?.trim(), content?.trim(), color, id, req.user.id]
-    )
-    if (!rows.length) return res.status(404).json({ message: 'Note not found' })
-    res.json({ note: publicNote(rows[0]) })
+    const patch = { updated_at: new Date() }
+    if (title !== undefined) patch.title = title?.trim() || null
+    if (content !== undefined) patch.content = content.trim()
+    if (color !== undefined) patch.color = color
+
+    const note = await Note.findOneAndUpdate({ _id: id, user_id: req.user.id }, { $set: patch }, { returnDocument: 'after' })
+    if (!note) return res.status(404).json({ message: 'Note not found' })
+    res.json({ note: publicNote(note) })
   } catch (err) {
     console.error('Update note error', err)
     res.status(500).json({ message: 'Something went wrong. Please try again.' })
@@ -79,11 +74,8 @@ export async function updateNote(req, res) {
 export async function deleteNote(req, res) {
   const { id } = req.params
   try {
-    const { rows } = await query(
-      'DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING id',
-      [id, req.user.id]
-    )
-    if (!rows.length) return res.status(404).json({ message: 'Note not found' })
+    const deleted = await Note.findOneAndDelete({ _id: id, user_id: req.user.id })
+    if (!deleted) return res.status(404).json({ message: 'Note not found' })
     res.json({ message: 'Note deleted' })
   } catch (err) {
     console.error('Delete note error', err)
