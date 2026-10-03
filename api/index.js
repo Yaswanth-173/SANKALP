@@ -1,4 +1,5 @@
-import 'dotenv/config'
+// Must stay first: loads backend/.env before anything reads process.env.
+import '../backend/src/config/env.js'
 import app from '../backend/src/app.js'
 import { connectMongo, ensureCollectionValidators } from '../backend/src/config/mongo.js'
 import { seedContractorsMongo } from '../backend/src/db/seedContractorsMongo.js'
